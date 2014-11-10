@@ -65,7 +65,8 @@ declare variable $ul-tpl := xf:template('list', ul#1);
 declare variable $li-tpl := xf:template('item', li#1);
 ~~~
 
-A template is a map that contains a selector and a node transformation function.
+A template is a map that contains a selector function and a node transformation
+function.
 
 ~~~xquery
 $ul-tpl
@@ -81,7 +82,7 @@ Supply custom match functions by passing a boolean function as the first argumen
 ~~~xquery
 declare variable $cust-match := 
   xf:template(
-    function($n) { exists($node/@x) }, ul(?));
+    function($n) { exists($n/@x) }, ul(?));
 ~~~
 
 Supply a literal result fragment as the second argument.
@@ -150,9 +151,9 @@ To be able to apply further node transformations from inside a node
 transformation function you need to tell the transformer to which nodes it
 should apply the transformation templates.
 
-You can do this with the `<xf:apply>` element (or function) which is a control
-element. The downside is that certain XPath expressions may not work as expected
-anymore.
+You can do this with the `<xf:apply/>` element (or same-named function) which is
+a control element. The downside is that certain XPath expressions may not work
+as expected anymore.
 
 For example when looking for a node's parent you cannot use `$node/..` or
 `$node/parent::*` because this may return the `xf:apply` control node instead of

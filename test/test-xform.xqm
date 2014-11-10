@@ -149,6 +149,15 @@ declare %unit:test function test:xform-literal-result-template() {
         (<bla/>,<bla/>,<bla/>))
 };
 
+declare %unit:test function test:xform-namespaces() {
+
+    (: handle namespaced elements :)
+    unit:assert-equals(
+        xf:xform(
+            xf:template('test:foo', <x/>)
+        )(<foo><test:foo/></foo>),
+        <foo><x/></foo>)
+};
 
 
 
