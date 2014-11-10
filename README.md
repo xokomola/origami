@@ -148,7 +148,7 @@ be added and, in my opinion, this mechanism provides a relatively clean
 separation between the individual node transformation function and the
 transformation as a whole.
 
-Additionally, such XPath queries can be encapsulated in a helper function that
+Additionally, such XPath queries can be encapsulated using helper functions that
 simply overlooks these `xf:*` elements.
 
 ~~~xquery
