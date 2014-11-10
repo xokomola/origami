@@ -8,7 +8,7 @@ higher.
 ## Features
 
 - XSLT-style transformations written with plain XQuery functions using simple
-  selector patterns.
+  string based match patterns or match functions.
 
 ## Requirements
 
@@ -74,6 +74,21 @@ $ul-tpl
     'match': xf:matches('list',?),
     'fn': function ($list as element(list)) { ... }
    }
+~~~
+
+Supply custom match functions by passing a boolean function as the first argument.
+
+~~~xquery
+declare variable $cust-match := 
+  xf:template(
+    function($n) { exists($node/@x) }, ul(?))
+~~~
+
+Supply a literal result fragment as the second argument.
+
+~~~xquery
+declare variable $lit-result := 
+  xf:template('*', <foo/>)
 ~~~
 
 ### Transformers

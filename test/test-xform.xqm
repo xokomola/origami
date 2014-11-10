@@ -133,7 +133,7 @@ declare %unit:test function test:xform-custom-match-fn() {
     unit:assert-equals(
         xf:xform(
             xf:template(
-                function($node) { if ($node/@x) then true() else false() },
+                function($node) { exists($node/@x) },
                 ())
         )(<x><y><p x="10"/><p y="20"/></y></x>),
         <x><y><p y="20"/></y></x>)
