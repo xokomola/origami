@@ -81,14 +81,14 @@ Supply custom match functions by passing a boolean function as the first argumen
 ~~~xquery
 declare variable $cust-match := 
   xf:template(
-    function($n) { exists($node/@x) }, ul(?))
+    function($n) { exists($node/@x) }, ul(?));
 ~~~
 
 Supply a literal result fragment as the second argument.
 
 ~~~xquery
 declare variable $lit-result := 
-  xf:template('*', <foo/>)
+  xf:template('*', <foo/>);
 ~~~
 
 ### Transformers
