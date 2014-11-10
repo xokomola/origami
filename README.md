@@ -149,7 +149,7 @@ separation between the individual node transformation function and the
 transformation as a whole.
 
 Additionally, such XPath queries can be encapsulated using helper functions that
-simply overlooks these `xf:*` elements.
+simply overlook these `xf:*` elements.
 
 ~~~xquery
 declare function parent($node) {
