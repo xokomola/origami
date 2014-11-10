@@ -71,7 +71,7 @@ A template is a map that contains a selector and a node transformation function.
 $ul-tpl
   
 => map {
-    'match': xf:matches('list',?),
+    'match': xf:matches(?,'list'),
     'fn': function ($list as element(list)) { ... }
    }
 ~~~
