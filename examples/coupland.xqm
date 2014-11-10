@@ -139,8 +139,8 @@ declare variable $ex:input :=
 declare variable $ex:output := 
     html:parse(fetch:binary("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/coupidtrans2.xq"))/*;
 
-(: cannot compare exactly, so I disabled the automatic test run :)
-declare %unit:test %unit:ignore function ex:coupland() {
+(: cannot compare exactly, so expect this to fail :)
+declare %unit:test function ex:coupland() {
     unit:assert-equals($ex:xform($ex:input), $ex:output)
 };
 

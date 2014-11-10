@@ -3,7 +3,7 @@ xquery version "3.0";
 (:~
  : Origami transformers.
  :
- : @version 0.2
+ : @version 0.3
  : @author Marc van Grootel
  : @see https://github.com/xokomola/origami
  :)
@@ -26,19 +26,38 @@ declare function xf:xform() { xf:xform(()) };
 
 (:~
  : Defines a template.
+ :
+ : A template takes a selector string or function and
+ : a node transformation function or the items to return as 
+ : the template body.
+ : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($expr, $fn) as map(*) {
-    map {
-        'match': xf:matches($expr,?),
-        'fn': if (empty($fn)) then function ($node) { () }  else $fn
-    }
+declare function xf:template($match, $body) as map(*)? {
+    let $match :=
+        typeswitch ($match)
+        case xs:string return xf:matches(?, $match)
+        case function(item()) as xs:boolean return $match
+        default return ()
+    let $body :=
+        typeswitch ($body)
+        case empty-sequence() return function($node) { () }
+        case function(item()) as item()* return $body
+        case function(*)* return ()
+        default return function($node) { $body }
+    where $match instance of function(*) and $body instance of function(*)
+    return
+        map {
+            'match': $match,
+            'fn': $body
+        }
 };
 
 (:~
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
  :)
-declare %private function xf:copy($nodes, $xform) {
+declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
+    as item()* {
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
@@ -55,7 +74,8 @@ declare %private function xf:copy($nodes, $xform) {
 (:~
  : Applies node transformations to nodes.
  :)
-declare %private function xf:apply($nodes, $xform) {
+declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
+    as item()* {
     for $node in $nodes
     let $fn := xf:match($node, $xform)
     return
@@ -73,21 +93,25 @@ declare %private function xf:apply($nodes, $xform) {
 (:~
  : Apply to be used from within templates.
  :)
-declare function xf:apply($nodes) { <xf:apply>{ $nodes }</xf:apply> };
+declare function xf:apply($nodes as item()*) 
+    as element(xf:apply) { 
+    <xf:apply>{ $nodes }</xf:apply> 
+};
 
 (:~
  : Find the first matching template for a node and return
  : it's node transformation function.
  :)
-declare %private function xf:match($node, $xform) as function(*)? {
+declare %private function xf:match($node as item(), $xform as map(*)*) 
+    as function(*)? {
     hof:until(
-        function($templates) {
+        function($templates as map(*)*) {
             let $is-match := head($templates)
             return
                 empty($is-match) or
                 not($is-match instance of map(*))
         },
-        function($templates) {
+        function($templates as map(*)*) {
             let $template := head($templates)
             return
                 (
@@ -106,7 +130,7 @@ declare %private function xf:match($node, $xform) as function(*)? {
 (:~
  : Returns true if the string expression matches the $node.
  :)
-declare function xf:matches($expr, $node) as xs:boolean {
+declare function xf:matches($node as item(), $expr as xs:string) as xs:boolean {
     typeswitch ($node)
     case element() return not($node/self::xf:*) and $expr = (name($node),'*')
     case attribute() return substring-after($expr, '@') = (name($node), '*')

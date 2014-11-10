@@ -82,7 +82,7 @@ To create a transformer use the `xf:xform` function and pass it a sequence of
 templates.
 
 ~~~xquery
-declare variable $xformer := xf:form(($ul-tpl, $li-tpl));
+declare variable $xformer := xf:xform(($ul-tpl, $li-tpl));
 ~~~
 
 A transformer is a function with a single node sequence argument that returns
@@ -122,7 +122,7 @@ declare variable $xformer :=
     
 ### Remove nodes
 
-To remove nodes create templates that match these nodes but instead of a node
+To remove nodes create a template that matches these nodes but instead of a node
 transformation function provide an empty sequence as the second argument.
 
 ~~~xquery
