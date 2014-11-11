@@ -175,3 +175,12 @@ declare %unit:test function test:xform-with-input() {
             <foo><test:foo/></foo>),
         <foo><x/></foo>)
 };
+
+declare %unit:test function test:xform-document() {
+
+    unit:assert-equals(
+        xf:xform(
+            xf:template('test:foo', <x/>),
+            document { <foo><test:foo/></foo> }),
+        document { <foo><x/></foo> })
+};

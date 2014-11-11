@@ -27,6 +27,22 @@ declare function xf:xform($templates as map(*)*) as function(*) {
 };
 
 (:~
+ : Extracts nodes from input, using the specified selectors.
+ :)
+declare function xf:xtract($selectors as map(*)*, $input as node()) as node() {
+    xf:xtract($selectors)($input)
+};
+
+(:~
+ : Returns an extractor function that only returns selected nodes.
+ :)
+declare function xf:xtract($selectors as map(*)*) as function(*) {
+    function ($nodes as item()*) as item()* {
+        xf:select($nodes, $selectors)
+    }
+};
+
+(:~
  : Identity transformer.
  :)
 declare function xf:xform() { xf:xform(()) };
@@ -59,6 +75,20 @@ declare function xf:template($match, $body) as map(*)? {
         }
 };
 
+declare function xf:select($match) as map(*)? {
+    let $match :=
+        typeswitch ($match)
+        case xs:string return xf:matches(?, $match)
+        case function(item()) as xs:boolean return $match
+        default return ()
+    where $match instance of function(*)
+    return
+        map {
+            'match': $match,
+            'fn': function($node) { $node }
+        }
+};
+
 (:~
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
@@ -73,6 +103,10 @@ declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
             element { node-name($node) } {
                 $node/@*,
                 xf:copy($node/node(), $xform)   
+            }
+        else if ($node instance of document-node()) then
+            document {
+                xf:copy($node/node(), $xform)
             }
         else
             $node
@@ -93,6 +127,10 @@ declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
                 xf:apply($node/@*, $xform),
                 xf:apply($node/node(), $xform)   
             }
+        else if ($node instance of document-node()) then
+            document {
+                xf:apply($node/node(), $xform)
+            }
         else
             $node
 };
@@ -103,6 +141,22 @@ declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
 declare function xf:apply($nodes as item()*) 
     as element(xf:apply) { 
     <xf:apply>{ $nodes }</xf:apply> 
+};
+
+(:~
+ : Look for nodes that match
+ :)
+declare %private function xf:select($nodes as item()*, $selectors as map(*)*)
+    as item()* {
+    for $node in $nodes
+    let $fn := xf:match($node, $selectors)
+    return
+        if ($fn instance of function(*)) then
+            xf:copy($fn($node), $selectors)
+        else if ($node instance of element()) then
+            xf:select($node/node(), $selectors)   
+        else
+            ()
 };
 
 (:~
