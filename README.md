@@ -2,7 +2,7 @@
 
 Origami is a templating library for XQuery (3.0) inspired by XSLT and the
 [Enlive](https://github.com/cgrand/enlive) templating library for Clojure.
-Currently it supports the [BaseX](http://basex.org) database version 8 or
+Currently it supports the [BaseX](http://basex.org) database version 7.9 or
 higher.
 
 ## Features
@@ -12,11 +12,17 @@ higher.
 
 ## Requirements
 
-- BaseX 8.0 or higher (currently in beta)
+- BaseX 7.9 or higher.
 
 ## Getting started
 
 The `examples` subdirectory contains a few examples.
+
+Run an example:
+
+~~~xquery
+> basex examples/uppercase.xq
+~~~
 
 In code examples below I left out the namespace prefixes for clarity.
 
@@ -135,7 +141,14 @@ declare variable $xformer :=
         })        
   ));
 ~~~
-    
+
+As a shortcut you can provide both the transformation templates and the
+input nodes in one call to `xf:xform`.
+
+~~~xquery
+xf:xform(xf:template('x', <y/>), <x/>)
+~~~
+
 ### Remove nodes
 
 To remove nodes create a template that matches these nodes but instead of a node
