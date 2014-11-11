@@ -156,14 +156,22 @@ declare %unit:test function test:xform-namespaces() {
         xf:xform(
             xf:template('test:foo', <x/>)
         )(<foo><test:foo/></foo>),
-        <foo><x/></foo>)
+        <foo><x/></foo>),
+        
+    unit:assert-equals(
+        xf:xform(
+            xf:template('x', <x:foo xmlns:x="urn:foo"/>),
+            <foo><x/></foo>
+        ),
+        <foo><y:foo xmlns:y="urn:foo"/></foo>)       
+
 };
 
+declare %unit:test function test:xform-with-input() {
 
-
-
-
-
-
-
-
+    unit:assert-equals(
+        xf:xform(
+            xf:template('test:foo', <x/>),
+            <foo><test:foo/></foo>),
+        <foo><x/></foo>)
+};

@@ -16,8 +16,6 @@ xquery version "3.0";
  :
  : @see http://en.wikibooks.org/wiki/XQuery/Transformation_idioms
  :)
-module namespace ex = 'http://xokomola.com/xquery/origami/xform/examples';
-
 import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
     at '../xform.xqm';
 
@@ -28,11 +26,15 @@ import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
  :)
 declare option db:chop 'false';
 
-declare variable $ex:xform :=
-    xf:xform((
+(: Little helper function, may become part of the module :)
+declare function local:parent($node) {
+    $node/ancestor::*[not(self::xf:*)][1]
+};
+
+let $xform := xf:xform((
 
         xf:template('category', function($category as element(category)) {
-            if (ex:parent($category)/site) then
+            if (local:parent($category)/site) then
                 ()
             else
                 <div>{ $category/@*, xf:apply($category/node()) }</div>
@@ -57,7 +59,7 @@ declare variable $ex:xform :=
         }),
         
         xf:template('name', function($name as element(name)) {
-            if (ex:parent($name)/site) then
+            if (local:parent($name)/site) then
                 <span style="font-size: 16pt">{ 
                     $name/@*, xf:apply($name/node()) 
                 }</span>
@@ -131,20 +133,10 @@ declare variable $ex:xform :=
                  </body>
             </html>           
         })
-    ));
+    ))
    
-declare variable $ex:input :=
-    doc("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/Coupland1.xml")/*;
+let $input :=
+    doc("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/Coupland1.xml")/*
 
-declare variable $ex:output := 
-    html:parse(fetch:binary("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/coupidtrans2.xq"))/*;
+return $xform($input)
 
-(: cannot compare exactly, so expect this to fail :)
-declare %unit:test function ex:coupland() {
-    unit:assert-equals($ex:xform($ex:input), $ex:output)
-};
-
-(: Little helper function, may become part of the module :)
-declare function ex:parent($node) {
-    $node/ancestor::*[not(self::xf:*)][1]
-};

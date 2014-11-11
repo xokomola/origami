@@ -11,6 +11,13 @@ xquery version "3.0";
 module namespace xf = 'http://xokomola.com/xquery/origami/xform';
 
 (:~
+ : Transforms input, using the specified templates.
+ :)
+declare function xf:xform($templates as map(*)*, $input as node()) as node() {
+    xf:xform($templates)($input)
+};
+
+(:~
  : Returns a node transformation function.
  :)
 declare function xf:xform($templates as map(*)*) as function(*) {
@@ -63,7 +70,7 @@ declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
         if ($node/self::xf:apply) then
             xf:apply(($node/@*,$node/node()), $xform)
         else if ($node instance of element()) then
-            element { name($node) } {
+            element { node-name($node) } {
                 $node/@*,
                 xf:copy($node/node(), $xform)   
             }
@@ -82,7 +89,7 @@ declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
         if ($fn instance of function(*)) then
             xf:copy($fn($node), $xform)
         else if ($node instance of element()) then
-            element { name($node) } {
+            element { node-name($node) } {
                 xf:apply($node/@*, $xform),
                 xf:apply($node/node(), $xform)   
             }
