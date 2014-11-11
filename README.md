@@ -24,6 +24,14 @@ Run an example:
 > basex examples/uppercase.xq
 ~~~
 
+The `test` subdirectory contains the unit tests.
+
+Run the unit tests:
+
+~~~xquery
+> basex -t test
+~~~
+
 In code examples below I left out the namespace prefixes for clarity.
 
 ### Import
