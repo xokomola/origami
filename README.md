@@ -108,11 +108,11 @@ declare variable $lit-result :=
 
 ### Transformers
 
-To create a transformer use the `xf:xform` function and pass it a sequence of
+To create a transformer use the `xf:transform` function and pass it a sequence of
 templates.
 
 ~~~xquery
-declare variable $xformer := xf:xform(($ul-tpl, $li-tpl));
+declare variable $xformer := xf:transform(($ul-tpl, $li-tpl));
 ~~~
 
 A transformer is a function with a single node sequence argument that returns
@@ -136,7 +136,7 @@ as node transformers.
 
 ~~~xquery
 declare variable $xformer :=
-  xf:xform((
+  xf:transform((
     
       xf:template('list', 
         function ($list as element(list)) { 
@@ -154,7 +154,7 @@ As a shortcut you can provide both the transformation templates and the
 input nodes in one call to `xf:xform`.
 
 ~~~xquery
-xf:xform(xf:template('x', <y/>), <x/>)
+xf:transform(xf:template('x', <y/>), <x/>)
 ~~~
 
 ### Remove nodes
