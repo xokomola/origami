@@ -204,14 +204,19 @@ declare function xf:matches($node as item(), $expr as xs:string) as xs:boolean {
 
 (:~
  : Returns true if the css matcher matches the $node.
+ : TODO: add class matching
  :)
 declare function xf:css-matches($node as item(), $css-matcher as map(*)) as xs:boolean {
     typeswitch ($node)
     case element() 
     return
-        not($node/self::xf:*) and $css-matcher('el') = (local-name($node),'*') and
+        not($node/self::xf:*) and 
+        $css-matcher('el') = (local-name($node),'*') and
         ( not($css-matcher('id')) or $css-matcher('id') = trace($node/@id,'ID: ') ) and
-        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/local-name() )       
+        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/local-name() ) and
+        ( not($css-matcher('class') or $node/@class) or 
+            ( every $cls in trace($css-matcher('class'),'CLS: ')
+            satisfies contains(concat(' ',$node/@class,' '), concat(' ',$cls,' ')) ))
     case attribute() 
     return
         not($css-matcher('att')) or $css-matcher('att') = local-name($node)
@@ -219,9 +224,11 @@ declare function xf:css-matches($node as item(), $css-matcher as map(*)) as xs:b
 };
 
 (:~
- : Build a function that tests a node.
+ : Build a CSS style matcher map.
+ : TODO: fine-tune regexp
+ : TODO: make it work for multiple expressions
  :)
-declare function xf:css-matcher($expr) {
+declare function xf:css-matcher($expr) as map(*)* {
     for $expr in tokenize($expr,'\s+')[1]
     let $parsed := 
         for $token in analyze-string($expr, '[@#.]?[^@#.]+')/fn:match
