@@ -211,15 +211,15 @@ declare function xf:css-matches($node as item(), $css-matcher as map(*)) as xs:b
     case element() 
     return
         not($node/self::xf:*) and 
-        $css-matcher('el') = (local-name($node),'*') and
-        ( not($css-matcher('id')) or $css-matcher('id') = trace($node/@id,'ID: ') ) and
-        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/local-name() ) and
+        $css-matcher('el') = (name($node),'*') and
+        ( not($css-matcher('id')) or $css-matcher('id') = $node/@id ) and
+        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/name() ) and
         ( not($css-matcher('class') or $node/@class) or 
-            ( every $cls in trace($css-matcher('class'),'CLS: ')
+            ( every $cls in $css-matcher('class')
             satisfies contains(concat(' ',$node/@class,' '), concat(' ',$cls,' ')) ))
     case attribute() 
     return
-        not($css-matcher('att')) or $css-matcher('att') = local-name($node)
+        not($css-matcher('att')) or $css-matcher('att') = (name($node),'*')
     default return false()
 };
 
