@@ -10,7 +10,7 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
     at '../xform.xqm';
 
-let $xform := xf:xform((
+let $xform := xf:transform((
 
     xf:template(
         '*', function($node) {

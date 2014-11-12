@@ -50,31 +50,31 @@ declare %unit:test function test:matches() {
 declare %unit:test function test:xform-copy() {
 
     unit:assert-equals(
-        xf:xform()(()),
+        xf:transform()(()),
         ()),
 
     unit:assert-equals(
-        xf:xform()(<foo/>),
+        xf:transform()(<foo/>),
         (<foo/>)),
     
     unit:assert-equals(
-        xf:xform()(<foo>bar</foo>),
+        xf:transform()(<foo>bar</foo>),
         <foo>bar</foo>),
         
     unit:assert-equals(
-        xf:xform()(<foo x="10"><bar y="20"/>bla</foo>),
+        xf:transform()(<foo x="10"><bar y="20"/>bla</foo>),
         <foo x="10"><bar y="20"/>bla</foo>),
 
     unit:assert-equals(
-        xf:xform()(<foo x="10"><bar y="20"/><!-- bla --></foo>),
+        xf:transform()(<foo x="10"><bar y="20"/><!-- bla --></foo>),
         <foo x="10"><bar y="20"/><!-- bla --></foo>),
 
     unit:assert-equals(
-        xf:xform()(<foo x="10"><bar y="20"/><?target content?></foo>),
+        xf:transform()(<foo x="10"><bar y="20"/><?target content?></foo>),
         <foo x="10"><bar y="20"/><?target content?></foo>),
 
     unit:assert-equals(
-        xf:xform()((<foo/>,<bar/>,<baz/>)),
+        xf:transform()((<foo/>,<bar/>,<baz/>)),
         (<foo/>,<bar/>,<baz/>))
 
 };
@@ -83,35 +83,35 @@ declare %unit:test function test:xform-remove-nodes() {
 
     (: remove all elements :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('*', ())
         )((<x/>,<y/>,<z><z/></z>)),
         ()),
 
     (: remove some elements :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('y', ())
         )((<x/>,<y/>,<z><z/></z>)),
         (<x/>,<z><z/></z>)),
 
     (: remove all attributes :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('@*', ())
         )((<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>)),
         (<x/>,<y/>,<z><z/></z>)),
 
     (: remove some attributes :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('@b', ())
         )((<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>)),
         (<x a="10"/>,<y/>,<z><z/></z>)),
 
     (: remove all elements and attributes :)
     unit:assert-equals(
-        xf:xform((
+        xf:transform((
             xf:template('@*', ()),
             xf:template('*', ())
         ))((<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>)),
@@ -119,7 +119,7 @@ declare %unit:test function test:xform-remove-nodes() {
 
     (: remove all elements and attributes but leave some others :)
     unit:assert-equals(
-        xf:xform((
+        xf:transform((
             xf:template('@*', ()),
             xf:template('*', ())
         ))((<x a="10" b="20"/>,<y/>,'howdy',<z><!-- hi --><z b="30"/></z>)),
@@ -131,7 +131,7 @@ declare %unit:test function test:xform-custom-match-fn() {
 
     (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template(
                 function($node) { exists($node/@x) },
                 ())
@@ -143,7 +143,7 @@ declare %unit:test function test:xform-literal-result-template() {
 
     (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('*', <bla/>)
         )((<x/>,<y/>,<z/>)),
         (<bla/>,<bla/>,<bla/>))
@@ -153,13 +153,13 @@ declare %unit:test function test:xform-namespaces() {
 
     (: handle namespaced elements :)
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('test:foo', <x/>)
         )(<foo><test:foo/></foo>),
         <foo><x/></foo>),
         
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('x', <x:foo xmlns:x="urn:foo"/>),
             <foo><x/></foo>
         ),
@@ -170,7 +170,7 @@ declare %unit:test function test:xform-namespaces() {
 declare %unit:test function test:xform-with-input() {
 
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('test:foo', <x/>),
             <foo><test:foo/></foo>),
         <foo><x/></foo>)
@@ -179,7 +179,7 @@ declare %unit:test function test:xform-with-input() {
 declare %unit:test function test:xform-document() {
 
     unit:assert-equals(
-        xf:xform(
+        xf:transform(
             xf:template('test:foo', <x/>),
             document { <foo><test:foo/></foo> }),
         document { <foo><x/></foo> })

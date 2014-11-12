@@ -13,39 +13,39 @@ module namespace xf = 'http://xokomola.com/xquery/origami/xform';
 (:~
  : Transforms input, using the specified templates.
  :)
-declare function xf:xform($templates as map(*)*, $input as node()) as node() {
-    xf:xform($templates)($input)
+declare function xf:transform($templates as map(*)*, $input as node()) as node() {
+    xf:transform($templates)($input)
 };
 
 (:~
  : Returns a node transformation function.
  :)
-declare function xf:xform($templates as map(*)*) as function(*) {
+declare function xf:transform($templates as map(*)*) as function(*) {
     function ($nodes as item()*) as item()* {
         xf:apply($nodes, $templates)
     }
 };
 
 (:~
+ : Identity transformer.
+ :)
+declare function xf:transform() { xf:transform(()) };
+
+(:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:xtract($selectors as map(*)*, $input as node()) as node() {
-    xf:xtract($selectors)($input)
+declare function xf:extract($selectors as map(*)*, $input as node()) as node() {
+    xf:extract($selectors)($input)
 };
 
 (:~
  : Returns an extractor function that only returns selected nodes.
  :)
-declare function xf:xtract($selectors as map(*)*) as function(*) {
+declare function xf:extract($selectors as map(*)*) as function(*) {
     function ($nodes as item()*) as item()* {
         xf:select($nodes, $selectors)
     }
 };
-
-(:~
- : Identity transformer.
- :)
-declare function xf:xform() { xf:xform(()) };
 
 (:~
  : Defines a template.
@@ -155,6 +155,10 @@ declare %private function xf:select($nodes as item()*, $selectors as map(*)*)
             xf:copy($fn($node), $selectors)
         else if ($node instance of element()) then
             xf:select($node/node(), $selectors)   
+        else if ($node instance of document-node()) then
+            document {
+                xf:select($node/node(), $selectors)
+            }
         else
             ()
 };

@@ -31,7 +31,7 @@ declare function local:parent($node) {
     $node/ancestor::*[not(self::xf:*)][1]
 };
 
-let $xform := xf:xform((
+let $xform := xf:transform((
 
         xf:template('category', function($category as element(category)) {
             if (local:parent($category)/site) then
