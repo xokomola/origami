@@ -78,7 +78,7 @@ declare function xf:template($match, $body) as map(*)? {
 declare function xf:select($match) as map(*)? {
     let $match :=
         typeswitch ($match)
-        case xs:string return xf:css-matches(?, $match)
+        case xs:string return xf:css-matches(?, xf:css-matcher($match))
         case function(item()) as xs:boolean return $match
         default return ()
     where $match instance of function(*)
