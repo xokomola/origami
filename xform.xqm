@@ -58,7 +58,7 @@ declare function xf:extract($selectors as map(*)*) as function(*) {
 declare function xf:template($match, $body) as map(*)? {
     let $match :=
         typeswitch ($match)
-        case xs:string return xf:matches(?, $match)
+        case xs:string return xf:css-matches(?, xf:css-matcher($match))
         case function(item()) as xs:boolean return $match
         default return ()
     let $body :=
@@ -78,7 +78,7 @@ declare function xf:template($match, $body) as map(*)? {
 declare function xf:select($match) as map(*)? {
     let $match :=
         typeswitch ($match)
-        case xs:string return xf:matches(?, $match)
+        case xs:string return xf:css-matches(?, $match)
         case function(item()) as xs:boolean return $match
         default return ()
     where $match instance of function(*)
@@ -200,4 +200,38 @@ declare function xf:matches($node as item(), $expr as xs:string) as xs:boolean {
     case element() return not($node/self::xf:*) and $expr = (name($node),'*')
     case attribute() return substring-after($expr, '@') = (name($node), '*')
     default return false()
+};
+
+(:~
+ : Returns true if the css matcher matches the $node.
+ :)
+declare function xf:css-matches($node as item(), $css-matcher as map(*)) as xs:boolean {
+    typeswitch ($node)
+    case element() 
+    return
+        not($node/self::xf:*) and $css-matcher('el') = (local-name($node),'*') and
+        ( not($css-matcher('id')) or $css-matcher('id') = trace($node/@id,'ID: ') ) and
+        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/local-name() )       
+    case attribute() 
+    return
+        not($css-matcher('att')) or $css-matcher('att') = local-name($node)
+    default return false()
+};
+
+(:~
+ : Build a function that tests a node.
+ :)
+declare function xf:css-matcher($expr) {
+    for $expr in tokenize($expr,'\s+')[1]
+    let $parsed := 
+        for $token in analyze-string($expr, '[@#.]?[^@#.]+')/fn:match
+        return
+            string($token)
+    return
+         map {
+            'att': for $att in $parsed[starts-with(.,'@')][1] return substring-after($att,'@'),
+            'el': $parsed[not(starts-with(.,'.') or starts-with(.,'#') or starts-with(.,'@'))],
+            'class': for $cls in $parsed[starts-with(.,'.')] return substring-after($cls,'.'),
+            'id': for $id in $parsed[starts-with(.,'#')][1] return substring-after($id,'#')
+        }
 };
