@@ -34,14 +34,16 @@ declare function xf:transform() { xf:transform(()) };
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($selectors as function(*)*, $input as item()*) as item()* {
+declare function xf:extract($selectors as function(*)*, $input as item()*) 
+    as item()* {
     xf:extract($selectors)($input)
 };
 
 (:~
  : Returns an extractor function that only returns selected nodes.
  :)
-declare function xf:extract($selectors as function(*)*) as function(*) {
+declare function xf:extract($selectors as function(*)*) 
+    as function(*) {
     function ($nodes as item()*) as item()* {
         xf:distinct-nodes(xf:select($nodes, $selectors))
     }
@@ -55,7 +57,8 @@ declare function xf:extract($selectors as function(*)*) as function(*) {
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($selector, $body) as map(*)? {
+declare function xf:template($selector, $body) 
+    as map(*)? {
     let $selector :=
         typeswitch ($selector)
         case xs:string return xf:matches(?, $selector)
@@ -75,7 +78,8 @@ declare function xf:template($selector, $body) as map(*)? {
         }
 };
 
-declare function xf:select($selector) as function(item()) as item()* {
+declare function xf:select($selector) as function(item()) 
+    as item()* {
     xf:xpath-matches($selector)
 };
 
@@ -191,7 +195,8 @@ declare %private function xf:match($node as item(), $xform as map(*)*)
 (:~
  : Returns true if the string expression matches the $node.
  :)
-declare function xf:matches($node as item(), $selector as xs:string) as xs:boolean {
+declare function xf:matches($node as item(), $selector as xs:string) 
+    as xs:boolean {
     typeswitch ($node)
     case element() return not($node/self::xf:*) and $selector = (name($node),'*')
     case attribute() return substring-after($selector, '@') = (name($node), '*')
