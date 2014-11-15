@@ -7,8 +7,9 @@ higher.
 
 ## Features
 
-- XSLT-style transformations written with plain XQuery functions using simple
-  string based match patterns or match functions.
+- Transform nodes using XSLT-style transformations using Origami transfomers.
+
+- Extract nodes using XPath selectors using Origami extractors.
 
 ## Requirements
 
@@ -157,6 +158,10 @@ input nodes in one call to `xf:xform`.
 xf:transform(xf:template('x', <y/>), <x/>)
 ~~~
 
+Contrary to XSLT transformations a transformer will act like an identity
+transformer when no templates are provided. This makes more sense for
+a templating library.
+
 ### Remove nodes
 
 To remove nodes create a template that matches these nodes but instead of a node
@@ -230,7 +235,10 @@ the selected nodes.
 declare variable $xtract := xf:extract(xf:select('li'));
 ~~~
 
-Contrary to a single select an extractor will traverse the whole node
+To create an extractor use the `xf:extract` function and pass it a sequence of
+selectors.
+
+Contrary to `xf:select` an extractor will traverse the whole node
 structure passed into it.
 
 ~~~xquery
@@ -248,7 +256,7 @@ $xtract(
 
 ### Extractor gotchas
 
-An extractor returns nodes in a breadth-first order. From XSLT you may expect
+An extractor returns nodes in a breadth-first order. From XSLT you might expect
 this to return matched nodes in document order.
 
 ~~~xquery
@@ -276,6 +284,6 @@ declare variable $p := xf:extract(xf:select('.//p'));
 ~~~
 
 An extractor will remove duplicate nodes at the end of the extraction
-process. Nodes that are matched by multiple times are removed.
+process.
 
 
