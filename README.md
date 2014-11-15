@@ -39,8 +39,8 @@ In code examples below I left out the namespace prefixes for clarity.
 To use Origami transformers import the module.
 
 ~~~xquery
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-  at 'xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+  at 'core.xqm';
 ~~~
 
 ### Node transformers
@@ -166,7 +166,7 @@ transformation function provide an empty sequence as the second argument.
 declare variable $remove-x := xf:template('x', ());
 ~~~
 
-### Gotchas
+### Transformer gotchas
 
 To be able to apply further node transformations from inside a node
 transformation function you need to tell the transformer to which nodes it
@@ -193,3 +193,89 @@ declare function parent($node) {
   $node/ancestor::*[not(self::xf:*)][1]
 };
 ~~~
+
+
+### Selectors
+
+A selector is a function that when applied to a node sequence will return
+the nodes selected by an XPath expression.
+
+~~~xquery
+declare variable $li := xf:select('li');
+~~~
+
+~~~xquery
+$li(
+  <ul>
+    <li>item 1</li>
+    <li>item 2</li>
+  </ul>)
+
+=> (
+     <li>item 1</li>,
+     <li>item 2</li>
+   )
+~~~
+
+Note that this does not descend into the document but rather takes the
+top element as the context for the XPath expression of the select.
+
+
+### Extractors
+
+An extractor is a function with a single node sequence argument that returns
+the selected nodes.
+
+~~~xquery
+declare variable $xtract := xf:extract(xf:select('li'));
+~~~
+
+Contrary to a single select an extractor will traverse the whole node
+structure passed into it.
+
+~~~xquery
+$xtract(
+  <ul>
+    <li>item 1</li>
+    <li>item 2</li>
+  </ul>)
+
+=> (
+     <li>item 1</li>,
+     <li>item 2</li>
+   )
+~~~
+
+### Extractor gotchas
+
+An extractor returns nodes in a breadth-first order. From XSLT you may expect
+this to return matched nodes in document order.
+
+~~~xquery
+declare variable $p := xf:extract(xf:select('p'));
+~~~
+
+~~~xquery
+$p(
+  <div>
+    <p>p1</p>
+    <div>
+      <p>p2</p>
+    </div>
+    <p>p3</p>
+  </div>)
+
+=> (<p>p1</p>,<p>p3</p>,<p>p2</p>)
+~~~
+
+If you do need to select them in document order then I suggest you
+rewrite the extractor like this:
+
+~~~xquery
+declare variable $p := xf:extract(xf:select('.//p'));
+~~~
+
+An extractor will remove duplicate nodes at the end of the extraction
+process. Nodes that are matched by multiple times are removed.
+
+
