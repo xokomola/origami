@@ -9,7 +9,7 @@ import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
     at '../xform.xqm';
 
 declare function test:is-template($tpl as map(*)) {
-    unit:assert($tpl('match') instance of function(*)),
+    unit:assert($tpl('selector') instance of function(*)),
     unit:assert($tpl('fn') instance of function(*))
 };
 
@@ -47,7 +47,25 @@ declare %unit:test function test:matches() {
     unit:assert(not(xf:matches(attribute foo { '' }, 'foo')))
 };
 
-declare %unit:test function test:xform-copy() {
+declare %unit:test function test:xpath-matches() {
+    unit:assert-equals(
+        xf:xpath-matches('p')(<foo><p/><p/></foo>),
+        (<p/>,<p/>)
+    ),
+    unit:assert-equals(
+        xf:xpath-matches('p[@id="x"]')(<foo><p id="x"/><p/></foo>),
+        <p id="x"/>
+    ),    
+    (: must be in document to use top element in matching :)
+    unit:assert-equals(
+        xf:xpath-matches('foo/p[@id]')((
+            document { <bar><p id="x"/><p/></bar> },
+            document { <foo><p id="y"/><p/></foo> })),
+        <p id="y"/>
+    )
+};
+
+declare %unit:test function test:transform-copy() {
 
     unit:assert-equals(
         xf:transform()(()),
@@ -79,7 +97,7 @@ declare %unit:test function test:xform-copy() {
 
 };
 
-declare %unit:test function test:xform-remove-nodes() {
+declare %unit:test function test:transform-remove-nodes() {
 
     (: remove all elements :)
     unit:assert-equals(
@@ -127,7 +145,7 @@ declare %unit:test function test:xform-remove-nodes() {
 
 };
 
-declare %unit:test function test:xform-custom-match-fn() {
+declare %unit:test function test:transform-custom-match-fn() {
 
     (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
@@ -139,7 +157,7 @@ declare %unit:test function test:xform-custom-match-fn() {
         <x><y><p y="20"/></y></x>)
 };
 
-declare %unit:test function test:xform-literal-result-template() {
+declare %unit:test function test:transform-literal-result-template() {
 
     (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
@@ -149,7 +167,7 @@ declare %unit:test function test:xform-literal-result-template() {
         (<bla/>,<bla/>,<bla/>))
 };
 
-declare %unit:test function test:xform-namespaces() {
+declare %unit:test function test:transform-namespaces() {
 
     (: handle namespaced elements :)
     unit:assert-equals(
@@ -167,7 +185,7 @@ declare %unit:test function test:xform-namespaces() {
 
 };
 
-declare %unit:test function test:xform-with-input() {
+declare %unit:test function test:transform-with-input() {
 
     unit:assert-equals(
         xf:transform(
@@ -176,11 +194,34 @@ declare %unit:test function test:xform-with-input() {
         <foo><x/></foo>)
 };
 
-declare %unit:test function test:xform-document() {
+declare %unit:test function test:transform-document() {
 
     unit:assert-equals(
         xf:transform(
             xf:template('test:foo', <x/>),
             document { <foo><test:foo/></foo> }),
         document { <foo><x/></foo> })
+};
+
+declare %unit:test function test:extract-node-order() {
+    (: are nodes returned document order? No! Breadth-firt. :)
+    unit:assert-equals(
+        xf:extract(
+            xf:select('p[@id]'),
+            <bar>
+                <p id="1"/>
+                <p/>
+                <foo>
+                    <p id="2"/>
+                    <p id="3"/>
+                </foo>
+                <bla>
+                    <bar>
+                        <p id="4"/>
+                    </bar>
+                </bla>
+                <p id="5"/>
+            </bar>),
+        (<p id="1"/>,<p id="5"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>)
+    )    
 };

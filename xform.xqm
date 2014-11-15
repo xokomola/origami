@@ -13,7 +13,7 @@ module namespace xf = 'http://xokomola.com/xquery/origami/xform';
 (:~
  : Transforms input, using the specified templates.
  :)
-declare function xf:transform($templates as map(*)*, $input as node()) as node() {
+declare function xf:transform($templates as map(*)*, $input as item()*) as item()* {
     xf:transform($templates)($input)
 };
 
@@ -34,14 +34,14 @@ declare function xf:transform() { xf:transform(()) };
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($selectors as map(*)*, $input as node()) as node() {
+declare function xf:extract($selectors as function(*)*, $input as item()*) as item()* {
     xf:extract($selectors)($input)
 };
 
 (:~
  : Returns an extractor function that only returns selected nodes.
  :)
-declare function xf:extract($selectors as map(*)*) as function(*) {
+declare function xf:extract($selectors as function(*)*) as function(*) {
     function ($nodes as item()*) as item()* {
         xf:select($nodes, $selectors)
     }
@@ -55,11 +55,11 @@ declare function xf:extract($selectors as map(*)*) as function(*) {
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($match, $body) as map(*)? {
-    let $match :=
-        typeswitch ($match)
-        case xs:string return xf:css-matches(?, xf:css-matcher($match))
-        case function(item()) as xs:boolean return $match
+declare function xf:template($selector, $body) as map(*)? {
+    let $selector :=
+        typeswitch ($selector)
+        case xs:string return xf:matches(?, $selector)
+        case function(item()) as xs:boolean return $selector
         default return ()
     let $body :=
         typeswitch ($body)
@@ -67,26 +67,16 @@ declare function xf:template($match, $body) as map(*)? {
         case function(item()) as item()* return $body
         case function(*)* return ()
         default return function($node) { $body }
-    where $match instance of function(*) and $body instance of function(*)
+    where $selector instance of function(*) and $body instance of function(*)
     return
         map {
-            'match': $match,
+            'selector': $selector,
             'fn': $body
         }
 };
 
-declare function xf:select($match) as map(*)? {
-    let $match :=
-        typeswitch ($match)
-        case xs:string return xf:css-matches(?, xf:css-matcher($match))
-        case function(item()) as xs:boolean return $match
-        default return ()
-    where $match instance of function(*)
-    return
-        map {
-            'match': $match,
-            'fn': function($node) { $node }
-        }
+declare function xf:select($selector) as function(item()) as item()* {
+    xf:xpath-matches($selector)
 };
 
 (:~
@@ -118,10 +108,10 @@ declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
 declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
     as item()* {
     for $node in $nodes
-    let $fn := xf:match($node, $xform)
+    let $match := xf:match($node, $xform)
     return
-        if ($fn instance of function(*)) then
-            xf:copy($fn($node), $xform)
+        if ($match instance of function(*)) then
+            xf:copy($match($node), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 xf:apply($node/@*, $xform),
@@ -144,23 +134,29 @@ declare function xf:apply($nodes as item()*)
 };
 
 (:~
- : Look for nodes that match
+ : Return matching nodes.
+ :
+ : This returns nodes in breadth-first order not in conventional document order.
  :)
-declare %private function xf:select($nodes as item()*, $selectors as map(*)*)
+declare %private function xf:select($nodes as item()*, $selectors as function(*)*)
     as item()* {
     for $node in $nodes
-    let $fn := xf:match($node, $selectors)
-    return
-        if ($fn instance of function(*)) then
-            xf:copy($fn($node), $selectors)
-        else if ($node instance of element()) then
-            xf:select($node/node(), $selectors)   
-        else if ($node instance of document-node()) then
-            document {
+    return (
+        for $selector in $selectors
+        return
+            $selector($node),
+            (: descend :)
+            typeswitch($node)
+            case element()
+            return
                 xf:select($node/node(), $selectors)
-            }
-        else
-            ()
+            case document-node()
+            return
+                xf:select($node/node(), $selectors)
+            default
+            return
+                ()
+    )
 };
 
 (:~
@@ -180,7 +176,7 @@ declare %private function xf:match($node as item(), $xform as map(*)*)
             let $template := head($templates)
             return
                 (
-                    if ($template('match')($node)) then
+                    if ($template('selector')($node)) then
                         $template('fn')
                     else
                         ()
@@ -195,50 +191,19 @@ declare %private function xf:match($node as item(), $xform as map(*)*)
 (:~
  : Returns true if the string expression matches the $node.
  :)
-declare function xf:matches($node as item(), $expr as xs:string) as xs:boolean {
+declare function xf:matches($node as item(), $selector as xs:string) as xs:boolean {
     typeswitch ($node)
-    case element() return not($node/self::xf:*) and $expr = (name($node),'*')
-    case attribute() return substring-after($expr, '@') = (name($node), '*')
+    case element() return not($node/self::xf:*) and $selector = (name($node),'*')
+    case attribute() return substring-after($selector, '@') = (name($node), '*')
     default return false()
 };
 
 (:~
- : Returns true if the css matcher matches the $node.
- : TODO: add class matching
+ : Match using XPath (only works in xf:select)
  :)
-declare function xf:css-matches($node as item(), $css-matcher as map(*)) as xs:boolean {
-    typeswitch ($node)
-    case element() 
-    return
-        not($node/self::xf:*) and 
-        $css-matcher('el') = (name($node),'*') and
-        ( not($css-matcher('id')) or $css-matcher('id') = $node/@id ) and
-        ( not($css-matcher('att')) or $css-matcher('att') = $node/@*/name() ) and
-        ( not($css-matcher('class') or $node/@class) or 
-            ( every $cls in $css-matcher('class')
-            satisfies contains(concat(' ',$node/@class,' '), concat(' ',$cls,' ')) ))
-    case attribute() 
-    return
-        not($css-matcher('att')) or $css-matcher('att') = (name($node),'*')
-    default return false()
-};
-
-(:~
- : Build a CSS style matcher map.
- : TODO: fine-tune regexp
- : TODO: make it work for multiple expressions
- :)
-declare function xf:css-matcher($expr) as map(*)* {
-    for $expr in tokenize($expr,'\s+')[1]
-    let $parsed := 
-        for $token in analyze-string($expr, '[@#.]?[^@#.]+')/fn:match
-        return
-            string($token)
-    return
-         map {
-            'att': for $att in $parsed[starts-with(.,'@')][1] return substring-after($att,'@'),
-            'el': $parsed[not(starts-with(.,'.') or starts-with(.,'#') or starts-with(.,'@'))],
-            'class': for $cls in $parsed[starts-with(.,'.')] return substring-after($cls,'.'),
-            'id': for $id in $parsed[starts-with(.,'#')][1] return substring-after($id,'#')
-        }
+declare function xf:xpath-matches($selector as xs:string) 
+    as function(item()) as item()* {
+    function($node as item()*) as item()* {
+        xquery:eval($selector, map { '': $node })
+    }
 };
