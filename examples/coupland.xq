@@ -16,8 +16,8 @@ xquery version "3.0";
  :
  : @see http://en.wikibooks.org/wiki/XQuery/Transformation_idioms
  :)
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-    at '../xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+    at '../core.xqm';
 
 (:
  : Required to avoid whitespace 'chopping' around inline elements

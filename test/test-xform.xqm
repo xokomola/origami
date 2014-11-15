@@ -1,12 +1,12 @@
 xquery version "3.0";
 
 (:~
- : Origami transformer tests
+ : Origami tests
  :)
-module namespace test = 'http://xokomola.com/xquery/origami/xform/tests';
+module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-    at '../xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+    at '../core.xqm';
 
 declare function test:is-template($tpl as map(*)) {
     unit:assert($tpl('selector') instance of function(*)),

@@ -1,7 +1,7 @@
 xquery version "3.0";
 
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-    at '../xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+    at '../core.xqm';
 
 declare variable $input :=
   document {

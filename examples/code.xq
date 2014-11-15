@@ -3,8 +3,8 @@ xquery version "3.0";
 (:~
  : Origami extractor example: select code elements from web page.
  :)
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-    at '../xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+    at '../core.xqm';
 
 let $code := xf:extract(xf:select('code'))
 

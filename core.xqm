@@ -1,14 +1,14 @@
 xquery version "3.0";
 
 (:~
- : Origami transformers.
+ : Origami templating.
  :
  : @version 0.3
  : @author Marc van Grootel
  : @see https://github.com/xokomola/origami
  :)
 
-module namespace xf = 'http://xokomola.com/xquery/origami/xform';
+module namespace xf = 'http://xokomola.com/xquery/origami';
 
 (:~
  : Transforms input, using the specified templates.

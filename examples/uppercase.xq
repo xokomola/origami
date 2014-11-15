@@ -7,8 +7,8 @@ xquery version "3.0";
  : other to transform attributes. Note that by default the transformer
  : will not modify attributes, you must explicitly apply the templates.  
  :)
-import module namespace xf = 'http://xokomola.com/xquery/origami/xform'
-    at '../xform.xqm';
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+    at '../core.xqm';
 
 let $xform := xf:transform((
 
