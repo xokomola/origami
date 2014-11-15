@@ -10,8 +10,7 @@ declare variable $input :=
       <li>item 2</li>
       <li id="last">item 3</li>
     </ul>    
-  }
-;
+  };
 
 declare variable $extract :=
   xf:extract((xf:select('li[@id="last"]'), xf:select('ul')));

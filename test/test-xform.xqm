@@ -204,7 +204,7 @@ declare %unit:test function test:transform-document() {
 };
 
 declare %unit:test function test:extract-node-order() {
-    (: are nodes returned document order? No! Breadth-firt. :)
+    (: are nodes returned document order? No! Breadth-first. :)
     unit:assert-equals(
         xf:extract(
             xf:select('p[@id]'),
@@ -223,5 +223,25 @@ declare %unit:test function test:extract-node-order() {
                 <p id="5"/>
             </bar>),
         (<p id="1"/>,<p id="5"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>)
+    ),
+    (: to get them in document order use descendant selection :)    
+    unit:assert-equals(
+        xf:extract(
+            xf:select('.//p[@id]'),
+            <bar>
+                <p id="1"/>
+                <p/>
+                <foo>
+                    <p id="2"/>
+                    <p id="3"/>
+                </foo>
+                <bla>
+                    <bar>
+                        <p id="4"/>
+                    </bar>
+                </bla>
+                <p id="5"/>
+            </bar>),
+        (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     )    
 };

@@ -43,7 +43,7 @@ declare function xf:extract($selectors as function(*)*, $input as item()*) as it
  :)
 declare function xf:extract($selectors as function(*)*) as function(*) {
     function ($nodes as item()*) as item()* {
-        xf:select($nodes, $selectors)
+        xf:distinct-nodes(xf:select($nodes, $selectors))
     }
 };
 
@@ -207,3 +207,25 @@ declare function xf:xpath-matches($selector as xs:string)
         xquery:eval($selector, map { '': $node })
     }
 };
+
+(:~
+ : Returns only distinct nodes.
+ : @see http://www.xqueryfunctions.com/xq/functx_distinct-nodes.html
+ :)
+declare %private function xf:distinct-nodes($nodes as node()*) 
+    as node()* {
+    for $seq in (1 to count($nodes))
+    return $nodes[$seq][
+        not(xf:is-node-in-sequence(
+            .,$nodes[position() < $seq]))]
+};
+
+(:~
+ : Is node defined in seq?
+ : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
+ :)
+declare %private function xf:is-node-in-sequence ($node as node()?, $seq as node()*)
+    as xs:boolean {
+    some $nodeInSeq in $seq satisfies $nodeInSeq is $node
+ };
+ 
