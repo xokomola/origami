@@ -24,7 +24,7 @@ declare function xf:transform($templates as map(*)*, $input as node()*)
 declare function xf:transform($templates as map(*)*) 
     as function(*) {
     function ($nodes as node()*) as node()* {
-        xf:apply($nodes, $templates)
+        xf:apply-nodes($nodes, $templates)
     }
 };
 
@@ -145,20 +145,20 @@ declare function xf:unwrap($nodes as node()*)
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
  :)
-declare %private function xf:copy($nodes as node()*, $xform as map(*)*)
+declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
-            xf:apply(($node/@*,$node/node()), $xform)
+            xf:apply-nodes(($node/@*,$node/node()), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 $node/@*,
-                xf:copy($node/node(), $xform)   
+                xf:copy-nodes($node/node(), $xform)   
             }
         else if ($node instance of document-node()) then
             document {
-                xf:copy($node/node(), $xform)
+                xf:copy-nodes($node/node(), $xform)
             }
         else
             $node
@@ -167,21 +167,21 @@ declare %private function xf:copy($nodes as node()*, $xform as map(*)*)
 (:~
  : Applies node transformations to nodes.
  :)
-declare %private function xf:apply($nodes as node()*, $xform as map(*)*)
+declare %private function xf:apply-nodes($nodes as node()*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
     let $match := xf:match-node($node, $xform)
     return
         if ($match instance of function(node()) as item()*) then
-            xf:copy($match($node), $xform)
+            xf:copy-nodes($match($node), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
-                xf:apply($node/@*, $xform),
-                xf:apply($node/node(), $xform)   
+                xf:apply-nodes($node/@*, $xform),
+                xf:apply-nodes($node/node(), $xform)   
             }
         else if ($node instance of document-node()) then
             document {
-                xf:apply($node/node(), $xform)
+                xf:apply-nodes($node/node(), $xform)
             }
         else
             $node
@@ -253,7 +253,7 @@ declare function xf:matches($selector as xs:string)
 (:~
  : Match using XPath (only works in xf:select)
  :)
-declare function xf:xpath-matches($selector as xs:string) 
+declare %private function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
         xquery:eval($selector, map { '': $nodes })
