@@ -94,6 +94,14 @@ declare %unit:test function test:transform-copy() {
 
 };
 
+declare %unit:test function test:signature-issue() {
+    unit:assert-equals(
+        xf:transform(
+            xf:template('*', function($node) { <X/> }), 
+            <foo><bar/></foo>),
+            <X/>)
+};
+
 declare %unit:test function test:transform-remove-nodes() {
 
     (: remove all elements :)

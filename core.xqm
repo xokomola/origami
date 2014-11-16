@@ -13,14 +13,16 @@ module namespace xf = 'http://xokomola.com/xquery/origami';
 (:~
  : Transforms input, using the specified templates.
  :)
-declare function xf:transform($templates as map(*)*, $input as node()*) as node()* {
+declare function xf:transform($templates as map(*)*, $input as node()*)
+    as node()* {
     xf:transform($templates)($input)
 };
 
 (:~
  : Returns a node transformation function.
  :)
-declare function xf:transform($templates as map(*)*) as function(*) {
+declare function xf:transform($templates as map(*)*) 
+    as function(*) {
     function ($nodes as node()*) as node()* {
         xf:apply($nodes, $templates)
     }
@@ -68,7 +70,7 @@ declare function xf:template($selector, $body)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
-        case function() as item()* return $body
+        case function(*) return $body
         default return function($node) { $body }
     where $selector instance of function(*) and $body instance of function(*)
     return
@@ -114,7 +116,7 @@ declare %private function xf:apply($nodes as node()*, $xform as map(*)*)
     for $node in $nodes
     let $match := xf:match($node, $xform)
     return
-        if ($match instance of function(*)) then
+        if ($match instance of function(node()) as item()*) then
             xf:copy($match($node), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
@@ -186,7 +188,7 @@ declare function xf:matches($selector as xs:string)
     as function(*) {
     function($node as node()) as xs:boolean {
         typeswitch ($node)
-        case element() return not($node/self::xf:*) and $selector = (name($node),'*')
+        case element() return not($node/self::xf:*) and $selector = (name($node), '*')
         case attribute() return substring-after($selector, '@') = (name($node), '*')
         default return false()
     }
