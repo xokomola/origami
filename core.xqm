@@ -13,7 +13,7 @@ module namespace xf = 'http://xokomola.com/xquery/origami';
 (:~
  : Transforms input, using the specified templates.
  :)
-declare function xf:transform($templates as map(*)*, $input as item()*) as item()* {
+declare function xf:transform($templates as map(*)*, $input as node()*) as node()* {
     xf:transform($templates)($input)
 };
 
@@ -21,7 +21,7 @@ declare function xf:transform($templates as map(*)*, $input as item()*) as item(
  : Returns a node transformation function.
  :)
 declare function xf:transform($templates as map(*)*) as function(*) {
-    function ($nodes as item()*) as item()* {
+    function ($nodes as node()*) as node()* {
         xf:apply($nodes, $templates)
     }
 };
@@ -34,8 +34,8 @@ declare function xf:transform() { xf:transform(()) };
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($selectors as function(*)*, $input as item()*) 
-    as item()* {
+declare function xf:extract($selectors as function(*)*, $input as node()*) 
+    as node()* {
     xf:extract($selectors)($input)
 };
 
@@ -44,7 +44,7 @@ declare function xf:extract($selectors as function(*)*, $input as item()*)
  :)
 declare function xf:extract($selectors as function(*)*) 
     as function(*) {
-    function ($nodes as item()*) as item()* {
+    function ($nodes as node()*) as node()* {
         xf:distinct-nodes(xf:select($nodes, $selectors))
     }
 };
@@ -61,14 +61,13 @@ declare function xf:template($selector, $body)
     as map(*)? {
     let $selector :=
         typeswitch ($selector)
-        case xs:string return xf:matches(?, $selector)
-        case function(item()) as xs:boolean return $selector
+        case xs:string return xf:matches($selector)
+        case function(*) return $selector
         default return ()
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
-        case function(item()) as item()* return $body
-        case function(*)* return ()
+        case function() as item()* return $body
         default return function($node) { $body }
     where $selector instance of function(*) and $body instance of function(*)
     return
@@ -78,8 +77,8 @@ declare function xf:template($selector, $body)
         }
 };
 
-declare function xf:select($selector) as function(item()) 
-    as item()* {
+declare function xf:select($selector) as function(node()) 
+    as node()* {
     xf:xpath-matches($selector)
 };
 
@@ -87,8 +86,8 @@ declare function xf:select($selector) as function(item())
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
  :)
-declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
-    as item()* {
+declare %private function xf:copy($nodes as node()*, $xform as map(*)*)
+    as node()* {
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
@@ -109,8 +108,8 @@ declare %private function xf:copy($nodes as item()*, $xform as map(*)*)
 (:~
  : Applies node transformations to nodes.
  :)
-declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
-    as item()* {
+declare %private function xf:apply($nodes as node()*, $xform as map(*)*)
+    as node()* {
     for $node in $nodes
     let $match := xf:match($node, $xform)
     return
@@ -132,7 +131,7 @@ declare %private function xf:apply($nodes as item()*, $xform as map(*)*)
 (:~
  : Apply to be used from within templates.
  :)
-declare function xf:apply($nodes as item()*) 
+declare function xf:apply($nodes as node()*) 
     as element(xf:apply) { 
     <xf:apply>{ $nodes }</xf:apply> 
 };
@@ -142,32 +141,20 @@ declare function xf:apply($nodes as item()*)
  :
  : This returns nodes in breadth-first order not in conventional document order.
  :)
-declare %private function xf:select($nodes as item()*, $selectors as function(*)*)
-    as item()* {
-    for $node in $nodes
-    return (
-        for $selector in $selectors
+declare %private function xf:select($nodes as node()*, $selectors as function(*)*)
+    as node()* {
+    for $selector in $selectors
+    return
+        for $node in $nodes
         return
-            $selector($node),
-            (: descend :)
-            typeswitch($node)
-            case element()
-            return
-                xf:select($node/node(), $selectors)
-            case document-node()
-            return
-                xf:select($node/node(), $selectors)
-            default
-            return
-                ()
-    )
+            ($selector($node), xf:select($node/node(), $selector))
 };
 
 (:~
  : Find the first matching template for a node and return
  : it's node transformation function.
  :)
-declare %private function xf:match($node as item(), $xform as map(*)*) 
+declare %private function xf:match($node as node(), $xform as map(*)*) 
     as function(*)? {
     hof:until(
         function($templates as map(*)*) {
@@ -193,22 +180,25 @@ declare %private function xf:match($node as item(), $xform as map(*)*)
 };
 
 (:~
- : Returns true if the string expression matches the $node.
+ : Returns a function that returns true if the passed in node matches
+ : the selector string.
  :)
-declare function xf:matches($node as item(), $selector as xs:string) 
-    as xs:boolean {
-    typeswitch ($node)
-    case element() return not($node/self::xf:*) and $selector = (name($node),'*')
-    case attribute() return substring-after($selector, '@') = (name($node), '*')
-    default return false()
+declare function xf:matches($selector as xs:string) 
+    as function(*) {
+    function($node as node()) as xs:boolean {
+        typeswitch ($node)
+        case element() return not($node/self::xf:*) and $selector = (name($node),'*')
+        case attribute() return substring-after($selector, '@') = (name($node), '*')
+        default return false()
+    }
 };
 
 (:~
  : Match using XPath (only works in xf:select)
  :)
 declare function xf:xpath-matches($selector as xs:string) 
-    as function(item()) as item()* {
-    function($node as item()*) as item()* {
+    as function(node()*) as node()* {
+    function($node as node()*) as node()* {
         xquery:eval($selector, map { '': $node })
     }
 };
@@ -229,8 +219,17 @@ declare %private function xf:distinct-nodes($nodes as node()*)
  : Is node defined in seq?
  : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
  :)
-declare %private function xf:is-node-in-sequence ($node as node()?, $seq as node()*)
+declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
     as xs:boolean {
-    some $nodeInSeq in $seq satisfies $nodeInSeq is $node
+    some $node-in-seq in $seq satisfies $node-in-seq is $node
+ };
+ 
+ (:~
+  : Return nodes in document order.
+  : @see http://www.xqueryfunctions.com/xq/functx_sort-document-order.html
+  :)
+ declare function xf:sort-document-order($seq as node()*)  
+    as node()* {
+    $seq/.
  };
  
