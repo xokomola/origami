@@ -40,12 +40,13 @@ declare function xf:extract($selectors as function(*)*, $input as node()*)
 };
 
 (:~
- : Returns an extractor function that only returns selected nodes.
+ : Returns an extractor function that only returns selected nodes 
+ : only outermost in document order and duplicates eleminated.
  :)
 declare function xf:extract($selectors as function(*)*) 
     as function(*) {
     function ($nodes as node()*) as node()* {
-        xf:distinct-nodes(xf:select($nodes, $selectors))
+        xf:distinct-nodes(outermost(xf:select($nodes, $selectors)))
     }
 };
 
@@ -138,16 +139,14 @@ declare function xf:apply($nodes as node()*)
 
 (:~
  : Return matching nodes.
- :
- : This returns nodes in breadth-first order not in conventional document order.
  :)
 declare %private function xf:select($nodes as node()*, $selectors as function(*)*)
     as node()* {
     for $selector in $selectors
     return
-        for $node in $nodes
+        for $node in $nodes/descendant-or-self::node()
         return
-            ($selector($node), xf:select($node/node(), $selector))
+            $selector($node)
 };
 
 (:~
@@ -214,22 +213,12 @@ declare %private function xf:distinct-nodes($nodes as node()*)
         not(xf:is-node-in-sequence(
             .,$nodes[position() < $seq]))]
 };
-
+ 
 (:~
  : Is node defined in seq?
  : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
  :)
-declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
+declare %private function xf:is-node-in-sequence ($node as node()?, $seq as node()*)
     as xs:boolean {
-    some $node-in-seq in $seq satisfies $node-in-seq is $node
+    some $nodeInSeq in $seq satisfies $nodeInSeq is $node
  };
- 
- (:~
-  : Return nodes in document order.
-  : @see http://www.xqueryfunctions.com/xq/functx_sort-document-order.html
-  :)
- declare function xf:sort-document-order($seq as node()*)  
-    as node()* {
-    $seq/.
- };
- 
