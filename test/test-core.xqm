@@ -15,19 +15,19 @@ declare function test:is-template($tpl as map(*)?) {
 
 declare %unit:test function test:template() {
     test:is-template(xf:template('foo', function($node) { () })),
-    (: test:is-template(xf:template('foo', <foo/>)), :)
-    (: test:is-template(xf:template(function($x) { true() }, <foo/>)), :)
+    test:is-template(xf:template('foo', <foo/>)),
+    test:is-template(xf:template(function($x) { true() }, <foo/>)),
     (: should this raise an error? :)
     unit:assert-equals(
         xf:template(1,<foo/>),
         ()
     ),
     (: a selector function must return a boolean :)
-    (: TODO: in 0.2 this was not acceptable :)
+    (: TODO: in 0.2 this was not acceptable, not sure if it should be :)
     test:is-template(xf:template(function($x) { map {} },<foo/>)),
     
     (: a node transformation should take one argument :)
-    (: TODO: in 0.2 this was not acceptable :)
+    (: TODO: in 0.2 this was not acceptable, not sure if it should be :)
     test:is-template(xf:template('foo', function($x,$y) { () }))
 };
 
@@ -212,7 +212,6 @@ declare %unit:test function test:transform-document() {
 declare %unit:test function test:extract-document-order() {
     unit:assert-equals(
         xf:extract(
-            xf:select('p[@id]'),
             <bar>
                 <p id="1"/>
                 <p/>
@@ -226,12 +225,12 @@ declare %unit:test function test:extract-document-order() {
                     </bar>
                 </bla>
                 <p id="5"/>
-            </bar>),
+            </bar>,        
+            xf:select('p[@id]')),
         (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     ),
     unit:assert-equals(
         xf:extract(
-            xf:select('.//p[@id]'),
             <bar>
                 <p id="1"/>
                 <p/>
@@ -245,7 +244,30 @@ declare %unit:test function test:extract-document-order() {
                     </bar>
                 </bla>
                 <p id="5"/>
-            </bar>),
+            </bar>,
+            xf:select('.//p[@id]')),
         (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     )    
 };
+
+(:~
+ : NOTE: There is a bug in 8.0 snapshot that doesn't compile
+ :       the obvious xf:select(('ul','li')) correctly.
+ :       @see http://www.mail-archive.com/basex-talk%40mailman.uni-konstanz.de/msg05107.html
+ :)
+declare %unit:test function test:extract-composed() {
+    unit:assert-equals(
+        xf:extract(xf:select((xf:select('ul'), xf:select('li'))))(
+            <div>
+                <li>item 1</li>
+                <li>item 2</li>
+                <ul>
+                    <li>item 3</li>
+                    <li>item 4</li>
+                </ul>
+                <li>item 5</li>
+            </div>
+        ),
+        (<li>item 3</li>,<li>item 4</li>))
+};
+

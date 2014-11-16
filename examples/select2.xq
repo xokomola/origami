@@ -3,7 +3,7 @@ xquery version "3.0";
 (:~
  : Origami extract example
  :
- : Extract returns no duplicates.
+ : Extract also doesn't return duplicates.
  :)
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
@@ -11,7 +11,8 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
 let $extract :=
   xf:extract((
     xf:select('li[@id="last"]'), 
-    xf:select('li')))
+    xf:select('li'),
+    xf:select('li[@id="first"]')))
  
 let $input :=
   document {

@@ -36,7 +36,7 @@ declare function xf:transform() { xf:transform(()) };
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($selectors as function(*)*, $input as node()*) 
+declare function xf:extract($input as node()*, $selectors as function(*)*) 
     as node()* {
     xf:extract($selectors)($input)
 };
@@ -44,11 +44,15 @@ declare function xf:extract($selectors as function(*)*, $input as node()*)
 (:~
  : Returns an extractor function that only returns selected nodes 
  : only outermost in document order and duplicates eleminated.
+ :
+ : TODO: when running on 8.0 20141116.135016 or higher then
+ :       xf:distinct-nodes() can be removed due to bugfix
+ :       remove it after 8.0 is released.
  :)
 declare function xf:extract($selectors as function(*)*) 
     as function(*) {
     function ($nodes as node()*) as node()* {
-        xf:distinct-nodes(outermost(xf:select($nodes, $selectors)))
+        xf:distinct-nodes(outermost(xf:select-nodes($nodes, $selectors)))
     }
 };
 
@@ -80,9 +84,23 @@ declare function xf:template($selector, $body)
         }
 };
 
-declare function xf:select($selector) as function(node()) 
-    as node()* {
-    xf:xpath-matches($selector)
+declare function xf:select($selectors as item()*) 
+    as function(node()*) as node()* {
+    let $fns :=
+        for $selector in $selectors
+        return
+            if ($selector instance of xs:string) then
+                xf:xpath-matches($selector)
+            else
+                $selector
+    return
+        function($nodes) {
+            fold-left($fns, $nodes,
+                  function($nodes, $fn) { 
+                        $fn($nodes) 
+                  }
+            ) 
+        }
 };
 
 (:~
@@ -114,7 +132,7 @@ declare %private function xf:copy($nodes as node()*, $xform as map(*)*)
 declare %private function xf:apply($nodes as node()*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
-    let $match := xf:match($node, $xform)
+    let $match := xf:match-node($node, $xform)
     return
         if ($match instance of function(node()) as item()*) then
             xf:copy($match($node), $xform)
@@ -142,7 +160,7 @@ declare function xf:apply($nodes as node()*)
 (:~
  : Return matching nodes.
  :)
-declare %private function xf:select($nodes as node()*, $selectors as function(*)*)
+declare %private function xf:select-nodes($nodes as node()*, $selectors as function(*)*)
     as node()* {
     for $selector in $selectors
     return
@@ -155,7 +173,7 @@ declare %private function xf:select($nodes as node()*, $selectors as function(*)
  : Find the first matching template for a node and return
  : it's node transformation function.
  :)
-declare %private function xf:match($node as node(), $xform as map(*)*) 
+declare %private function xf:match-node($node as node(), $xform as map(*)*) 
     as function(*)? {
     hof:until(
         function($templates as map(*)*) {
@@ -224,3 +242,4 @@ declare %private function xf:is-node-in-sequence ($node as node()?, $seq as node
     as xs:boolean {
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
  };
+ 
