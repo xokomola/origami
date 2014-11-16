@@ -229,7 +229,7 @@ top element as the context for the XPath expression of the select.
 ### Extractors
 
 An extractor is a function with a single node sequence argument that returns
-the selected nodes.
+the selected nodes in document order with duplicates removed.
 
 ~~~xquery
 declare variable $xtract := xf:extract(xf:select('li'));
@@ -239,7 +239,7 @@ To create an extractor use the `xf:extract` function and pass it a sequence of
 selectors.
 
 Contrary to `xf:select` an extractor will traverse the whole node
-structure passed into it.
+structure passed into it. It will also only return the outermost nodes.
 
 ~~~xquery
 $xtract(
@@ -253,37 +253,5 @@ $xtract(
      <li>item 2</li>
    )
 ~~~
-
-### Extractor gotchas
-
-An extractor returns nodes in a breadth-first order. From XSLT you might expect
-this to return matched nodes in document order.
-
-~~~xquery
-declare variable $p := xf:extract(xf:select('p'));
-~~~
-
-~~~xquery
-$p(
-  <div>
-    <p>p1</p>
-    <div>
-      <p>p2</p>
-    </div>
-    <p>p3</p>
-  </div>)
-
-=> (<p>p1</p>,<p>p3</p>,<p>p2</p>)
-~~~
-
-If you do need to select them in document order then I suggest you
-rewrite the extractor like this:
-
-~~~xquery
-declare variable $p := xf:extract(xf:select('.//p'));
-~~~
-
-An extractor will remove duplicate nodes at the end of the extraction
-process.
 
 
