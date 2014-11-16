@@ -86,8 +86,6 @@ declare function xf:template($selector, $body)
 
 (:~
  : Compose a selector function from a sequence of selectors.
- : TODO: Suffers from the inlining bug $nodes gets fixed/inlined at all descendant nodes
- :       @see http://www.mail-archive.com/basex-talk%40mailman.uni-konstanz.de/msg05107.html
  :)
 declare function xf:select($selectors as item()*) 
     as function(node()*) as node()* {
@@ -101,10 +99,12 @@ declare function xf:select($selectors as item()*)
     return
         function($nodes as node()*) as node()* {
             fold-left($fns, $nodes,
-                  function($nodes, $fn) { 
-                        $fn($nodes) 
-                  }
-            ) 
+                function($nodes, $fn) {
+                    for $node in $nodes
+                    return
+                        $fn($node)
+                }
+            )
         }
 };
 
@@ -202,7 +202,7 @@ declare %private function xf:select-nodes($nodes as node()*, $selectors as funct
     as node()* {
     for $selector in $selectors
     return
-        for $node in $nodes/descendant-or-self::node()
+        for $node in $nodes/descendant-or-self::element()
         return
             $selector($node)
 };

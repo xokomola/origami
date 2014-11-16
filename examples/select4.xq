@@ -5,7 +5,7 @@ xquery version "3.0";
  :
  : Demonstrates composability of xf:select().
  :
- : NOTE: There is a bug in 8.0 snapshot that doesn't compile
+ : NOTE: There is a bug in olders snapshots that doesn't compile
  :       the obvious xf:select(('ul','li')) correctly.
  :       @see http://www.mail-archive.com/basex-talk%40mailman.uni-konstanz.de/msg05107.html
  : 
@@ -16,7 +16,7 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
 let $extract :=
-    xf:extract(xf:select((xf:select('ul'),xf:select('li'))))
+    xf:extract(xf:select(('ul','li')))
 
 let $input :=
     document {
