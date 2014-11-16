@@ -9,7 +9,7 @@ xquery version "3.0";
  :)
 
 (: TODO: xf:extract top element matching even with document around it (requires self:bar) :)
-(: TODO: multiple steps in selector chain should (by default) :)
+
 module namespace xf = 'http://xokomola.com/xquery/origami';
 
 (:~
@@ -103,7 +103,7 @@ declare function xf:select($selectors as item()*)
         function($nodes as node()*) as node()* {
             fold-left($fns, $nodes,
                 function($nodes, $fn) {
-                    for $node in $nodes/descendant-or-self::element()
+                    for $node in $nodes
                     return
                         $fn($node)
                 }
@@ -204,7 +204,7 @@ declare %private function xf:select-nodes($nodes as node()*, $selectors as funct
     as node()* {
     for $selector in $selectors
     return
-        for $node in $nodes/descendant-or-self::element()
+        for $node in $nodes
         return
             $selector($node)
 };
@@ -258,7 +258,7 @@ declare function xf:matches($selector as xs:string)
 declare %private function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
-        xquery:eval($selector, map { '': $nodes })
+        xquery:eval($selector, map { '': $nodes/descendant-or-self::element() })
     }
 };
 
