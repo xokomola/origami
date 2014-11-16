@@ -10,7 +10,7 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $xform := xf:transform((
+let $transform := xf:transform((
 
     xf:template(
         '*', function($node) {
@@ -37,4 +37,4 @@ let $input :=
         <p/>
     </a>
 
-return $xform($input)
+return $transform($input)

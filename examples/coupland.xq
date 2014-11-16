@@ -31,7 +31,7 @@ declare function local:parent($node) {
     $node/ancestor::*[not(self::xf:*)][1]
 };
 
-let $xform := xf:transform((
+let $transform := xf:transform((
 
         xf:template('category', function($category as element(category)) {
             if (local:parent($category)/site) then
@@ -138,5 +138,5 @@ let $xform := xf:transform((
 let $input :=
     doc("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/Coupland1.xml")/*
 
-return $xform($input)
+return prof:time($transform($input))
 

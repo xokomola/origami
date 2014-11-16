@@ -9,7 +9,7 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $xform := xf:transform()
+let $transform := xf:transform()
 
 let $input := 
     <a x="10">
@@ -19,4 +19,4 @@ let $input :=
         <p></p>
     </a>
 
-return $xform($input)
+return prof:time($transform($input))
