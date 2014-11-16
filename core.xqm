@@ -8,10 +8,13 @@ xquery version "3.0";
  : @see https://github.com/xokomola/origami
  :)
 
+(: TODO: attribute tokens selector (for @class) :)
+
 module namespace xf = 'http://xokomola.com/xquery/origami';
 
 (:~
  : Transforms input, using the specified templates.
+ : TODO: check if $input and $templates should be switched (like in xf:extract) :)
  :)
 declare function xf:transform($templates as map(*)*, $input as node()*)
     as node()* {
@@ -64,13 +67,9 @@ declare function xf:extract($selectors as function(*)*)
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($selector, $body) 
+declare function xf:template($selectors, $body) 
     as map(*)? {
-    let $selector :=
-        typeswitch ($selector)
-        case xs:string return xf:matches($selector)
-        case function(*) return $selector
-        default return ()
+    let $selector := xf:select($selectors)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
@@ -165,19 +164,42 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
 };
 
 (:~
+ : Applies nodes to output, but runs the template node transformer when it
+ : encounters a node that was matched.
+ :)
+declare %private function xf:apply-nodes($nodes as node()*, $template as map(*), $xform as map(*)*)
+    as node()* {
+    for $node in $nodes
+    return
+        if (xf:is-node-in-sequence($node, $template('nodes')) then
+            $template('fn')($node)
+        else if ($node instance of element()) then
+            element { node-name($node) } {
+                $node/@*,
+                xf:co-nodes($node/node(), $xform)   
+            }
+        else if ($node instance of document-node()) then
+            document {
+                xf:copy-nodes($node/node(), $xform)
+            }
+        else
+            $node
+};
+
+(:~
  : Applies node transformations to nodes.
  :)
 declare %private function xf:apply-nodes($nodes as node()*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
+    (: TODO: rename to match-template :)
     let $match := xf:match-node($node, $xform)
     return
         if ($match instance of function(node()) as item()*) then
-            xf:copy-nodes($match($node), $xform)
+            xf:apply-nodes($node, $match, $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
-                xf:apply-nodes($node/@*, $xform),
-                xf:apply-nodes($node/node(), $xform)   
+                xf:apply-nodes($node/(@*, node()), $xform)   
             }
         else if ($node instance of document-node()) then
             document {
@@ -212,20 +234,21 @@ declare %private function xf:select-nodes($nodes as node()*, $selectors as funct
  : it's node transformation function.
  :)
 declare %private function xf:match-node($node as node(), $xform as map(*)*) 
-    as function(*)? {
+    as map(*)? {
     hof:until(
         function($templates as map(*)*) {
             let $is-match := head($templates)
             return
                 empty($is-match) or
-                not($is-match instance of map(*))
+                ($is-match instance of map(*) and map:contains($is-match,'nodes'))
         },
         function($templates as map(*)*) {
             let $template := head($templates)
+            let $matched-nodes := $template('selector')($node)
             return
                 (
-                    if ($template('selector')($node)) then
-                        $template('fn')
+                    if ($matched-nodes) then
+                        map:new(($template, map { 'nodes': $matched-nodes }))
                     else
                         ()
                     ,

@@ -18,10 +18,8 @@ declare %unit:test function test:template() {
     test:is-template(xf:template('foo', <foo/>)),
     test:is-template(xf:template(function($x) { true() }, <foo/>)),
     (: should this raise an error? :)
-    unit:assert-equals(
-        xf:template(1,<foo/>),
-        ()
-    ),
+    (: TODO: review this :)
+    test:is-template(xf:template(1,<foo/>)),
     (: a selector function must return a boolean :)
     (: TODO: in 0.2 this was not acceptable, not sure if it should be :)
     test:is-template(xf:template(function($x) { map {} },<foo/>)),
