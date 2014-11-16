@@ -8,6 +8,8 @@ xquery version "3.0";
  : @see https://github.com/xokomola/origami
  :)
 
+(: TODO: xf:extract top element matching even with document around it (requires self:bar) :)
+(: TODO: multiple steps in selector chain should (by default) :)
 module namespace xf = 'http://xokomola.com/xquery/origami';
 
 (:~
@@ -86,6 +88,7 @@ declare function xf:template($selector, $body)
 
 (:~
  : Compose a selector function from a sequence of selectors.
+ : TODO: if only one selector then do not wrap in fold-left
  :)
 declare function xf:select($selectors as item()*) 
     as function(node()*) as node()* {
@@ -100,7 +103,7 @@ declare function xf:select($selectors as item()*)
         function($nodes as node()*) as node()* {
             fold-left($fns, $nodes,
                 function($nodes, $fn) {
-                    for $node in $nodes
+                    for $node in $nodes/descendant-or-self::element()
                     return
                         $fn($node)
                 }
@@ -150,7 +153,7 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
-            xf:apply-nodes(($node/@*,$node/node()), $xform)
+            xf:apply-nodes($node/(@*, node()), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 $node/@*,
@@ -176,8 +179,7 @@ declare %private function xf:apply-nodes($nodes as node()*, $xform as map(*)*)
             xf:copy-nodes($match($node), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
-                xf:apply-nodes($node/@*, $xform),
-                xf:apply-nodes($node/node(), $xform)   
+                xf:apply-nodes($node/(@*,node()), $xform)   
             }
         else if ($node instance of document-node()) then
             document {
