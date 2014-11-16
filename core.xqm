@@ -84,6 +84,11 @@ declare function xf:template($selector, $body)
         }
 };
 
+(:~
+ : Compose a selector function from a sequence of selectors.
+ : TODO: Suffers from the inlining bug $nodes gets fixed/inlined at all descendant nodes
+ :       @see http://www.mail-archive.com/basex-talk%40mailman.uni-konstanz.de/msg05107.html
+ :)
 declare function xf:select($selectors as item()*) 
     as function(node()*) as node()* {
     let $fns :=
@@ -94,13 +99,46 @@ declare function xf:select($selectors as item()*)
             else
                 $selector
     return
-        function($nodes) {
+        function($nodes as node()*) as node()* {
             fold-left($fns, $nodes,
                   function($nodes, $fn) { 
                         $fn($nodes) 
                   }
             ) 
         }
+};
+
+(:~
+ : Wrap nodes in an element.
+ :)
+declare function xf:wrap($node as element())
+    as function(*) {
+    function($nodes as node()*) as element() {
+        element { $node/name() } {
+            $node/@*,
+            $nodes
+        }
+    }
+};
+
+declare function xf:wrap($node as element(), $nodes as node()*)
+    as node()* {
+    xf:wrap($node)($nodes)
+};
+
+(:~
+ : Removes the outer elements from nodes.
+ :)
+declare function xf:unwrap()
+    as function(*) {
+    function($nodes as node()*) {
+        $nodes/node()
+    }
+};
+
+declare function xf:unwrap($nodes as node()*)
+    as node()* {
+    xf:unwrap()($nodes)
 };
 
 (:~
@@ -217,8 +255,8 @@ declare function xf:matches($selector as xs:string)
  :)
 declare function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
-    function($node as node()*) as node()* {
-        xquery:eval($selector, map { '': $node })
+    function($nodes as node()*) as node()* {
+        xquery:eval($selector, map { '': $nodes })
     }
 };
 
