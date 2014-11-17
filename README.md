@@ -1,19 +1,28 @@
-# Origami
+# Origami 0.3
 
 Origami is a templating library for XQuery (3.0) inspired by XSLT and the
 [Enlive](https://github.com/cgrand/enlive) templating library for Clojure.
-Currently it supports the [BaseX](http://basex.org) database version 7.9 or
+Currently it supports the [BaseX](http://basex.org) database version 8.0 or
 higher.
+
+IMPORTANT: This library is not yet ready for production use and will change
+during the next few releases. I feel no obligation to maintain backwards
+compatibility but I will try to keep this README and the blog posts up-to-date
+with the latest release.
 
 ## Features
 
-- Transform nodes using XSLT-style transformations using Origami transfomers.
+- Transform nodes using XSLT-style transformations.
 
-- Extract nodes using XPath selectors using Origami extractors.
+- Extract nodes using composable selectors which are XPath expressions or XQuery
+  functions.
 
 ## Requirements
 
-- BaseX 7.9 or higher.
+- BaseX 8.0 or higher
+
+Previously 7.9 worked but from 0.3 onwards you need a recent snapshot (I tested
+on 2014-11-16 snapshot).
 
 ## Getting started
 
@@ -202,12 +211,15 @@ declare function parent($node) {
 
 ### Selectors
 
-A selector is a function that when applied to a node sequence will return
-the nodes selected by an XPath expression.
+To create a selector use the `xf:select` function and pass it a sequence of
+selectors. Selectors are used to build up Extractor functions.
 
 ~~~xquery
 declare variable $li := xf:select('li');
 ~~~
+
+A selector is a function that when applied to a node sequence will return
+the nodes selected by the XPath expression passed in as a string.
 
 ~~~xquery
 $li(
@@ -222,24 +234,73 @@ $li(
    )
 ~~~
 
-Note that this does not descend into the document but rather takes the
-top element as the context for the XPath expression of the select.
+The string selector is converted into a selector function. It interpretes the
+string as an XPath expression which will be applied to the current node and all
+descendants. Note that this is different from XSLT. It makes it easier to select
+nodes deeply hidden in HTML soup.
+
+Each selector may be passed a sequence of selectors. This means that selectors
+can be composed of other selectors.
+
+A selector function has the following general signature:
+
+~~~xquery
+function (node()*) as node()*
+~~~
+
+This means you can pass any function that complies with this signature. The above
+example could have been written as:
+
+~~~xquery
+declare variable $li := xf:select(
+    function ($nodes) {
+        $nodes//li
+    });
+~~~
+
+Using a sequence of selectors builds a small pipeline with transformation
+capabilities.
+
+Two such selector functions are `xf:wrap` and `xf:unwrap`. Suppose we want
+to change the returned `li` elements into `list-item` elements.
+
+~~~xquery
+declare variable $li := xf:select(('li', xf:unwrap(), xf:wrap(<list-item/>)))
+~~~
+
+This will now remove the `li` element and wrap it's contents in `list-item`
+elements.
+
+~~~xquery
+$li(
+  <ul>
+    <li>item 1</li>
+    <li>item 2</li>
+  </ul>)
+
+=> (
+     <list-item>item 1</list-item>,
+     <list-item>item 2</list-item>
+   )
+~~~
 
 
 ### Extractors
 
-An extractor is a function with a single node sequence argument that returns
-the selected nodes in document order with duplicates removed.
+To create an extractor use the `xf:extract` function and pass it a sequence of
+selectors.
+
+Selectors just return nodes but when combining several selectors you might get
+duplicate nodes and they might be in a different order. The extractor function
+will do some house-keeping by removing duplicate nodes, returning only the
+outermost nodes and return them in document order.
 
 ~~~xquery
 declare variable $xtract := xf:extract(xf:select('li'));
 ~~~
 
-To create an extractor use the `xf:extract` function and pass it a sequence of
-selectors.
-
-Contrary to `xf:select` an extractor will traverse the whole node
-structure passed into it. It will also only return the outermost nodes.
+An extractor is a function with a single node sequence argument that returns
+the selected nodes in document order with duplicates removed.
 
 ~~~xquery
 $xtract(
