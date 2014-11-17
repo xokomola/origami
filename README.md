@@ -7,8 +7,8 @@ higher.
 
 IMPORTANT: This library is not yet ready for production use and will change
 during the next few releases. I feel no obligation to maintain backwards
-compatibility but I will try to keep this README and the blog posts up-to-date
-with the latest release.
+compatibility but I will try to keep this README and the [blog
+posts](http://xokomola.com/) up-to-date with the latest release.
 
 ## Features
 

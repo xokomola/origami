@@ -3,13 +3,13 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-(:
 let $url := 'http://www.nytimes.com'
 let $input := xf:fetch-html($url)
-:)
 
+(:
 let $path := file:base-dir() || 'ny-times.html'
 let $input := xf:parse-html($path)
+:)
 
 let $select-stories := xf:extract(
     xf:select('article[contains(@class,"story")]'))
