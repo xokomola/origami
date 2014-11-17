@@ -300,7 +300,7 @@ declare variable $xtract :=
   xf:extract((
     xf:select('li[@id="last"]'), 
     xf:select('li'),
-    xf:select('li[@id="first"]')))
+    xf:select('li[@id="first"]')));
 ~~~
 
 An extractor is a function with a single node sequence argument that returns
@@ -320,5 +320,16 @@ $xtract(
      <li id="last">item 3</li>,
    )
 ~~~
+
+
+### Parsing HTML
+
+For convenience there are two functions for loading and parsing
+HTML via BaseX's `html:parse` function.
+
+To load HTML from the web use `xf:fetch-html` with a URL.
+
+To load HTML from the filesystem use `xf:parse-html` with a path.
+
 
 
