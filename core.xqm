@@ -12,6 +12,14 @@ xquery version "3.0";
 
 module namespace xf = 'http://xokomola.com/xquery/origami';
 
+declare function xf:fetch-html($url) {
+    html:parse(fetch:binary($url))
+};
+
+declare function xf:parse-html($path) {
+    html:parse(file:read-binary($path))
+};
+
 (:~
  : Transforms input, using the specified templates.
  :)
@@ -24,7 +32,7 @@ declare function xf:transform($templates as map(*)*, $input as node()*)
  : Returns a node transformation function.
  :)
 declare function xf:transform($templates as map(*)*) 
-    as function(*) {
+    as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
         xf:apply-nodes($nodes, $templates)
     }
@@ -52,9 +60,16 @@ declare function xf:extract($input as node()*, $selectors as function(*)*)
  :       remove it after 8.0 is released.
  :)
 declare function xf:extract($selectors as function(*)*) 
-    as function(*) {
+    as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
         xf:distinct-nodes(outermost(xf:select-nodes($nodes, $selectors)))
+    }
+};
+
+declare function xf:text()
+    as function(node()*) as node()* {
+    function ($nodes as node()*) as node() {
+        text { normalize-space($nodes) }
     }
 };
 
@@ -253,12 +268,22 @@ declare function xf:matches($selector as xs:string)
 };
 
 (:~
- : Match using XPath (only works in xf:select)
+ : Find matches for XPath expression string applied to passed in nodes and
+ : all descendants.
+ : It also sets up a helper function to enable proper checks on tokenized
+ : (space-delimited) attribute values such as @class.
  :)
 declare %private function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
-        xquery:eval($selector, map { '': $nodes/descendant-or-self::element() })
+        xquery:eval(
+            'declare variable $in external; ' || $selector, 
+            map { 
+                '': $nodes/descendant-or-self::element(),
+                xs:QName('in'): function($att, $token) as xs:boolean {
+                    $token = tokenize(string($att),'\s+')
+                }
+            })
     }
 };
 
