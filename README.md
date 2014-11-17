@@ -296,7 +296,11 @@ will do some house-keeping by removing duplicate nodes, returning only the
 outermost nodes and return them in document order.
 
 ~~~xquery
-declare variable $xtract := xf:extract(xf:select('li'));
+declare variable $xtract :=
+  xf:extract((
+    xf:select('li[@id="last"]'), 
+    xf:select('li'),
+    xf:select('li[@id="first"]')))
 ~~~
 
 An extractor is a function with a single node sequence argument that returns
@@ -305,13 +309,15 @@ the selected nodes in document order with duplicates removed.
 ~~~xquery
 $xtract(
   <ul>
-    <li>item 1</li>
+    <li id="first">item 1</li>
     <li>item 2</li>
+    <li id="last">item 3</li>
   </ul>)
 
 => (
-     <li>item 1</li>,
-     <li>item 2</li>
+     <li id="first">item 1</li>,
+     <li>item 2</li>,
+     <li id="last">item 3</li>,
    )
 ~~~
 
