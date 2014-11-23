@@ -61,11 +61,22 @@ declare function xf:extract($input as node()*, $selectors as function(*)*)
  :)
 declare function xf:extract($selectors as function(*)*) 
     as function(node()*) as node()* {
+    xf:extract-outer($selectors)
+};
+
+declare function xf:extract-inner($selectors as function(*)*) 
+    as function(node()*) as node()* {
+    function ($nodes as node()*) as node()* {
+        xf:distinct-nodes(innermost(xf:select-nodes($nodes, $selectors)))
+    }
+};
+
+declare function xf:extract-outer($selectors as function(*)*) 
+    as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
         xf:distinct-nodes(outermost(xf:select-nodes($nodes, $selectors)))
     }
 };
-
 declare function xf:text()
     as function(node()*) as node()* {
     function ($nodes as node()*) as node() {
@@ -132,7 +143,7 @@ declare function xf:select($selectors as item()*)
 declare function xf:wrap($node as element())
     as function(*) {
     function($nodes as node()*) as element() {
-        element { $node/name() } {
+        element { node-name($node) } {
             $node/@*,
             $nodes
         }
