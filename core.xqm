@@ -13,8 +13,21 @@ xquery version "3.0";
 module namespace xf = 'http://xokomola.com/xquery/origami';
 
 (:~
- : Transforms input, using the specified templates.
- : TODO: check if $input and $templates should be switched (like in xf:extract) :)
+ : Fetch and parse HTML given a URL.
+ :)
+declare function xf:fetch-html($url) {
+    html:parse(fetch:binary($url))
+};
+
+(:~
+ : Parse HTML from a filesystem path.
+ :)
+declare function xf:parse-html($path) {
+    html:parse(file:read-binary($path))
+};
+
+(:~
+ : Transform input, using the specified templates.
  :)
 declare function xf:transform($templates as map(*)*, $input as node()*)
     as node()* {
@@ -22,10 +35,10 @@ declare function xf:transform($templates as map(*)*, $input as node()*)
 };
 
 (:~
- : Returns a node transformation function.
+ : Returns a Transformer function.
  :)
 declare function xf:transform($templates as map(*)*) 
-    as function(*) {
+    as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
         xf:apply-nodes($nodes, $templates)
     }
@@ -46,16 +59,49 @@ declare function xf:extract($input as node()*, $selectors as function(*)*)
 
 (:~
  : Returns an extractor function that only returns selected nodes 
- : only outermost in document order and duplicates eleminated.
- :
- : TODO: when running on 8.0 20141116.135016 or higher then
- :       xf:distinct-nodes() can be removed due to bugfix
- :       remove it after 8.0 is released.
+ : only outermost, in document order and duplicates eliminated.
  :)
 declare function xf:extract($selectors as function(*)*) 
-    as function(*) {
+    as function(node()*) as node()* {
+    xf:extract-outer($selectors)
+};
+
+(:~
+ : Returns an extractor function that returns selected nodes,
+ : only innermost, in document order and duplicates eliminitated.
+ :)
+declare function xf:extract-inner($selectors as function(*)*) 
+    as function(node()*) as node()* {
+    function ($nodes as node()*) as node()* {
+        xf:distinct-nodes(innermost(xf:select-nodes($nodes, $selectors)))
+    }
+};
+
+(:
+ : TODO: when running on 8.0 20141116.135016 or higher then
+ :       xf:distinct-nodes() can be removed due to bugfix
+ :       remove it after 8.0 is released. 
+ :)
+
+(:~
+ : Returns an extractor function that returns selected nodes,
+ : only outermost, in document order and duplicates eliminated.
+ :)
+declare function xf:extract-outer($selectors as function(*)*) 
+    as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
         xf:distinct-nodes(outermost(xf:select-nodes($nodes, $selectors)))
+    }
+};
+
+(:~
+ : Returns a selector step function that returns a text node with
+ : the space normalized string value of a node.
+ :)
+declare function xf:text()
+    as function(node()*) as node()* {
+    function ($nodes as node()*) as node() {
+        text { normalize-space($nodes) }
     }
 };
 
@@ -84,7 +130,8 @@ declare function xf:template($selectors, $body)
 };
 
 (:~
- : Compose a selector function from a sequence of selectors.
+ : Compose a selector function from a sequence of selector functions or Xpath 
+ : expressions.
  :)
 declare function xf:select($selectors as item()*) 
     as function(node()*) as node()* {
@@ -108,25 +155,30 @@ declare function xf:select($selectors as item()*)
 };
 
 (:~
- : Wrap nodes in an element.
+ : Returns a selector step function that wraps nodes in
+ : an element `$node`.
  :)
 declare function xf:wrap($node as element())
     as function(*) {
     function($nodes as node()*) as element() {
-        element { $node/name() } {
+        element { node-name($node) } {
             $node/@*,
             $nodes
         }
     }
 };
 
+(:~
+ : Wraps `$nodes` in element `$node`.
+ :)
 declare function xf:wrap($node as element(), $nodes as node()*)
     as node()* {
     xf:wrap($node)($nodes)
 };
 
 (:~
- : Removes the outer elements from nodes.
+ : Returns a selector step function that removes the outer
+ : element and returns only the child nodes.
  :)
 declare function xf:unwrap()
     as function(*) {
@@ -135,6 +187,10 @@ declare function xf:unwrap()
     }
 };
 
+(:~
+ : Removes the outer
+ : element and returns only the child nodes.
+ :)
 declare function xf:unwrap($nodes as node()*)
     as node()* {
     xf:unwrap()($nodes)
@@ -149,7 +205,7 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
-            xf:apply-nodes(($node/@*,$node/node()), $xform)
+            xf:apply-nodes($node/(@*, node()), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 $node/@*,
@@ -224,7 +280,7 @@ declare %private function xf:select-nodes($nodes as node()*, $selectors as funct
     as node()* {
     for $selector in $selectors
     return
-        for $node in $nodes/descendant-or-self::element()
+        for $node in $nodes
         return
             $selector($node)
 };
@@ -274,12 +330,22 @@ declare function xf:matches($selector as xs:string)
 };
 
 (:~
- : Match using XPath (only works in xf:select)
+ : Find matches for XPath expression string applied to passed in nodes and
+ : all descendants.
+ : It also sets up a helper function to enable proper checks on tokenized
+ : (space-delimited) attribute values such as @class.
  :)
 declare %private function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
-        xquery:eval($selector, map { '': $nodes })
+        xquery:eval(
+            'declare variable $in external; ' || $selector, 
+            map { 
+                '': $nodes/descendant-or-self::element(),
+                xs:QName('in'): function($att, $token) as xs:boolean {
+                    $token = tokenize(string($att),'\s+')
+                }
+            })
     }
 };
 

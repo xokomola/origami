@@ -9,6 +9,7 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
 declare %unit:test function test:extract-document-order() {
+
     unit:assert-equals(
         xf:extract(
             <bar>
@@ -28,6 +29,7 @@ declare %unit:test function test:extract-document-order() {
             xf:select('p[@id]')),
         (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     ),
+    
     unit:assert-equals(
         xf:extract(
             <bar>
@@ -49,9 +51,9 @@ declare %unit:test function test:extract-document-order() {
     )    
 };
 
-declare %unit:test function test:extract-composed() {
+declare %unit:test function test:extract-composed-selectors() {
     unit:assert-equals(
-        xf:extract(xf:select((xf:select('ul'), xf:select('li'))))(
+        xf:extract(xf:select(('ul', 'li')))(
             <div>
                 <li>item 1</li>
                 <li>item 2</li>
@@ -62,5 +64,44 @@ declare %unit:test function test:extract-composed() {
                 <li>item 5</li>
             </div>
         ),
-        (<li>item 3</li>,<li>item 4</li>))
+        (<li>item 3</li>,<li>item 4</li>)),
+        
+    unit:assert-equals(
+        xf:extract(xf:select(('ul', 'li', xf:wrap(<x/>))))(
+            <div>
+                <li>item 1</li>
+                <li>item 2</li>
+                <ul>
+                    <li>item 3</li>
+                    <li>item 4</li>
+                </ul>
+                <li>item 5</li>
+            </div>
+        ),
+        (<x><li>item 3</li></x>,<x><li>item 4</li></x>))
+
+};
+
+declare %unit:test function test:extract-multiple-selectors() {
+    unit:assert-equals(
+        xf:extract(
+            document { 
+            <bar>
+                <p id="1"/>
+                <p/>
+                <foo>
+                    <p id="2"/>
+                    <p id="3"/>
+                </foo>
+                <bla>
+                    <bar>
+                        <p id="4"/>
+                        <p id="x"/>
+                    </bar>
+                </bla>
+                <p id="5"/>
+            </bar> },        
+            (xf:select(('bla','p')))),
+        (<p id="4"/>,<p id="x"/>)
+    )
 };
