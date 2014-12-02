@@ -40,7 +40,7 @@ declare function xf:transform($templates as map(*)*, $input as node()*)
 declare function xf:transform($templates as map(*)*) 
     as function(node()*) as node()* {
     function ($nodes as node()*) as node()* {
-        xf:apply-nodes($nodes, $templates)
+        xf:apply-nodes($nodes, (), $templates)
     }
 };
 
@@ -113,9 +113,9 @@ declare function xf:text()
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($selectors, $body) 
+declare function xf:template($selector, $body) 
     as map(*)? {
-    let $selector := xf:select($selectors)
+    let $selector := xf:select($selector)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
@@ -205,7 +205,7 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
-            xf:apply-nodes($node/(@*, node()), $xform)
+            xf:apply-nodes($node/(@*, node()), (), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 $node/@*,
@@ -220,46 +220,41 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
 };
 
 (:~
- : Applies nodes to output, but runs the template node transformer when it
- : encounters a node that was matched.
+ : Looks in the $context to find a template that was matched by this
+ : node. First one found (most-specific) wins.
  :)
-declare %private function xf:apply-nodes($nodes as node()*, $template as map(*), $xform as map(*)*)
-    as node()* {
-    for $node in $nodes
-    return
-        if (xf:is-node-in-sequence($node, $template('nodes')) then
-            $template('fn')($node)
-        else if ($node instance of element()) then
-            element { node-name($node) } {
-                $node/@*,
-                xf:co-nodes($node/node(), $xform)   
-            }
-        else if ($node instance of document-node()) then
-            document {
-                xf:copy-nodes($node/node(), $xform)
-            }
-        else
-            $node
+declare %private function xf:matched-template($node as node(), $context as map(*)*) 
+    as map(*)? {
+    if (count($context) gt 0) then
+        hof:until(
+            function($context as map(*)*) { empty($context) or xf:is-node-in-sequence($node, head($context)('nodes')) },
+            function($context as map(*)*) { tail($context) },
+            $context
+        )[1]
+    else
+        ()
 };
 
 (:~
- : Applies node transformations to nodes.
+ : Applies nodes to output, but runs the template node transformer when it
+ : encounters a node that was matched.
  :)
-declare %private function xf:apply-nodes($nodes as node()*, $xform as map(*)*)
+declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
-    (: TODO: rename to match-template :)
-    let $match := xf:match-node($node, $xform)
+    let $context := (xf:match-templates($node, $xform), $context)
+    let $match := xf:matched-template($node, $context)
     return
-        if ($match instance of function(node()) as item()*) then
-            xf:apply-nodes($node, $match, $xform)
+        if ($match instance of map(*)) then
+            $match('fn')($node)
         else if ($node instance of element()) then
             element { node-name($node) } {
-                xf:apply-nodes($node/(@*, node()), $xform)   
+                $node/@*,
+                xf:apply-nodes($node/node(), $context, $xform)   
             }
         else if ($node instance of document-node()) then
             document {
-                xf:apply-nodes($node/node(), $xform)
+                xf:apply-nodes($node/node(), $context, $xform)
             }
         else
             $node
@@ -316,6 +311,55 @@ declare %private function xf:match-node($node as node(), $xform as map(*)*)
 };
 
 (:~
+ : Find the first matching template for a node
+ : and return a modified that contains the matched nodes or 
+ :)
+declare %private function xf:match-template($node as node(), $xform as map(*)*) 
+    as map(*)? {
+    hof:until(
+        function($templates as map(*)*) {
+            let $is-match := head($templates)
+            return
+                empty($is-match) or
+                ($is-match instance of map(*) and map:contains($is-match,'nodes'))
+        },
+        function($templates as map(*)*) {
+            let $template := head($templates)
+            let $matched-nodes := $template('selector')($node)
+            return
+                (
+                    if ($matched-nodes) then
+                        map:new(($template, map { 'nodes': $matched-nodes }))
+                    else
+                        ()
+                    ,
+                    tail($templates)
+                )
+        },
+        $xform
+    )[1]
+};
+
+(:~
+ : Find all templates matched by this node and adds the matched nodes
+ : to the templates.
+ :)
+declare %private function xf:match-templates($node as node(), $xform as map(*)*) 
+    as map(*)* {
+    fold-left(
+        $xform, (),
+        function($matched-templates as map(*)*, $template as map(*)) {
+            let $matched-nodes := $template('selector')($node)
+            return
+                if ($matched-nodes) then
+                    ($matched-templates, map:new(($template, map { 'nodes': $matched-nodes })))
+                else
+                    $matched-templates
+        }
+    )
+};
+
+(:~
  : Returns a function that returns true if the passed in node matches
  : the selector string.
  :)
@@ -365,7 +409,7 @@ declare %private function xf:distinct-nodes($nodes as node()*)
  : Is node defined in seq?
  : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
  :)
-declare %private function xf:is-node-in-sequence ($node as node()?, $seq as node()*)
+declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
     as xs:boolean {
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
  };

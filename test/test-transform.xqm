@@ -44,9 +44,9 @@ declare %unit:test function test:transform-remove-nodes() {
 
     (: remove all elements :)
     unit:assert-equals(
-        xf:transform(
+        trace(xf:transform(
             xf:template('*', ())
-        )((<x/>,<y/>,<z><z/></z>)),
+        )((<x/>,<y/>,<z><z/></z>)),'XXX: '),
         ()),
 
     (: remove some elements :)
