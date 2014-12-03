@@ -9,7 +9,7 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
 declare function test:is-template($tpl as map(*)?) {
-    unit:assert($tpl instance of map(*) and $tpl('selector') instance of function(*)),
+    unit:assert($tpl instance of map(*) and $tpl('select') instance of function(*)),
     unit:assert($tpl instance of map(*) and $tpl('fn') instance of function(*))
 };
 

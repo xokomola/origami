@@ -113,24 +113,24 @@ declare function xf:text()
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($selector, $body) 
+declare function xf:template($selectors, $body) 
     as map(*)? {
-    let $selector := xf:select($selector)
+    let $select := xf:select($selectors)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
         case function(*) return $body
         default return function($node) { $body }
-    where $selector instance of function(*) and $body instance of function(*)
+    where $select instance of function(*) and $body instance of function(*)
     return
         map {
-            'selector': $selector,
+            'select': $select,
             'fn': $body
         }
 };
 
 (:~
- : Compose a selector function from a sequence of selector functions or Xpath 
+ : Compose a select function from a sequence of selector functions or Xpath 
  : expressions.
  :)
 declare function xf:select($selectors as item()*) 
@@ -294,7 +294,7 @@ declare %private function xf:match-node($node as node(), $xform as map(*)*)
         },
         function($templates as map(*)*) {
             let $template := head($templates)
-            let $matched-nodes := $template('selector')($node)
+            let $matched-nodes := $template('select')($node)
             return
                 (
                     if ($matched-nodes) then
@@ -324,7 +324,7 @@ declare %private function xf:match-template($node as node(), $xform as map(*)*)
         },
         function($templates as map(*)*) {
             let $template := head($templates)
-            let $matched-nodes := $template('selector')($node)
+            let $matched-nodes := $template('select')($node)
             return
                 (
                     if ($matched-nodes) then
@@ -348,7 +348,7 @@ declare %private function xf:match-templates($node as node(), $xform as map(*)*)
     fold-left(
         $xform, (),
         function($matched-templates as map(*)*, $template as map(*)) {
-            let $matched-nodes := $template('selector')($node)
+            let $matched-nodes := $template('select')($node)
             return
                 if ($matched-nodes) then
                     ($matched-templates, map:new(($template, map { 'nodes': $matched-nodes })))
@@ -373,22 +373,43 @@ declare function xf:matches($selector as xs:string)
 };
 
 (:~
- : Find matches for XPath expression string applied to passed in nodes and
- : all descendants.
- : It also sets up a helper function to enable proper checks on tokenized
- : (space-delimited) attribute values such as @class.
+ : Find matches for XPath expression string applied to passed in nodes.
  :)
 declare %private function xf:xpath-matches($selector as xs:string) 
     as function(node()*) as node()* {
-    function($nodes as node()*) as node()* {
-        xquery:eval(
-            'declare variable $in external; ' || $selector, 
+    xf:xpath-matches($selector, xf:environment())
+};
+
+declare %private function xf:xpath-matches($selector as xs:string, $env as map(*)) 
+    as function(node()*) as node()* {
+    let $query := $env('query')($selector)
+    let $bindings := $env('bindings')
+    return
+        function($nodes as node()*) as node()* {
+            xquery:eval($query, $bindings($nodes))
+        }
+};
+
+(:~
+ : Sets up a default environment which can be customized.
+ : Represents the default bindings for selecting nodes.
+ : The context is set to $nodes and all it's descendant elements.
+ : It also sets up a helper function $in to enable proper checks on tokenized
+ : (space-delimited) attribute values such as @class.
+ :)
+declare function xf:environment() {
+    map {
+        'bindings': function($nodes as node()*) as map(*) {
             map { 
                 '': $nodes/descendant-or-self::element(),
                 xs:QName('in'): function($att, $token) as xs:boolean {
                     $token = tokenize(string($att),'\s+')
                 }
-            })
+            }
+        },
+        'query': function($selector as xs:string) {
+            'declare variable $in external; ' || $selector
+        }
     }
 };
 
