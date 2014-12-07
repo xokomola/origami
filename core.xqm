@@ -3,14 +3,32 @@ xquery version "3.0";
 (:~
  : Origami templating.
  :
- : @version 0.3
+ : @version 0.4
  : @author Marc van Grootel
  : @see https://github.com/xokomola/origami
  :)
 
-(: TODO: attribute tokens selector (for @class) :)
-
 module namespace xf = 'http://xokomola.com/xquery/origami';
+
+import module namespace apply = 'http://xokomola.com/xquery/common/apply'
+    at 'apply.xqm';
+
+(:~
+ : Load an HTML resource.
+ :)
+declare function xf:html-resource($url-or-path) {
+    if (starts-with($url-or-path,'http:/')) then
+        xf:fetch-html($url-or-path)
+    else
+        xf:parse-html($url-or-path)
+};
+
+(:~
+ : Load an XML resource.
+ :)
+declare function xf:xml-resource($url-or-path) {
+    doc($url-or-path)
+};
 
 (:~
  : Fetch and parse HTML given a URL.
@@ -27,6 +45,24 @@ declare function xf:parse-html($path) {
 };
 
 (:~
+ : Template data. This is constructed from a transform on the template
+ : and executing the slot handlers (match templates) on each matched
+ : node from the template.
+ :
+ : TODO: $tpl should be looked at to determine if fetch or parse should be
+ :       invoked (or even doc()). 
+ :)
+declare function xf:template($tpl, $slots as map(*)*) 
+    as node()* {
+    xf:transform($slots)($tpl)
+};
+
+declare function xf:template($tpl, $slots as map(*)*, $input as node()*)
+    as node()* {
+    xf:template($tpl, $slots)($input)
+};
+
+(:~
  : Transform input, using the specified templates.
  :)
 declare function xf:transform($templates as map(*)*, $input as node()*)
@@ -39,7 +75,7 @@ declare function xf:transform($templates as map(*)*, $input as node()*)
  :)
 declare function xf:transform($templates as map(*)*) 
     as function(node()*) as node()* {
-    function ($nodes as node()*) as node()* {
+    function($nodes as node()*) as node()* {
         xf:apply-nodes($nodes, (), $templates)
     }
 };
@@ -52,29 +88,34 @@ declare function xf:transform() { xf:transform(()) };
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($input as node()*, $selectors as function(*)*) 
+declare function xf:extract($input as node()*, $steps as function(*)*) 
     as node()* {
-    xf:extract($selectors)($input)
+    xf:extract($steps)($input)
 };
 
 (:~
  : Returns an extractor function that only returns selected nodes 
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract($selectors as function(*)*) 
+declare function xf:extract($steps as function(*)*) 
     as function(node()*) as node()* {
-    xf:extract-outer($selectors)
+    xf:extract-outer($steps)
 };
 
 (:~
  : Returns an extractor function that returns selected nodes,
  : only innermost, in document order and duplicates eliminitated.
  :)
-declare function xf:extract-inner($selectors as function(*)*) 
+declare function xf:extract-inner($steps as function(*)*) 
     as function(node()*) as node()* {
-    function ($nodes as node()*) as node()* {
-        xf:distinct-nodes(innermost(xf:select-nodes($nodes, $selectors)))
+    function($nodes as node()*) as node()* {
+        xf:distinct-nodes(innermost(xf:select-nodes($nodes, $steps)))
     }
+};
+
+declare function xf:extract-inner($input as node()*, $steps as function(*)*) 
+    as node()* {
+    xf:extract-inner($steps)($input)
 };
 
 (:
@@ -87,35 +128,30 @@ declare function xf:extract-inner($selectors as function(*)*)
  : Returns an extractor function that returns selected nodes,
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract-outer($selectors as function(*)*) 
+declare function xf:extract-outer($steps as function(*)*) 
     as function(node()*) as node()* {
-    function ($nodes as node()*) as node()* {
-        xf:distinct-nodes(outermost(xf:select-nodes($nodes, $selectors)))
+    function($nodes as node()*) as node()* {
+        xf:distinct-nodes(outermost(xf:select-nodes($nodes, $steps)))
     }
 };
 
-(:~
- : Returns a selector step function that returns a text node with
- : the space normalized string value of a node.
- :)
-declare function xf:text()
-    as function(node()*) as node()* {
-    function ($nodes as node()*) as node() {
-        text { normalize-space($nodes) }
-    }
+declare function xf:extract-outer($input as node()*, $steps as function(*)*) 
+    as node()* {
+    xf:extract-outer($steps)($input)
 };
 
+
 (:~
- : Defines a template.
+ : Defines a match template.
  :
  : A template takes a selector string or function and
  : a node transformation function or the items to return as 
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:template($selectors, $body) 
+declare function xf:match($selectors, $body) 
     as map(*)? {
-    let $select := xf:select($selectors)
+    let $select := xf:at($selectors)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
@@ -130,39 +166,336 @@ declare function xf:template($selectors, $body)
 };
 
 (:~
+ : Execute a chain of node selectors.
+ :)
+declare function xf:at($input, $steps as item()*) {
+    xf:at($steps)($input)
+};
+
+(:~
  : Compose a select function from a sequence of selector functions or Xpath 
  : expressions.
  :)
-declare function xf:select($selectors as item()*) 
+declare function xf:at($steps as item()*) 
     as function(node()*) as node()* {
-    let $fns :=
-        for $selector in $selectors
-        return
-            if ($selector instance of xs:string) then
-                xf:xpath-matches($selector)
-            else
-                $selector
+    let $selector := xf:comp-selector($steps)
     return
         function($nodes as node()*) as node()* {
-            fold-left($fns, $nodes,
-                function($nodes, $fn) {
+            fold-left($selector, $nodes,
+                function($nodes, $step) {
                     for $node in $nodes
                     return
-                        $fn($node)
+                        $step($node)
                 }
             )
         }
+};
+
+declare %private function xf:comp-selector($steps as item()*)
+    as (function(node()*) as node()*)* {
+    for $step in $steps
+    return
+        if ($step instance of xs:string) then
+            xf:xpath-matches($step)
+        else
+            $step
+};
+
+(:~
+ : Execute a chain of node transformers.
+ :)
+declare function xf:do($input as node()*, $fns as function(*)*) 
+    as node()* {
+    xf:do($fns)($input)
+};
+
+(:~
+ : Compose a chain of node transformers.
+ :)
+declare function xf:do($fns as function(*)*) 
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+        fold-left($fns, $nodes,
+            function($nodes, $fn) {
+                $fn($nodes) 
+            }
+        ) 
+    }
+};
+
+(:~
+ : Execute a chain of node transformers.
+ :)
+declare function xf:do-each($input as node()*, $fns as function(*)*) 
+    as node()* {
+    xf:do-each($fns)($input)
+};
+
+(:~
+ : Compose a chain of node transformers.
+ :)
+declare function xf:do-each($fns as function(*)*) 
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+        for $node in $nodes
+        return
+            fold-left($fns, $node,
+                function($node, $fn) {
+                    $fn($node) 
+                }
+            ) 
+    }
+};
+
+(: ================ node transformers ================ :)
+
+(:~
+ : Replace the content (child nodes) of the input node
+ :)
+declare function xf:content($content as node()*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            $element/@*,
+            $content
+        }
+    }
+};
+
+declare function xf:content($element as element(), $content as node()*) 
+    as element() {
+    xf:content($content)($element)
+};
+
+(:~
+ : Only replace the content of the input element when
+ : the content is not empty.
+ :)
+declare function xf:content-if($content as node()*)
+    as function(element()) as element()* {
+    function($element as element()) as element() {
+        if (exists($content)) then
+            element { node-name($element) } {
+                $element/@*,
+                $content
+            }
+        else
+            $element
+    }
+};
+
+declare function xf:content-if($element as element(), $content as node()*)
+    as element() {
+    xf:content-if($content)($element)
+};
+
+(:~
+ : Replace the current node.
+ :)
+declare function xf:replace($replacement as node()*)
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+            $replacement
+    }
+};
+
+declare function xf:replace($nodes as node()*, $replacement as node()*) 
+    as node()* {
+    xf:replace($replacement)($nodes)
+};
+
+(:~
+ : Only replace the input nodes when the replacement
+ : is not empty.
+ :)
+declare function xf:replace-if($replacement as node()*)
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+        if (exists($replacement)) then
+            $replacement
+        else
+            $nodes
+    }
+};
+
+declare function xf:replace-if($nodes as node()*, $replacement as node()*)
+    as element() {
+    xf:replace-if($replacement)($nodes)
+};
+
+(:~
+ : Inserts nodes before the current node.
+ :)
+declare function xf:before($before as node()*)
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+        ($before, $nodes)
+    }
+};
+
+declare function xf:before($nodes as node()*, $before as node()*)
+    as node()* {
+    xf:before($before)($nodes)
+};
+
+(:~
+ : Inserts nodes after the current node.
+ :)
+declare function xf:after($after as node()*)
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node()* {
+        ($nodes, $after)
+    }
+};
+
+declare function xf:after($nodes as node()*, $after as node()*) 
+    as node()* {
+    xf:after($after)($nodes)
+};
+
+(:~
+ : Inserts nodes as first child, before the current content.
+ :)
+declare function xf:append($append as node()*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            ($element/(@*,node()), $append)
+        }
+    }
+};
+
+declare function xf:append($element as element(), $append as node()*) 
+    as element() {
+    xf:append($append)($element)
+};
+
+(:~
+ : Inserts nodes as last child, after the current content.
+ :)
+declare function xf:prepend($prepend as node()*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            ($element/@*, $prepend, $element/node())
+        }
+    }
+};
+
+declare function xf:prepend($element as element(), $prepend as node()*) 
+    as element() {
+    xf:prepend($prepend)($element)
+};
+
+(:~
+ : Returns a node transformer that returns a text node with
+ : the space normalized string value of a node.
+ :)
+declare function xf:text()
+    as function(node()*) as node()* {
+    function($nodes as node()*) as node() {
+        text { normalize-space($nodes) }
+    }
+};
+
+declare function xf:text($node as node()*)
+    as text() {
+    xf:text()($node)
+};
+
+(:~
+ : Set attributes using a map.
+ :)
+declare function xf:set-attr($attr-map as map(*))
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        let $atts := map:for-each($attr-map, 
+            function($name,$value) { attribute { $name } { $value } })
+        return   
+            element { node-name($element) } {
+                $atts, $element/@*[not(name(.) = map:keys($attr-map))], $element/node()
+            }
+    }
+};
+
+declare function xf:set-attr($element as element(), $attr-map as map(*)) 
+    as element() {
+    xf:set-attr($attr-map)($element)
+};
+
+(:~
+ : Add a class or classes.
+ :)
+declare function xf:add-class($names as xs:string*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            $element/@*[not(name(.) = 'class')],
+            attribute class {
+                string-join(
+                    distinct-values((
+                        tokenize(($element/@class,'')[1],'\s+'), 
+                        $names)), 
+                    ' ')
+            },
+            $element/node()
+        }
+    }
+};
+
+declare function xf:add-class($element as element(), $names as xs:string*) 
+    as element() {
+    xf:add-class($names)($element)
+};
+
+(:~
+ : Remove a class.
+ :)
+declare function xf:remove-class($names as xs:string*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            $element/@*[not(name(.) =  'class')],
+            let $classes := tokenize(($element/@class,'')[1],'\s+')[not(. = $names)]
+            where $classes
+            return
+                attribute class { string-join($classes,' ') },
+            $element/node()
+        }
+    }
+};
+
+declare function xf:remove-class($element as element(), $names as xs:string*) 
+    as element() {
+    xf:remove-class($names)($element)
+};
+
+(:~
+ : Remove attributes.
+ :)
+declare function xf:remove-attr($name as xs:string*)
+    as function(element()) as element() {
+    function($element as element()) as element() {
+        element { node-name($element) } {
+            $element/@*[not(name(.) = $name)], $element/node()
+        }
+    }
+};
+
+declare function xf:remove-attr($element as element(), $names as xs:string*) 
+    as element() {
+    xf:remove-attr($names)($element)
 };
 
 (:~
  : Returns a selector step function that wraps nodes in
  : an element `$node`.
  :)
-declare function xf:wrap($node as element())
-    as function(*) {
+declare function xf:wrap($element as element())
+    as function(node()*) as element() {
     function($nodes as node()*) as element() {
-        element { node-name($node) } {
-            $node/@*,
+        element { node-name($element) } {
+            $element/@*,
             $nodes
         }
     }
@@ -171,9 +504,9 @@ declare function xf:wrap($node as element())
 (:~
  : Wraps `$nodes` in element `$node`.
  :)
-declare function xf:wrap($node as element(), $nodes as node()*)
-    as node()* {
-    xf:wrap($node)($nodes)
+declare function xf:wrap($nodes as node()*, $element as element())
+    as element() {
+    xf:wrap($element)($nodes)
 };
 
 (:~
@@ -181,20 +514,43 @@ declare function xf:wrap($node as element(), $nodes as node()*)
  : element and returns only the child nodes.
  :)
 declare function xf:unwrap()
-    as function(*) {
-    function($nodes as node()*) {
-        $nodes/node()
+    as function(element()) as node()* {
+    function($element as element()) as node()* {
+        $element/node()
     }
 };
 
-(:~
- : Removes the outer
- : element and returns only the child nodes.
- :)
-declare function xf:unwrap($nodes as node()*)
+declare function xf:unwrap($element as element())
     as node()* {
-    xf:unwrap()($nodes)
+    xf:unwrap()($element)
 };
+
+(: ================ environment ================ :)
+
+(:~
+ : Sets up a default environment which can be customized.
+ : Represents the default bindings for selecting nodes.
+ : The context is set to $nodes and all it's descendant elements.
+ : It also sets up a helper function $in to enable proper checks on tokenized
+ : (space-delimited) attribute values such as @class.
+ :)
+declare function xf:environment() {
+    map {
+        'bindings': function($nodes as node()*) as map(*) {
+            map { 
+                '': $nodes/descendant-or-self::element(),
+                xs:QName('in'): function($att, $token) as xs:boolean {
+                    $token = tokenize(string($att),'\s+')
+                }
+            }
+        },
+        'query': function($selector as xs:string) {
+            'declare variable $in external; ' || $selector
+        }
+    }
+};
+
+(: ================ internal functions ================ :)
 
 (:~
  : Copies nodes to output, and calls apply for
@@ -261,6 +617,7 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
 
 (:~
  : Apply to be used from within templates.
+ : TODO: maybe rename to xf:apply-rules
  :)
 declare function xf:apply($nodes as node()*) 
     as element(xf:apply) { 
@@ -311,7 +668,7 @@ declare %private function xf:match-node($node as node(), $xform as map(*)*)
 
 (:~
  : Find the first matching template for a node
- : and return a modified that contains the matched nodes or 
+ : and return a modified template that contains the matched nodes.
  :)
 declare %private function xf:match-template($node as node(), $xform as map(*)*) 
     as map(*)? {
@@ -359,20 +716,6 @@ declare %private function xf:match-templates($node as node(), $xform as map(*)*)
 };
 
 (:~
- : Returns a function that returns true if the passed in node matches
- : the selector string.
- :)
-declare function xf:matches($selector as xs:string) 
-    as function(*) {
-    function($node as node()) as xs:boolean {
-        typeswitch ($node)
-        case element() return not($node/self::xf:*) and $selector = (name($node), '*')
-        case attribute() return substring-after($selector, '@') = (name($node), '*')
-        default return false()
-    }
-};
-
-(:~
  : Find matches for XPath expression string applied to passed in nodes.
  :)
 declare %private function xf:xpath-matches($selector as xs:string) 
@@ -391,29 +734,6 @@ declare %private function xf:xpath-matches($selector as xs:string, $env as map(*
 };
 
 (:~
- : Sets up a default environment which can be customized.
- : Represents the default bindings for selecting nodes.
- : The context is set to $nodes and all it's descendant elements.
- : It also sets up a helper function $in to enable proper checks on tokenized
- : (space-delimited) attribute values such as @class.
- :)
-declare function xf:environment() {
-    map {
-        'bindings': function($nodes as node()*) as map(*) {
-            map { 
-                '': $nodes/descendant-or-self::element(),
-                xs:QName('in'): function($att, $token) as xs:boolean {
-                    $token = tokenize(string($att),'\s+')
-                }
-            }
-        },
-        'query': function($selector as xs:string) {
-            'declare variable $in external; ' || $selector
-        }
-    }
-};
-
-(:~
  : Returns only distinct nodes.
  : @see http://www.xqueryfunctions.com/xq/functx_distinct-nodes.html
  :)
@@ -421,8 +741,7 @@ declare %private function xf:distinct-nodes($nodes as node()*)
     as node()* {
     for $seq in (1 to count($nodes))
     return $nodes[$seq][
-        not(xf:is-node-in-sequence(
-            .,$nodes[position() < $seq]))]
+        not(xf:is-node-in-sequence(.,$nodes[position() < $seq]))]
 };
  
 (:~
@@ -432,5 +751,19 @@ declare %private function xf:distinct-nodes($nodes as node()*)
 declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
     as xs:boolean {
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
- };
- 
+};
+
+(:~
+ : Partition a sequence into an array of sequences $n long.
+ : This is used to build rules that consist of a selector (xf:at) and
+ : a body (xf:do).
+ :)
+declare function xf:partition($n as xs:integer, $seq) as array(*)* {
+    if (not(empty($seq))) then
+        for $i in 1 to (count($seq) idiv $n) + 1
+        where count($seq) > ($i -1) * $n
+        return
+            array { subsequence($seq, (($i -1) * $n) + 1, $n) }
+    else
+        ()
+};
