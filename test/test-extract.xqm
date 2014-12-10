@@ -26,7 +26,7 @@ declare %unit:test function test:extract-document-order() {
                 </bla>
                 <p id="5"/>
             </bar>,        
-            xf:select('p[@id]')),
+            xf:at('p[@id]')),
         (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     ),
     
@@ -46,14 +46,14 @@ declare %unit:test function test:extract-document-order() {
                 </bla>
                 <p id="5"/>
             </bar>,
-            xf:select('.//p[@id]')),
+            xf:at('.//p[@id]')),
         (<p id="1"/>,<p id="2"/>,<p id="3"/>,<p id="4"/>,<p id="5"/>)
     )    
 };
 
 declare %unit:test function test:extract-composed-selectors() {
     unit:assert-equals(
-        xf:extract(xf:select(('ul', 'li')))(
+        xf:extract(xf:at(('ul', 'li')))(
             <div>
                 <li>item 1</li>
                 <li>item 2</li>
@@ -67,7 +67,7 @@ declare %unit:test function test:extract-composed-selectors() {
         (<li>item 3</li>,<li>item 4</li>)),
         
     unit:assert-equals(
-        xf:extract(xf:select(('ul', 'li', xf:wrap(<x/>))))(
+        xf:extract(xf:at(('ul', 'li', xf:wrap(<x/>))))(
             <div>
                 <li>item 1</li>
                 <li>item 2</li>
@@ -78,7 +78,7 @@ declare %unit:test function test:extract-composed-selectors() {
                 <li>item 5</li>
             </div>
         ),
-        (<x><li>item 3</li></x>,<x><li>item 4</li></x>))
+        (<x><li>item 3</li><li>item 4</li></x>))
 
 };
 
@@ -101,7 +101,7 @@ declare %unit:test function test:extract-multiple-selectors() {
                 </bla>
                 <p id="5"/>
             </bar> },        
-            (xf:select(('bla','p')))),
+            (xf:at(('bla','p')))),
         (<p id="4"/>,<p id="x"/>)
     )
 };

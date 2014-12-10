@@ -8,7 +8,7 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-declare %unit:test function test:transform-simple() {
+declare %unit:test %unit:ignore('TODO') function test:transform-simple() {
     unit:assert-equals(
         xf:transform((
             xf:template('p[@x]', function($node) { element bar { $node/@* }}),
@@ -17,7 +17,7 @@ declare %unit:test function test:transform-simple() {
         <div><bar x="1"/><foo/><bar x="2"/><foo/></div>)
 };
 
-declare %unit:test function test:transform-copy() {
+declare %unit:test %unit:ignore('TODO') function test:transform-copy() {
 
     unit:assert-equals(
         xf:transform((),()),
@@ -49,7 +49,7 @@ declare %unit:test function test:transform-copy() {
         
 };
 
-declare %unit:test function test:transform-remove-nodes() {
+declare %unit:test %unit:ignore('TODO') function test:transform-remove-nodes() {
 
     (: remove all elements :)
     unit:assert-equals(
@@ -109,7 +109,7 @@ declare %unit:test function test:transform-remove-nodes() {
 
 };
 
-declare %unit:test function test:transform-custom-match-fn() {
+declare %unit:test %unit:ignore('TODO') function test:transform-custom-match-fn() {
 
     (: remove all elements that have an attribute named 'x' :)
     (: TODO: in a transform the custom fn should return the node itself :)
@@ -125,7 +125,7 @@ declare %unit:test function test:transform-custom-match-fn() {
         <x><y><p y="20"/></y></x>)
 };
 
-declare %unit:test function test:transform-literal-result-template() {
+declare %unit:test %unit:ignore('TODO') function test:transform-literal-result-template() {
 
     (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
