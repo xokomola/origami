@@ -450,13 +450,16 @@ declare function xf:prepend($nodes as node()*, $prepend as node()*)
  :)
 declare function xf:text()
     as function(node()*) as node()* {
-    function($nodes as node()*) as text() {
-        text { normalize-space(string-join($nodes,'')) }
+    function($nodes as node()*) as text()? {
+        if (exists($nodes)) then
+            text { normalize-space(string-join($nodes,'')) }
+        else
+            ()
     }
 };
 
 declare function xf:text($nodes as node()*)
-    as text() {
+    as text()? {
     xf:text()($nodes)
 };
 

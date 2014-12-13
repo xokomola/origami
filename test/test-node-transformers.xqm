@@ -346,7 +346,10 @@ declare %unit:test function test:text() {
     unit:assert-equals(
         xf:text(<a>foo <b x="10">bar</b></a>),
         text { 'foo bar' }
-    )
+    ),
+    unit:assert-equals(
+        xf:text(()),
+        ())
 };
 
 declare %unit:test function test:append() {
