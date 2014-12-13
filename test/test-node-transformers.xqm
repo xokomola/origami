@@ -185,3 +185,142 @@ declare %unit:test function test:replace-if() {
         ()
     )
 };
+
+declare %unit:test function test:set-attr() {
+    (: add a new atrribute :)
+    unit:assert-equals(
+        xf:set-attr(<a/>, map { 'x': 10 }),
+        <a x="10"/>
+    ),
+    (: change an atrribute :)
+    unit:assert-equals(
+        xf:set-attr(<a x="0"/>, map { 'x': 10 }),
+        <a x="10"/>
+    ),   
+    (: change an atrribute using another elements attributes :)
+    unit:assert-equals(
+        xf:set-attr(<a x="0"/>, <b x="10"/>),
+        <a x="10"/>
+    ),   
+    (: change an atrribute on multiple elements :)
+    unit:assert-equals(
+        xf:set-attr((<a x="0"/>,<b y="0"/>), map { 'x': 10 }),
+        (<a x="10"/>,<b y="0" x="10"/>)
+    ),
+    (: child elements are not modified :)    
+    unit:assert-equals(
+        xf:set-attr(<a><b/></a>, map { 'x': 10 }),
+        <a x="10"><b/></a>
+    ),
+    (: nodes that are not elements are not modified :)    
+    unit:assert-equals(
+        xf:set-attr(text { 'foo' }, <b x="10"/>),
+        text { 'foo' }
+    ),
+    (: empty nodes are not modified :)    
+    unit:assert-equals(
+        xf:set-attr((), <b x="10"/>),
+        ()
+    )
+};
+
+declare %unit:test function test:remove-attr() {
+    (: remove atrribute :)
+    unit:assert-equals(
+        xf:remove-attr(<a x="10"/>, 'x'),
+        <a/>
+    ),
+    (: remove multiple atrributes :)
+    unit:assert-equals(
+        xf:remove-attr(<a x="10" y="20"/>, ('x','y')),
+        <a/>
+    ),   
+    (: remove multiple atrributes from multiple elements :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), ('x','y')),
+        (<a z="20"/>,text { 'foo' },<b/>)
+    ),
+    (: empty nodes are not modified :)
+    unit:assert-equals(
+        xf:remove-attr((), ('x','y')),
+        ()
+    ),   
+    (: no attributes removed :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10"/>,<b y="20"/>), ()),
+        (<a x="10"/>,<b y="20"/>)
+    ),   
+    (: use element with attributes to provide the attributes to remove :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), <b x="" y=""/>),
+        (<a z="20"/>,text { 'foo' },<b/>)
+    ),   
+    (: use map to provide the attributes to remove :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), map { 'x': '', 'y': '' }),
+        (<a z="20"/>,text { 'foo' },<b/>)
+    )   
+};
+
+declare %unit:test function test:add-class() {
+    (: add single class token :)
+    unit:assert-equals(
+        xf:add-class(<foo/>,('a')),
+        <foo class="a"/>
+    ),
+    (: add class token that already exists :)
+    unit:assert-equals(
+        xf:add-class(<foo class="foo a"/>,('a')),
+        <foo class="foo a"/>
+    ),
+    (: add class tokens, both already exist :)
+    unit:assert-equals(
+        xf:add-class(<foo class="a"/>,('a','b')),
+        <foo class="a b"/>
+    ),
+    (: add class tokens, one of them already exists :)
+    unit:assert-equals(
+        xf:add-class(<foo class="a"/>,('a b')),
+        <foo class="a b"/>
+    ),
+    (: empty nodes aren't touched :)
+    unit:assert-equals(
+        xf:add-class((),('a','b')),
+        ()
+    ),
+    (: add class tokens to a sequence of nodes :)
+    unit:assert-equals(
+        xf:add-class((<foo/>,text { 'foo' },<bar/>),('a','b')),
+        (<foo class="a b"/>,text { 'foo' },<bar class="a b"/>)
+    )
+};
+
+declare %unit:test function test:remove-class() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:text() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:append() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:prepend() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:before() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:after() {
+    unit:assert-equals(1,1)
+};
+
+declare %unit:test %unit:ignore('TODO') function test:xslt() {
+    unit:assert-equals(1,1)
+};
+
+

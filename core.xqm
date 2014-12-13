@@ -463,8 +463,8 @@ declare function xf:text($nodes as node()*)
  :
  : TODO: use node-name
  :)
-declare function xf:set-attr($attributes as map(*))
-    as function(element()) as element() {
+declare function xf:set-attr($attributes as item())
+    as function(node()*) as node()* {
     let $attributes := 
         typeswitch ($attributes)
         case map(*)
@@ -479,48 +479,55 @@ declare function xf:set-attr($attributes as map(*))
         default
         return
             ()
-    return        
-        function($element as element()) as element() {
-            element { node-name($element) } {
-                $attributes, 
-                $element/@* except $attributes, 
-                $element/node()
+    return
+        xf:element-transformer(
+            function($node as element()) as node()* {
+                element { node-name($node) } {
+                    $attributes,
+                    for $att in $node/@*
+                    where node-name($att) != $attributes/node-name()
+                    return $att,
+                    $node/node()
+                }
             }
-        }
+        )($attributes)
 };
 
-declare function xf:set-attr($element as element(), $attributes as map(*)) 
-    as element() {
-    xf:set-attr($attributes)($element)
+declare function xf:set-attr($nodes as node()*, $attributes as item()) 
+    as node()* {
+    xf:set-attr($attributes)($nodes)
 };
 
 (:~
  : Add one or more `$names` to a class attribute.
  :)
 declare function xf:add-class($names as xs:string*)
-    as function(element()) as element() {
-    function($element as element()) as element() {
-        element { node-name($element) } {
-            $element/@*[not(name(.) = 'class')],
-            attribute class {
-                string-join(
-                    distinct-values((
-                        tokenize(($element/@class,'')[1],'\s+'), 
-                        $names)), 
-                    ' ')
-            },
-            $element/node()
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as node()* {
+            element { node-name($node) } {
+                $node/@*[not(name(.) = 'class')],
+                attribute class {
+                    string-join(
+                        distinct-values(
+                            tokenize(
+                                string-join(($node/@class,$names),' '),
+                                '\s+')), 
+                        ' ')
+                },
+                $node/node()
+            }
         }
-    }
+    )($names)
 };
 
 (:~
  : Add one or more `$names` to the class attribute of `$element`. 
  : If it doesn't exist it is added.
  :)
-declare function xf:add-class($element as element(), $names as xs:string*) 
-    as element() {
-    xf:add-class($names)($element)
+declare function xf:add-class($nodes as node()*, $names as xs:string*) 
+    as node()* {
+    xf:add-class($names)($nodes)
 };
 
 (:~
@@ -529,17 +536,20 @@ declare function xf:add-class($element as element(), $names as xs:string*)
  : from the element.
  :)
 declare function xf:remove-class($names as xs:string*)
-    as function(element()) as element() {
-    function($element as element()) as element() {
-        element { node-name($element) } {
-            $element/@*[not(name(.) =  'class')],
-            let $classes := tokenize(($element/@class,'')[1],'\s+')[not(. = $names)]
-            where $classes
-            return
-                attribute class { string-join($classes,' ') },
-            $element/node()
-        }
-    }
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as node()* {
+            element { node-name($node) } {
+                $node/@*[not(name(.) =  'class')],
+                let $classes := distinct-values(
+                    tokenize(($node/@class,'')[1],'\s+')[not(. = $names)])
+                where $classes
+                return
+                    attribute class { string-join($classes,' ') },
+                $node/node()
+            }
+        }   
+    )($names)
 };
 
 (:~
@@ -555,21 +565,40 @@ declare function xf:remove-class($element as element(), $names as xs:string*)
 (:~
  : Remove attributes.
  :
- : TODO: testing with node-name()
  : TODO: maybe add '*'
  :)
-declare function xf:remove-attr($name as xs:string*)
-    as function(element()) as element() {
-    function($element as element()) as element() {
-        element { node-name($element) } {
-            $element/@*[not(name(.) = $name)], $element/node()
-        }
-    }
+declare function xf:remove-attr($attributes as item()*)
+    as function(node()*) as node()* {
+    let $attributes := 
+        typeswitch ($attributes) 
+        case xs:string*
+        return for $name in $attributes return attribute { $name } { '' }
+        case element()
+        return $attributes/@*
+        case map(*)
+        return             
+            map:for-each(
+                $attributes, 
+                function($name,$value) { 
+                    attribute { $name } { '' } 
+            })
+        default
+        return ()
+    return
+        xf:element-transformer(
+            function($node as element()) as node()* {
+                element { node-name($node) } {
+                    for $att in $node/@*
+                    where not(node-name($att) = $attributes/node-name())
+                    return $att
+                }
+            }
+        )($attributes)
 };
 
-declare function xf:remove-attr($element as element(), $names as xs:string*) 
-    as element() {
-    xf:remove-attr($names)($element)
+declare function xf:remove-attr($nodes as node()*, $names as item()*) 
+    as node()* {
+    xf:remove-attr($names)($nodes)
 };
 
 (:~
@@ -608,14 +637,13 @@ declare function xf:wrap($nodes as node()*, $element as element())
  :)
 declare function xf:unwrap()
     as function(node()*) as node()* {
-    function($nodes as node()*) as node()* {
-        for $node in $nodes
-        return
-            if ($node instance of element()) then
-                $node/node()
-            else
-                $node
-    }
+    xf:element-transformer(
+        function($node as element()) as node()* {
+            $node/node()
+          (: FIXME: a bit of a hack, because element-transformers 
+             check for empty arg even if they don't need arg :)
+        }
+    )(true())
 };
 
 (:~
@@ -624,6 +652,45 @@ declare function xf:unwrap()
 declare function xf:unwrap($nodes as node()*)
     as node()* {
     xf:unwrap()($nodes)
+};
+
+declare function xf:xslt($stylesheet as item()) 
+    as function(node()*) as node()* {
+    xf:xslt($stylesheet, map {})
+};
+
+declare function xf:xslt($stylesheet as item(), $params as item()) 
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as node()* {
+            xslt:transform($node, $stylesheet, $params)
+        }
+    )($params)
+};
+
+declare function xf:xslt($nodes as node()*, $stylesheet as item(), $params as item())
+    as node()* {
+    xf:xslt($stylesheet, $params)($nodes)
+};
+
+(:
+ : Creates a generic element node transformer function.
+ :)
+declare function xf:element-transformer($transform as function(element()) as node()*) 
+    as function(*) {
+    function($args as item()*) as function(*) {
+        function($nodes as node()*) as node()* {
+            if (exists($args)) then
+                for $node in $nodes
+                return
+                    if ($node instance of element()) then
+                        $transform($node)
+                    else
+                        $node
+            else
+                $nodes
+        }
+    }
 };
 
 (: ================ environment ================ :)
