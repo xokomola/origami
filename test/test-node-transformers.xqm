@@ -296,31 +296,203 @@ declare %unit:test function test:add-class() {
 };
 
 declare %unit:test function test:remove-class() {
-    unit:assert-equals(1,1)
+    unit:assert-equals(
+        xf:remove-class(<foo class="a"/>, 'a'),
+        <foo/>
+    ),
+    unit:assert-equals(
+        xf:remove-class(<foo class="b a"/>, 'a'),
+        <foo class="b"/>
+    ),
+    unit:assert-equals(
+        xf:remove-class(<foo class="b a"/>, 'x'),
+        <foo class="b a"/>
+    ),
+    unit:assert-equals(
+        xf:remove-class(<foo class="b a"/>, ()),
+        <foo class="b a"/>
+    ),
+    unit:assert-equals(
+        xf:remove-class((<foo class="b a"/>,<bar class="b a"/>), 'a'),
+        (<foo class="b"/>,<bar class="b"/>)
+    ),
+    unit:assert-equals(
+        xf:remove-class((<foo class="b a"/>,text { 'foo' }), 'a'),
+        (<foo class="b"/>,text { 'foo' })
+    ),
+    unit:assert-equals(
+        xf:remove-class((), 'a'),
+        ()
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:text() {
-    unit:assert-equals(1,1)
+declare %unit:test function test:text() {
+    unit:assert-equals(
+        xf:text(text { 'foo' }),
+        text { 'foo' }
+    ),
+    unit:assert-equals(
+        xf:text((text { 'foo' }, text { 'bar' })),
+        text { 'foobar' }
+    ),
+    unit:assert-equals(
+        xf:text(<a>foo</a>),
+        text { 'foo' }
+    ),
+    unit:assert-equals(
+        xf:text((<a>foo</a>,<b>bar</b>)),
+        text { 'foobar' }
+    ),
+    unit:assert-equals(
+        xf:text(<a>foo <b x="10">bar</b></a>),
+        text { 'foo bar' }
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:append() {
-    unit:assert-equals(1,1)
+declare %unit:test function test:append() {
+    unit:assert-equals(
+        xf:append(<a/>,<b/>),
+        <a><b/></a>
+    ),
+    unit:assert-equals(
+        xf:append(<a><c/></a>,<b/>),
+        <a><c/><b/></a>
+    ),
+    unit:assert-equals(
+        xf:append(<a><c/></a>,text { 'foo' }),
+        <a><c/>foo</a>
+    ),
+    unit:assert-equals(
+        xf:append(<a/>,()),
+        <a/>
+    ),
+    unit:assert-equals(
+        xf:append(<a><c/></a>,()),
+        <a><c/></a>
+    ),
+    unit:assert-equals(
+        xf:append((<a/>,<b/>),(<c/>,<d/>)),
+        (<a><c/><d/></a>,<b><c/><d/></b>)
+    ),
+    unit:assert-equals(
+        xf:append((<a/>,text { 'foo' }),(<c/>,<d/>)),
+        (<a><c/><d/></a>,text { 'foo' })
+    ),
+    unit:assert-equals(
+        xf:append((),()),
+        ()
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:prepend() {
-    unit:assert-equals(1,1)
+declare %unit:test function test:prepend() {
+    unit:assert-equals(
+        xf:prepend(<a/>,<b/>),
+        <a><b/></a>
+    ),
+    unit:assert-equals(
+        xf:prepend(<a><c/></a>,<b/>),
+        <a><b/><c/></a>
+    ),
+    unit:assert-equals(
+        xf:prepend(<a><c/></a>,text { 'foo' }),
+        <a>foo<c/></a>
+    ),
+    unit:assert-equals(
+        xf:prepend(<a/>,()),
+        <a/>
+    ),
+    unit:assert-equals(
+        xf:prepend(<a><c/></a>,()),
+        <a><c/></a>
+    ),
+    unit:assert-equals(
+        xf:prepend((<a/>,<b/>),(<c/>,<d/>)),
+        (<a><c/><d/></a>,<b><c/><d/></b>)
+    ),
+    unit:assert-equals(
+        xf:prepend((<a/>,text { 'foo' }),(<c/>,<d/>)),
+        (<a><c/><d/></a>,text { 'foo' })
+    ),
+    unit:assert-equals(
+        xf:prepend((),()),
+        ()
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:before() {
-    unit:assert-equals(1,1)
+declare %unit:test function test:before() {
+    unit:assert-equals(
+        xf:before(<a/>,<b/>),
+        (<b/>,<a/>)
+    ),
+    unit:assert-equals(
+        xf:before(<a><c/></a>,<b/>),
+        (<b/>,<a><c/></a>)
+    ),
+    unit:assert-equals(
+        xf:before(<a/>,text { 'foo' }),
+        (text { 'foo' },<a/>)
+    ),
+    unit:assert-equals(
+        xf:before(<a/>,()),
+        <a/>
+    ),
+    unit:assert-equals(
+        xf:before((),()),
+        ()
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:after() {
-    unit:assert-equals(1,1)
+declare %unit:test function test:after() {
+    unit:assert-equals(
+        xf:after(<a/>,<b/>),
+        (<a/>,<b/>)
+    ),
+    unit:assert-equals(
+        xf:after(<a><c/></a>,<b/>),
+        (<a><c/></a>,<b/>)
+    ),
+    unit:assert-equals(
+        xf:after(<a/>,text { 'foo' }),
+        (<a/>, text { 'foo' })
+    ),
+    unit:assert-equals(
+        xf:after(<a/>,()),
+        <a/>
+    ),
+    unit:assert-equals(
+        xf:after((),()),
+        ()
+    )
 };
 
-declare %unit:test %unit:ignore('TODO') function test:xslt() {
-    unit:assert-equals(1,1)
+declare variable $test:stylesheet :=
+    <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+        version="1.0">
+        <xsl:template match="/">
+            <a>
+                <xsl:apply-templates/>
+            </a>
+        </xsl:template>
+        <xsl:template match="foo">
+            <bar/>
+        </xsl:template>
+    </xsl:stylesheet>;
+
+declare %unit:test function test:xslt() {
+    unit:assert-equals(
+        xf:xslt(<foo/>,$test:stylesheet, map {}),
+        document { <a><bar/></a> }
+    ),
+    unit:assert-equals(
+        xf:xslt((<foo/>,<foo/>),$test:stylesheet, map {}),
+        (document { <a><bar/></a> }, document { <a><bar/></a> })
+    ),
+    unit:assert-equals(
+        xf:xslt((<foo/>,<bar/>,<foo/>),$test:stylesheet, map {}),
+        (document { <a><bar/></a> }, document { <a/> }, document { <a><bar/></a> })
+    ),
+    unit:assert-equals(
+        xf:xslt((<foo/>,text { 'foo' },<foo/>),$test:stylesheet, map {}),
+        (document { <a><bar/></a> }, text { 'foo' }, document { <a><bar/></a> })
+    )
 };
-
-

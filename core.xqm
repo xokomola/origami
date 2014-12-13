@@ -401,45 +401,47 @@ declare function xf:after($nodes as node()*, $after as node()*)
 (:~
  : Inserts nodes as first child, before the current content.
  :)
-declare function xf:append($nodes as node()*)
-    as function(element()) as element() {
-    function($element as element()) as element() {
-        element { node-name($element) } {
-            ($element/(@*,node()), $nodes)
+declare function xf:append($append as node()*)
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                ($node/(@*,node()), $append)
+            }
         }
-    }
+     (: HACK :)
+    )(true())
 };
 
 (:~
  : Inserts nodes as last child, after the current content.
- :
- : TODO
  :)
-declare function xf:append($element as element(), $nodes as node()*) 
-    as element() {
-    xf:append($nodes)($element)
+declare function xf:append($nodes as node()*, $append as node()*) 
+    as node()* {
+    xf:append($append)($nodes)
 };
 
 (:~
  : Inserts nodes as last child, after the current content.
- :
- : TODO
  :)
-declare function xf:prepend($nodes as node()*)
-    as function(element()) as element() {
-    function($element as element()) as element() {
-        element { node-name($element) } {
-            ($element/@*, $nodes, $element/node())
+declare function xf:prepend($prepend as node()*)
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                ($node/@*, $prepend, $node/node())
+            }
         }
-    }
+     (: HACK :)
+    )(true())
 };
 
 (:~
  : Inserts nodes as last child, after the current content.
  :)
-declare function xf:prepend($element as element(), $nodes as node()*) 
-    as element() {
-    xf:prepend($nodes)($element)
+declare function xf:prepend($nodes as node()*, $prepend as node()*) 
+    as node()* {
+    xf:prepend($prepend)($nodes)
 };
 
 (:~
@@ -448,8 +450,8 @@ declare function xf:prepend($element as element(), $nodes as node()*)
  :)
 declare function xf:text()
     as function(node()*) as node()* {
-    function($nodes as node()*) as node() {
-        text { normalize-space($nodes) }
+    function($nodes as node()*) as text() {
+        text { normalize-space(string-join($nodes,'')) }
     }
 };
 
@@ -543,7 +545,7 @@ declare function xf:remove-class($names as xs:string*)
                 $node/@*[not(name(.) =  'class')],
                 let $classes := distinct-values(
                     tokenize(($node/@class,'')[1],'\s+')[not(. = $names)])
-                where $classes
+                where exists($classes)
                 return
                     attribute class { string-join($classes,' ') },
                 $node/node()
@@ -557,15 +559,13 @@ declare function xf:remove-class($names as xs:string*)
  : If the class attribute is empty after removing names it will be removed
  : from the element.
  :)
-declare function xf:remove-class($element as element(), $names as xs:string*) 
-    as element() {
-    xf:remove-class($names)($element)
+declare function xf:remove-class($nodes as node()*, $names as xs:string*) 
+    as node()* {
+    xf:remove-class($names)($nodes)
 };
 
 (:~
  : Remove attributes.
- :
- : TODO: maybe add '*'
  :)
 declare function xf:remove-attr($attributes as item()*)
     as function(node()*) as node()* {
@@ -595,6 +595,7 @@ declare function xf:remove-attr($attributes as item()*)
             }
         )($attributes)
 };
+
 
 declare function xf:remove-attr($nodes as node()*, $names as item()*) 
     as node()* {
@@ -640,8 +641,9 @@ declare function xf:unwrap()
     xf:element-transformer(
         function($node as element()) as node()* {
             $node/node()
-          (: FIXME: a bit of a hack, because element-transformers 
-             check for empty arg even if they don't need arg :)
+          (: FIXME: passing true() is a bit of a hack, because 
+             element-transformers check for empty arg even if they 
+             don't need one :)
         }
     )(true())
 };
@@ -969,6 +971,8 @@ declare %private function xf:is-node-in-sequence($node as node()?, $seq as node(
  : Partition a sequence into an array of sequences $n long.
  : This is used to build rules that consist of a selector (xf:at) and
  : a body (xf:do).
+ :
+ : NOTE: currently not used
  :)
 declare function xf:partition($n as xs:integer, $seq) as array(*)* {
     if (not(empty($seq))) then
