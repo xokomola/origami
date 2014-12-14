@@ -176,7 +176,7 @@ declare function xf:at($selector as xs:string, $xforms as function(*)*)
     let $selector := xf:select-all($selector)
     let $xform := xf:do-each($xforms)
     return
-        if (exists($xform)) then
+        if (exists($xforms)) then
             function($nodes as node()*) as node()* {
                 $xform($selector($nodes))
             }

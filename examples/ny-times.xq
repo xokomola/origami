@@ -31,9 +31,9 @@ for $story in $select-stories($input)
       }</story>
 
 (:
-    Parsing: 506.85 ms
-    Compiling: 31.99 ms
-    Evaluating: 1.16 ms
-    Printing: 826.16 ms
-    Total Time: 1366.15 ms
+    Parsing: 510.38 ms
+    Compiling: 36.58 ms
+    Evaluating: 1.08 ms
+    Printing: 831.38 ms
+    Total Time: 1379.43 ms
  :)

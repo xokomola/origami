@@ -18,7 +18,8 @@ declare variable $test:input :=
 
 (:~ Simple selector uses descendents axis :)
 declare %unit:test function test:simple-selector() {
-    unit:assert-equals(xf:at($test:input, 'li'),
+    unit:assert-equals(
+        xf:at('li')($test:input),
         (<li>item <span class="first">1</span></li>,
          <li>item <span>2</span></li>,
          <li>item <span class="last"><i>3</i></span></li>))
@@ -26,13 +27,15 @@ declare %unit:test function test:simple-selector() {
 
 (:~ Note that root element is not available for explicit selection :)
 declare %unit:test function test:id-select() {
-    unit:assert-equals(xf:at($test:input, '@id'),
+    unit:assert-equals(
+        xf:at('@id')($test:input),
         attribute id { 'xyz' })
 };
 
 (:~ But when wrapping it in a document node it is :)
-declare %unit:test %unit:ignore('cannot select document root') function test:root-select() {
-    unit:assert-equals(xf:at(document { $test:input }, 'ul/@id'),
+declare %unit:test function test:root-select() {
+    unit:assert-equals(
+        xf:at('/*')(document { $test:input }),
         <ul id="xyz">
             <li>item <span class="first">1</span></li>
             <li>item <span>2</span></li>
@@ -41,25 +44,32 @@ declare %unit:test %unit:ignore('cannot select document root') function test:roo
     )
 };
 
-(:~ Multiple selectors :)
-declare %unit:test function test:chain-select() {
-    unit:assert-equals(xf:at($test:input, ('li','span')),
-        (<span class="first">1</span>,
-         <span>2</span>,
-         <span class="last"><i>3</i></span>)
+(:~ Transform node sequence :)
+declare %unit:test function test:at-do() {
+    unit:assert-equals(
+        xf:do((
+            xf:at('li'),
+            function($n) {
+                <li>{ count($n) }</li>
+            },
+            function($n) {
+                element n { $n }                
+            }
+        ))($test:input),
+        <n><li>3</li></n>
     )
 };
 
-(:~ Multiple selectors are composed with descendents axis :)
-declare %unit:test function test:chain-descendents() {
-    unit:assert-equals(xf:at($test:input, ('li','i')),
-        <i>3</i>
-    )
-};
-
-(:~ Nothing matched :)
-declare %unit:test function test:chain-with-non-existing-node() {
-    unit:assert-equals(xf:at($test:input, ('li','x')),
-        ()
+(:~ Transform node sequence :)
+declare %unit:test %unit:ignore('TODO') function test:node-sequence() {
+    unit:assert-equals(
+        xf:at($test:input, 'li', 
+            function($n) { 
+                text { '[' || upper-case($n) || '.' || position() || ']' } 
+            }
+        ),
+        (text { '[ITEM 1]' },
+         text { '[ITEM 2]' },
+         text { '[ITEM 3]' })
     )
 };
