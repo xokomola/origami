@@ -29,3 +29,11 @@ for $story in $select-stories($input)
         $byline => xf:wrap(<byline/>),
         $summary => xf:wrap(<summary/>)
       }</story>
+
+(:
+    Parsing: 506.85 ms
+    Compiling: 31.99 ms
+    Evaluating: 1.16 ms
+    Printing: 826.16 ms
+    Total Time: 1366.15 ms
+:)
