@@ -211,7 +211,7 @@ declare function xf:at($nodes as node()*, $selectors as item()*) {
  :)
 declare function xf:if($conditions as item()*) 
     as function(node()*) as node()* {
-    let $conditions := xf:comp-selector($conditions)
+    let $conditions := xf:comp-expression($conditions)
     return
         function($nodes as node()*) as node()* {
             fold-left(
@@ -465,8 +465,6 @@ declare function xf:text($nodes as node()*)
 
 (:~
  : Set attributes using a map.
- :
- : TODO: use node-name
  :)
 declare function xf:set-attr($attributes as item())
     as function(node()*) as node()* {
@@ -668,7 +666,7 @@ declare function xf:xslt($stylesheet as item(), $params as item())
     as function(node()*) as node()* {
     xf:element-transformer(
         function($node as element()) as node()* {
-            xslt:transform($node, $stylesheet, $params)
+            xslt:transform($node, $stylesheet, $params)/*
         }
     )($params)
 };
@@ -711,7 +709,7 @@ declare function xf:environment() {
     map {
         'bindings': function($nodes as node()*) as map(*) {
             map { 
-                '': $nodes/descendant-or-self::element(),
+                '': $nodes/descendant-or-self::node(),
                 xs:QName('in'): function($att, $token) as xs:boolean {
                     $token = tokenize(string($att),'\s+')
                 }

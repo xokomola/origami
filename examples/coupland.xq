@@ -3,18 +3,16 @@ xquery version "3.0";
 (:~
  : Origami transformer example: XQuery wiki example
  :
- : A more extensive HTML templating example and a port of the example
- : on the XQuery wikibook. This incorporates a few different types
- : of transformation all of which are supported using Origami transformers.
- :
- : - default action
- : - change element name
- : - ignore element
- : - define custom transformation
- : - transformation depends on context
- : - reordering elements
+ : This is a port of the example.
+ : It shows a style of templating that is very similar to
+ : XSLT. It is preferable to use `xf:template` for this type
+ : of transformation. Especially the many `xf:apply` calls
+ : are probably the cause of the bad performance.
  :
  : @see http://en.wikibooks.org/wiki/XQuery/Transformation_idioms
+ :
+ : TODO: Currently runs at more than 1.5 secs which is terrible.
+ :       When running from basexgui it also gets increasingly slower.
  :)
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
@@ -26,85 +24,16 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
  :)
 declare option db:chop 'false';
 
-(: Little helper function, may become part of the module :)
-declare function local:parent($node) {
-    $node/ancestor::*[not(self::xf:*)][1]
-};
+let $parent := 
+    function($node) {
+        $node/ancestor::*[not(self::xf:*)][1] }
+   
+let $input :=
+    xf:xml-resource(file:base-dir() || 'coupland.xml')
 
 let $transform := xf:transform((
 
-        xf:template('category', function($category as element(category)) {
-            if (local:parent($category)/site) then
-                ()
-            else
-                <div>{ $category/@*, xf:apply($category/node()) }</div>
-        }),
-        
-        xf:template('class', ()),
-
-        xf:template('description', function($description as element(description)) { 
-            <div>{ $description/@*, xf:apply($description/node()) }</div> 
-        }),
-        
-        xf:template('em', function($em as element(em)) {
-            <em>{ $em/@*, xf:apply($em/node()) }</em>
-        }),
-
-        xf:template('hub', function($hub as element(hub)) {
-            <hub>{ $hub/@*, xf:apply($hub/node()) }</hub>
-        }),
-
-        xf:template('image', function($image as element(image)) {
-            <div><img src="{ $image }"/></div>
-        }),
-        
-        xf:template('name', function($name as element(name)) {
-            if (local:parent($name)/site) then
-                <span style="font-size: 16pt">{ 
-                    $name/@*, xf:apply($name/node()) 
-                }</span>
-            else
-                <h1>{ $name/@*, xf:apply($name/node()) }</h1>
-        }),
-        
-        xf:template('p', function($p as element(p)) {
-            <p>{ $p/@*, xf:apply($p/node()) }</p>    
-        }),
-        
-        xf:template('q', function($q as element(q)) {
-            <q>{ $q/@*, xf:apply($q/node()) }</q>
-        }),
-
-        xf:template('site', function($site as element(site)) {
-            <div>
-                <div>{ 
-                    xf:apply($site/name), 
-                    xf:apply($site/uri) 
-                }</div>
-                <xf:apply>{ 
-                    $site/node() except ($site/uri,$site/name) 
-                }</xf:apply>
-            </div>
-        }),
-
-        xf:template('sites', function($sites as element(sites)) {
-            for $site in $sites
-            order by $site/sortkey
-            return
-                xf:apply($sites/site)
-        }),
-
-        xf:template('sortkey', ()),
-        
-        xf:template('subtitle', function($subtitle as element(subtitle)) {
-            <div>{ $subtitle/@*, xf:apply($subtitle/node()) }</div>
-        }),
-        
-        xf:template('uri', function($uri as element(uri)) {
-            <span><a href="{ $uri }">Link</a></span>
-        }),
-        
-        xf:template('websites', function($websites as element(websites)) {
+        xf:match('websites', function($websites as element(websites)) {
             <html>
                 <head>
                    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
@@ -132,11 +61,81 @@ let $transform := xf:transform((
                     }</div>  
                  </body>
             </html>           
-        })
-    ))
-   
-let $input :=
-    doc("http://www.cems.uwe.ac.uk/xmlwiki/eXist/transformation/Coupland1.xml")/*
+        }),
 
-return prof:time($transform($input))
+        xf:match('category[not(../site)]', function($category as element(category)) {
+            <div>{ $category/@*, xf:apply($category/node()) }</div>
+        }),
+        
+        xf:match('class', ()),
+
+        xf:match('description', function($description as element(description)) { 
+            <div>{ $description/@*, xf:apply($description/node()) }</div> 
+        }),
+        
+        xf:match('em', function($em as element(em)) {
+            <em>{ $em/@*, xf:apply($em/node()) }</em>
+        }),
+
+        xf:match('hub', function($hub as element(hub)) {
+            <hub>{ $hub/@*, xf:apply($hub/node()) }</hub>
+        }),
+
+        xf:match('image', function($image as element(image)) {
+            <div><img src="{ $image }"/></div>
+        }),
+        
+        xf:match('name', function($name as element(name)) {
+            if ($parent($name)/site) then
+                <span style="font-size: 16pt">{ 
+                    $name/@*, xf:apply($name/node()) 
+                }</span>
+            else
+                <h1>{ $name/@*, xf:apply($name/node()) }</h1>
+        }),
+        
+        xf:match('p', function($p as element(p)) {
+            <p>{ $p/@*, xf:apply($p/node()) }</p>    
+        }),
+        
+        xf:match('q', function($q as element(q)) {
+            <q>{ $q/@*, xf:apply($q/node()) }</q>
+        }),
+
+        xf:match('site', function($site as element(site)) {
+            <div>
+                <div>{ 
+                    xf:apply($site/name), 
+                    xf:apply($site/uri) 
+                }</div>
+                <xf:apply>{ 
+                    $site/node() except ($site/uri,$site/name) 
+                }</xf:apply>
+            </div>
+        }),
+
+        xf:match('sites', function($sites as element(sites)) {
+            for $site in $sites
+            order by $site/sortkey
+            return
+                xf:apply($sites/site)
+        }),
+
+        xf:match('sortkey', ()),
+        
+        xf:match('subtitle', function($subtitle as element(subtitle)) {
+            <div>{ $subtitle/@*, xf:apply($subtitle/node()) }</div>
+        }),
+        
+        xf:match('uri', function($uri as element(uri)) {
+            <span><a href="{ $uri }">Link</a></span>
+        }),
+        
+        xf:match('*', function($node as element()) {
+            xf:apply($node/node())
+        })
+        
+    ))
+
+return $transform($input)
 

@@ -484,18 +484,18 @@ declare variable $test:stylesheet :=
 declare %unit:test function test:xslt() {
     unit:assert-equals(
         xf:xslt(<foo/>,$test:stylesheet, map {}),
-        document { <a><bar/></a> }
+        <a><bar/></a>
     ),
     unit:assert-equals(
         xf:xslt((<foo/>,<foo/>),$test:stylesheet, map {}),
-        (document { <a><bar/></a> }, document { <a><bar/></a> })
+        (<a><bar/></a>, <a><bar/></a>)
     ),
     unit:assert-equals(
         xf:xslt((<foo/>,<bar/>,<foo/>),$test:stylesheet, map {}),
-        (document { <a><bar/></a> }, document { <a/> }, document { <a><bar/></a> })
+        (<a><bar/></a>, <a/>, <a><bar/></a>)
     ),
     unit:assert-equals(
         xf:xslt((<foo/>,text { 'foo' },<foo/>),$test:stylesheet, map {}),
-        (document { <a><bar/></a> }, text { 'foo' }, document { <a><bar/></a> })
+        (<a><bar/></a>, text { 'foo' }, <a><bar/></a>)
     )
 };
