@@ -938,7 +938,7 @@ declare %private function xf:xpath-expression($selector as xs:string)
     xf:xpath-matches($selector, xf:expr-environment())
 };
 
-declare %private function xf:xpath-matches($selector as xs:string, $env as map(*)) 
+declare function xf:xpath-matches($selector as xs:string, $env as map(*)) 
     as function(node()*) as node()* {
     let $query := $env('query')($selector)
     let $bindings := $env('bindings')
