@@ -455,11 +455,6 @@ declare function xf:text($nodes as node()*)
     xf:text()($nodes)
 };
 
-declare function xf:text($nodes as node()*)
-    as text()? {
-    xf:text()($nodes)
-};
-
 (:~
  : Set attributes using a map.
  :)
