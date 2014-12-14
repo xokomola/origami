@@ -5,8 +5,7 @@ xquery version "3.0";
  :
  : This is a port of the example.
  : It shows a style of templating that is very similar to
- : XSLT. It is preferable to use `xf:template` for this type
- : of transformation.
+ : XSLT. Later examples will have to improve on this.
  :
  : @see http://en.wikibooks.org/wiki/XQuery/Transformation_idioms
  :
@@ -128,23 +127,16 @@ let $transform := xf:transform((
     
     xf:match('uri', function($uri as element(uri)) {
         <span><a href="{ $uri }">Link</a></span>
-    }),
-    
-    xf:match('*', function($node as element()) {
-        xf:apply($node/node())
     })
-        
+    
 ))
 
 return $transform($input)
 
 (:
-
-    > basex -V -r10 examples/coupland.xq
-    Parsing: 62.96 ms (avg)
-    Compiling: 50.45 ms (avg)
-    Evaluating: 1226.13 ms (avg)
-    Printing: 3.07 ms (avg)
-    Total Time: 1342.61 ms (avg)
-    
+    Parsing: 514.41 ms
+    Compiling: 141.04 ms
+    Evaluating: 1506.98 ms    <<<<< ridiculous!
+    Printing: 13.98 ms
+    Total Time: 2176.41 ms
  :) 

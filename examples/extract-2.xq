@@ -3,18 +3,18 @@ xquery version "3.0";
 (:~
  : Origami extract example
  :
- : Extract returns only outermost nodes. This seems more appropriate
- : for a templating library. Use separate extracts to select lists
- : and list items.
+ : Extract also doesn't return duplicates.
  :)
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
 let $extract :=
-  xf:extract((
-    xf:select('li[@id="last"]'),
-    xf:select('ul')))
-
+    xf:extract((
+        xf:at('li[@id="last"]'), 
+        xf:at('li'),
+        xf:at('li[@id="first"]')
+    ))
+ 
 let $input :=
   document {
     <ul>
@@ -24,4 +24,4 @@ let $input :=
     </ul>    
   }
  
-return prof:time($extract($input))
+return $extract($input)

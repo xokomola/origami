@@ -10,9 +10,10 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
 let $extract :=
-  xf:extract((
-    xf:select('li[@id="last"]'), 
-    xf:select('li[@id="first"]')))
+    xf:extract((
+        xf:at('li[@id="last"]'), 
+        xf:at('li[@id="first"]')
+    ))
  
 let $input :=
   document {
@@ -23,4 +24,4 @@ let $input :=
     </ul>    
   }
  
-return prof:time($extract($input))
+return $extract($input)

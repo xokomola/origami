@@ -151,18 +151,18 @@ declare function xf:extract-outer($nodes as node()*, $steps as function(*)*)
  : the template body.
  : Providing invalid matcher returns empty sequence.
  :)
-declare function xf:match($selectors, $body) 
+declare function xf:match($selector, $body) 
     as map(*)? {
-    let $select := xf:at($selectors, ())
+    let $selector := xf:select-all($selector)
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
         case function(*) return $body
         default return function($node) { $body }
-    where $select instance of function(*) and $body instance of function(*)
+    where $selector instance of function(*) and $body instance of function(*)
     return
         map {
-            'select': $select,
+            'select': $selector,
             'fn': $body
         }
 };
@@ -174,16 +174,14 @@ declare function xf:match($selectors, $body)
 declare function xf:at($selector as xs:string, $xforms as function(*)*) 
     as function(node()*) as node()* {
     let $selector := xf:select-all($selector)
+    let $xform := xf:do-each($xforms)
     return
-        function($nodes as node()*) as node()* {
-            fold-left(
-                $xforms,
-                $selector($nodes),
-                function($result, $step) {
-                    $step($result)
-                }
-            )
-        }
+        if (exists($xform)) then
+            function($nodes as node()*) as node()* {
+                $xform($selector($nodes))
+            }
+        else
+            $selector
 };
 
 (:~

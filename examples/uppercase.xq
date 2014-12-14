@@ -1,7 +1,7 @@
 xquery version "3.0";
 
 (:~
- : Origami xform example: uppercase element and attribute names
+ : Origami transformer example: uppercase element and attribute names
  :
  : This requires two templates, one to transform elements and the
  : other to transform attributes. Note that by default the transformer
@@ -12,7 +12,7 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
 
 let $transform := xf:transform((
 
-    xf:template(
+    xf:match(
         '*', function($node) {
             element { QName(namespace-uri($node), upper-case(name($node))) } {
                 xf:apply($node/(@*, node()))
@@ -20,7 +20,7 @@ let $transform := xf:transform((
         }
     ),
 
-    xf:template(
+    xf:match(
         '@*', function($node) {
             attribute { QName(namespace-uri($node), upper-case(name($node))) } {
                 string($node)
@@ -29,12 +29,14 @@ let $transform := xf:transform((
     )
 ))
 
-let $input := 
+let $input :=
+  document {
     <a x="10">
         <b y="20">
             <c/>
         </b>
         <p/>
-    </a>
+    </a>    
+  } 
 
 return $transform($input)

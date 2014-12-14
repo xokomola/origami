@@ -13,12 +13,9 @@ return
     cl:websites($input)
     
 (: 
-
-    > basex -V -r10 examples/coupland-original.xq
-    Parsing: 77.18 ms (avg)
-    Compiling: 18.48 ms (avg)
-    Evaluating: 16.51 ms (avg)
-    Printing: 3.12 ms (avg)
-    Total Time: 115.29 ms (avg)
-
- :)
+    Parsing: 518.2 ms
+    Compiling: 69.4 ms
+    Evaluating: 30.69 ms
+    Printing: 11.49 ms
+    Total Time: 629.79 ms
+:)

@@ -10,9 +10,10 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $extract := xf:extract(xf:select(('pre/code', xf:unwrap(), xf:wrap(<code-sample/>))))
+let $extract := xf:extract(
+    xf:at('pre/code', (xf:unwrap(), xf:wrap(<code-sample/>))))
 
 let $input := 
     xf:fetch-html("http://xokomola.com/2014/11/10/xquery-origami-1.html")
     
-return prof:time($extract($input))
+return $extract($input)
