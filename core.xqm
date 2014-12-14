@@ -174,12 +174,11 @@ declare function xf:match($selectors, $body)
 declare function xf:at($selector as xs:string, $xforms as function(*)*) 
     as function(node()*) as node()* {
     let $selector := xf:select-all($selector)
-    let $xform := ($selector, $xforms)
     return
         function($nodes as node()*) as node()* {
             fold-left(
                 $xforms,
-                $nodes,
+                $selector($nodes),
                 function($result, $step) {
                     $step($result)
                 }
@@ -928,7 +927,7 @@ declare %private function xf:comp-expression($expressions as item()*)
     for $expression in $expressions
     return
         if ($expression instance of xs:string) then
-            xf:xpath-expression($expression)
+            xf:select($expression)
         else
             $expression
 };
