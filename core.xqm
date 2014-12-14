@@ -153,7 +153,7 @@ declare function xf:extract-outer($nodes as node()*, $steps as function(*)*)
  :)
 declare function xf:match($selectors, $body) 
     as map(*)? {
-    let $select := xf:at($selectors)
+    let $select := xf:at($selectors, ())
     let $body :=
         typeswitch ($body)
         case empty-sequence() return function($node) { () }
@@ -168,26 +168,17 @@ declare function xf:match($selectors, $body)
 };
 
 (:~
- : Compose a select function from a sequence of selector functions or Xpath 
- : expressions.
- : 
- : A node selector is any function
- : compatible with the signature `function(node()*) as node()*`. For
- : some extractors it is necessary that this function only selects
- : nodes and that it doesn't create new nodes as this would frustrate
- : the functionality that depends on node identity. Extractors usually
- : do not return duplicate nodes and also ensure that nodes are output
- : in document-order. This is not enforced, however, and this allows
- : combining node selection with transformation. But it may also
- : cause unexpected issues.
+ : Define a transformation that starts with selecting nodes with an
+ : XPath expression.
  :)
-declare function xf:at($selectors as item()*) 
+declare function xf:at($selector as xs:string, $xforms as function(*)*) 
     as function(node()*) as node()* {
-    let $selectors := xf:comp-selector($selectors)
+    let $selector := xf:select-all($selector)
+    let $xform := ($selector, $xforms)
     return
         function($nodes as node()*) as node()* {
             fold-left(
-                $selectors,
+                $xforms,
                 $nodes,
                 function($result, $step) {
                     $step($result)
@@ -199,8 +190,12 @@ declare function xf:at($selectors as item()*)
 (:~
  : Execute a chain of node selectors. 
  :)
-declare function xf:at($nodes as node()*, $selectors as item()*) {
-    xf:at($selectors)($nodes)
+declare function xf:at($nodes as node()*, $selector as xs:string, $xforms as function(*)*) {
+    xf:at($selector, $xforms)($nodes)
+};
+
+declare function xf:at($selector as xs:string) {
+    xf:at($selector, ())
 };
 
 (:~
@@ -737,6 +732,29 @@ declare function xf:expr-environment() {
     }
 };
 
+(:~
+ : Find matches for XPath expression string applied to passed in nodes.
+ :)
+declare function xf:select-all($selector as xs:string) 
+    as function(node()*) as node()* {
+    xf:select($selector, xf:environment())
+};
+
+declare function xf:select($selector as xs:string) 
+    as function(node()*) as node()* {
+    xf:select($selector, xf:expr-environment())
+};
+
+declare function xf:select($selector as xs:string, $env as map(*)) 
+    as function(node()*) as node()* {
+    let $query := $env('query')($selector)
+    let $bindings := $env('bindings')
+    return
+        function($nodes as node()*) as node()* {
+            xquery:eval($query, $bindings($nodes))
+        }
+};
+
 (: ================ internal functions ================ :)
 
 (:~
@@ -760,25 +778,6 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
             }
         else
             $node
-};
-
-(:~
- : Looks in the $context to find a template that was matched by this
- : node. First one found (most-specific) wins.
- :)
-declare %private function xf:matched-template($node as node(), $context as map(*)*) 
-    as map(*)? {
-    if (count($context) gt 0) then
-        hof:until(
-            function($context as map(*)*) { 
-                empty($context) or 
-                xf:is-node-in-sequence($node, head($context)('nodes')) },
-            function($context as map(*)*) { 
-                tail($context) },
-            $context
-        )[1]
-    else
-        ()
 };
 
 (:~
@@ -905,14 +904,23 @@ declare %private function xf:match-templates($node as node(), $xform as map(*)*)
     )
 };
 
-declare %private function xf:comp-selector($selectors as item()*)
-    as (function(node()*) as node()*)* {
-    for $step in $selectors
-    return
-        if ($step instance of xs:string) then
-            xf:xpath-matches($step)
-        else
-            $step
+(:~
+ : Looks in the $context to find a template that was matched by this
+ : node. First one found (most-specific) wins.
+ :)
+declare %private function xf:matched-template($node as node(), $context as map(*)*) 
+    as map(*)? {
+    if (count($context) gt 0) then
+        hof:until(
+            function($context as map(*)*) { 
+                empty($context) or 
+                xf:is-node-in-sequence($node, head($context)('nodes')) },
+            function($context as map(*)*) { 
+                tail($context) },
+            $context
+        )[1]
+    else
+        ()
 };
 
 declare %private function xf:comp-expression($expressions as item()*)
@@ -923,29 +931,6 @@ declare %private function xf:comp-expression($expressions as item()*)
             xf:xpath-expression($expression)
         else
             $expression
-};
-
-(:~
- : Find matches for XPath expression string applied to passed in nodes.
- :)
-declare %private function xf:xpath-matches($selector as xs:string) 
-    as function(node()*) as node()* {
-    xf:xpath-matches($selector, xf:environment())
-};
-
-declare %private function xf:xpath-expression($selector as xs:string) 
-    as function(node()*) as node()* {
-    xf:xpath-matches($selector, xf:expr-environment())
-};
-
-declare function xf:xpath-matches($selector as xs:string, $env as map(*)) 
-    as function(node()*) as node()* {
-    let $query := $env('query')($selector)
-    let $bindings := $env('bindings')
-    return
-        function($nodes as node()*) as node()* {
-            xquery:eval($query, $bindings($nodes))
-        }
 };
 
 (:~
