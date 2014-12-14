@@ -184,15 +184,15 @@ declare function xf:at($selector as xs:string, $xforms as function(*)*)
             $selector
 };
 
+declare function xf:at($selector as xs:string) {
+    xf:at($selector, ())
+};
+
 (:~
  : Execute a chain of node selectors. 
  :)
 declare function xf:at($nodes as node()*, $selector as xs:string, $xforms as function(*)*) {
     xf:at($selector, $xforms)($nodes)
-};
-
-declare function xf:at($selector as xs:string) {
-    xf:at($selector, ())
 };
 
 (:~
@@ -448,6 +448,11 @@ declare function xf:text()
         else
             ()
     }
+};
+
+declare function xf:text($nodes as node()*)
+    as text()? {
+    xf:text()($nodes)
 };
 
 declare function xf:text($nodes as node()*)
@@ -734,15 +739,25 @@ declare function xf:expr-environment() {
  :)
 declare function xf:select-all($selector as xs:string) 
     as function(node()*) as node()* {
-    xf:select($selector, xf:environment())
+    xf:select-with-env($selector, xf:environment())
+};
+
+declare function xf:select-all($nodes as node()*, $selector as xs:string) 
+    as function(node()*) as node()* {
+    xf:select-all($selector)($nodes)
 };
 
 declare function xf:select($selector as xs:string) 
     as function(node()*) as node()* {
-    xf:select($selector, xf:expr-environment())
+    xf:select-with-env($selector, xf:expr-environment())
 };
 
-declare function xf:select($selector as xs:string, $env as map(*)) 
+declare function xf:select($nodes as node()*, $selector as xs:string) 
+    as function(node()*) as node()* {
+    xf:select($selector)($nodes)
+};
+
+declare %private function xf:select-with-env($selector as xs:string, $env as map(*)) 
     as function(node()*) as node()* {
     let $query := $env('query')($selector)
     let $bindings := $env('bindings')
