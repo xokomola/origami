@@ -89,7 +89,7 @@ declare function xf:transform() { xf:transform(()) };
  : Returns an extractor function that only returns selected nodes 
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract($steps as function(*)*) 
+declare function xf:extract($steps as array(*)*) 
     as function(node()*) as node()* {
     xf:extract-outer($steps)
 };
@@ -97,7 +97,7 @@ declare function xf:extract($steps as function(*)*)
 (:~
  : Extracts nodes from input, using the specified selectors.
  :)
-declare function xf:extract($nodes as node()*, $steps as function(*)*) 
+declare function xf:extract($nodes as node()*, $steps as array(*)*) 
     as node()* {
     xf:extract($steps)($nodes)
 };
@@ -106,10 +106,12 @@ declare function xf:extract($nodes as node()*, $steps as function(*)*)
  : Returns an extractor function that returns selected nodes,
  : only innermost, in document order and duplicates eliminitated.
  :)
-declare function xf:extract-inner($steps as function(*)*) 
+declare function xf:extract-inner($steps as array(*)*) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
-        xf:distinct-nodes(innermost(xf:select-nodes($nodes, $steps)))
+        innermost(
+            xf:transform-nodes(
+                xf:extract-nodes($nodes, $steps)))
     }
 };
 
@@ -128,10 +130,12 @@ declare function xf:extract-inner($nodes as node()*, $steps as function(*)*)
  : Returns an extractor function that returns selected nodes,
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract-outer($steps as function(*)*) 
+declare function xf:extract-outer($steps as array(*)*) 
     as function(node()*) as node()* {
     function($nodes as node()*) as node()* {
-        xf:distinct-nodes(outermost(xf:select-nodes($nodes, $steps)))
+        outermost(
+            xf:transform-nodes(
+                xf:extract-nodes($nodes, $steps)))
     }
 };
 
@@ -171,28 +175,16 @@ declare function xf:match($selector, $body)
  : Define a transformation that starts with selecting nodes with an
  : XPath expression.
  :)
-declare function xf:at($selector as xs:string, $xforms as function(*)*) 
+declare function xf:at($selector as xs:string) 
     as function(node()*) as node()* {
-    let $selector := xf:select-all($selector)
-    let $xform := xf:do-each($xforms)
-    return
-        if (exists($xforms)) then
-            function($nodes as node()*) as node()* {
-                $xform($selector($nodes))
-            }
-        else
-            $selector
-};
-
-declare function xf:at($selector as xs:string) {
-    xf:at($selector, ())
+    xf:select($selector)
 };
 
 (:~
  : Execute a chain of node selectors. 
  :)
-declare function xf:at($nodes as node()*, $selector as xs:string, $xforms as function(*)*) {
-    xf:at($selector, $xforms)($nodes)
+declare function xf:at($nodes as node()*, $selector as xs:string) {
+    xf:at($selector)($nodes)
 };
 
 (:~
@@ -701,7 +693,7 @@ declare function xf:environment() {
     map {
         'bindings': function($nodes as node()*) as map(*) {
             map { 
-                '': $nodes/descendant-or-self::node(),
+                '': $nodes/descendant-or-self::element(),
                 xs:QName('in'): function($att, $token) as xs:boolean {
                     $token = tokenize(string($att),'\s+')
                 }
@@ -833,6 +825,43 @@ declare %private function xf:select-nodes($nodes as node()*, $selectors as funct
 };
 
 (:~
+ : NEW return matching nodes.
+ :)
+declare function xf:extract-nodes($nodes as node()*, $selectors as array(*)*)
+    as array(*)* {
+    for $node in $nodes
+    return
+        if ($node instance of element() or $node instance of document-node()) then
+            (
+                fold-left(
+                    $selectors, (),
+                    function($result, $selector) {
+                        let $selected := $selector(1)($node)
+                        return
+                            if (exists($selected)) then
+                                ($result, [$selected, $selector(2)])
+                            else
+                                $result
+                    }
+                ),
+                xf:extract-nodes($node/*, $selectors)
+            )
+        else
+            ()
+    
+};
+
+declare function xf:transform-nodes($selections as array(*)*)
+    as node()* {
+    for $selection in $selections
+    for $node in $selection(1)
+    return
+        if (empty($selection(2))) then
+            $node
+        else
+            $selection(2)($node)
+};
+(:~
  : Find the first matching template for a node and return
  : it's node transformation function.
  :)
@@ -958,21 +987,4 @@ declare %private function xf:distinct-nodes($nodes as node()*)
 declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
     as xs:boolean {
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
-};
-
-(:~
- : Partition a sequence into an array of sequences $n long.
- : This is used to build rules that consist of a selector (xf:at) and
- : a body (xf:do).
- :
- : NOTE: currently not used
- :)
-declare function xf:partition($n as xs:integer, $seq) as array(*)* {
-    if (not(empty($seq))) then
-        for $i in 1 to (count($seq) idiv $n) + 1
-        where count($seq) > ($i -1) * $n
-        return
-            array { subsequence($seq, (($i -1) * $n) + 1, $n) }
-    else
-        ()
 };

@@ -61,7 +61,7 @@ declare %unit:test function test:at-do() {
 };
 
 (:~ Transform node sequence :)
-declare %unit:test %unit:ignore('TODO') function test:node-sequence() {
+declare %unit:test function test:node-sequence() {
     unit:assert-equals(
         xf:at($test:input, 'li', 
             function($n) { 
