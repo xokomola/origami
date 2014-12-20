@@ -12,21 +12,19 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
 
 let $transform := xf:transform((
 
-    xf:match(
-        '*', function($node) {
+    ['*', function($node) {
             element { QName(namespace-uri($node), upper-case(name($node))) } {
                 xf:apply($node/(@*, node()))
             }
         }
-    ),
+    ],
 
-    xf:match(
-        '@*', function($node) {
+    ['@*', function($node) {
             attribute { QName(namespace-uri($node), upper-case(name($node))) } {
                 string($node)
             }
         }
-    )
+    ]
 ))
 
 let $input :=

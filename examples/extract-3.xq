@@ -12,8 +12,8 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
 
 let $extract :=
     xf:extract((
-        [xf:at('li[@id="last"]'),()],
-        [xf:at('ul'),()]
+        ['li[@id="last"]'],
+        ['ul']
     ))
 
 let $input :=

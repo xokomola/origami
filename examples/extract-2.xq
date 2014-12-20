@@ -10,9 +10,9 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
 
 let $extract :=
     xf:extract((
-        [xf:at('li[@id="last"]'),()], 
-        [xf:at('li'),()],
-        [xf:at('li[@id="first"]'),()]
+        ['li[@id="last"]'], 
+        ['li'],
+        ['li[@id="first"]']
     ))
  
 let $input :=
@@ -24,4 +24,4 @@ let $input :=
     </ul>    
   }
  
-return $extract($input)
+return $input => $extract()

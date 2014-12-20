@@ -31,7 +31,7 @@ let $input :=
 
 let $transform := xf:transform((
 
-    xf:match('websites', function($websites as element(websites)) {
+    ['websites', function($websites as element(websites)) {
         <html>
             <head>
                <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
@@ -59,48 +59,48 @@ let $transform := xf:transform((
                 }</div>  
              </body>
         </html>           
-    }),
+    }],
 
-    xf:match('category[not(../site)]', function($category as element(category)) {
+    ['category[not(../site)]', function($category as element(category)) {
         <div>{ $category/@*, xf:apply($category/node()) }</div>
-    }),
+    }],
     
-    xf:match('class', ()),
+    ['class', ()],
 
-    xf:match('description', function($description as element(description)) { 
+    ['description', function($description as element(description)) { 
         <div>{ $description/@*, xf:apply($description/node()) }</div> 
-    }),
+    }],
     
-    xf:match('em', function($em as element(em)) {
+    ['em', function($em as element(em)) {
         <em>{ $em/@*, xf:apply($em/node()) }</em>
-    }),
+    }],
 
-    xf:match('hub', function($hub as element(hub)) {
+    ['hub', function($hub as element(hub)) {
         <hub>{ $hub/@*, xf:apply($hub/node()) }</hub>
-    }),
+    }],
 
-    xf:match('image', function($image as element(image)) {
+    ['image', function($image as element(image)) {
         <div><img src="{ $image }"/></div>
-    }),
+    }],
     
-    xf:match('name', function($name as element(name)) {
+    ['name', function($name as element(name)) {
         if ($parent($name)/site) then
             <span style="font-size: 16pt">{ 
                 $name/@*, xf:apply($name/node()) 
             }</span>
         else
             <h1>{ $name/@*, xf:apply($name/node()) }</h1>
-    }),
+    }],
     
-    xf:match('p', function($p as element(p)) {
+    ['p', function($p as element(p)) {
         <p>{ $p/@*, xf:apply($p/node()) }</p>    
-    }),
+    }],
     
-    xf:match('q', function($q as element(q)) {
+    ['q', function($q as element(q)) {
         <q>{ $q/@*, xf:apply($q/node()) }</q>
-    }),
+    }],
 
-    xf:match('site', function($site as element(site)) {
+    ['site', function($site as element(site)) {
         <div>
             <div>{ 
                 xf:apply($site/name), 
@@ -110,24 +110,24 @@ let $transform := xf:transform((
                 $site/node() except ($site/uri,$site/name) 
             }</xf:apply>
         </div>
-    }),
+    }],
 
-    xf:match('sites', function($sites as element(sites)) {
+    ['sites', function($sites as element(sites)) {
         for $site in $sites
         order by $site/sortkey
         return
             xf:apply($sites/site)
-    }),
+    }],
 
-    xf:match('sortkey', ()),
+    ['sortkey', ()],
     
-    xf:match('subtitle', function($subtitle as element(subtitle)) {
+    ['subtitle', function($subtitle as element(subtitle)) {
         <div>{ $subtitle/@*, xf:apply($subtitle/node()) }</div>
-    }),
+    }],
     
-    xf:match('uri', function($uri as element(uri)) {
+    ['uri', function($uri as element(uri)) {
         <span><a href="{ $uri }">Link</a></span>
-    })
+    }]
     
 ))
 
