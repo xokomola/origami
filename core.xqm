@@ -265,8 +265,6 @@ declare function xf:do-each($nodes as node()*, $fns as array(*))
     xf:do-each($fns)($nodes)
 };
 
-(: ================ node transformers ================ :)
-
 (:~
  : Replace the content (child nodes) of the input node
  :)
@@ -675,8 +673,6 @@ declare function xf:element-transformer($transform as function(element()) as nod
     }
 };
 
-(: ================ environment ================ :)
-
 (:~
  : Sets up a default environment which can be customized.
  : Represents the default bindings for selecting nodes.
@@ -749,8 +745,6 @@ declare %private function xf:select-with-env($selector as xs:string, $env as map
         }
 };
 
-(: ================ internal functions ================ :)
-
 (:~
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
@@ -800,7 +794,6 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
 
 (:~
  : Apply to be used from within templates.
- : TODO: maybe rename to xf:apply-rules
  :)
 declare function xf:apply($nodes as node()*) 
     as element(xf:apply) { 
@@ -895,7 +888,8 @@ declare %private function xf:comp-expression($expressions as item()*)
 };
  
 (:~
- : Is node defined in seq?
+ : Returns `true()` if the node `$node` is also in sequence `$seq`. 
+ :
  : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
  :)
 declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
