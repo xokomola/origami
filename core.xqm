@@ -150,9 +150,8 @@ declare function xf:extract-outer($nodes as node()*, $selectors as array(*)*)
  :)
 declare function xf:match($template as array(*)) 
     as map(*)? {
-    let $selector := xf:selector([array:head($template)])
-    (: HACK: to work around an array:fold-left bug in 20141219 :)
-    let $body := xf:do(array:filter($template,function($i) { not($i instance of xs:string) }))
+    let $selector := xf:selector([array:head($template)], xf:select#1)
+    let $body := xf:do(array:tail($template))
     where array:size($template) gt 0
     return
         map {
@@ -234,35 +233,6 @@ declare function xf:do($fns as array(*))
 declare function xf:do($nodes as node()*, $fns as array(*)) 
     as node()* {
     xf:do($fns)($nodes)
-};
-
-(:~
- : Compose a chain of node transformers.
- :)
-declare function xf:do-each($fns as array(*)) 
-    as function(node()*) as node()* {
-    function($nodes as node()*) as node()* {
-        for $node in $nodes
-        return
-            array:fold-left(
-                $fns, 
-                $node,
-                function($node, $fn) {
-                if (exists($fn)) then
-                    $fn($node)
-                else
-                    ()
-                }
-            ) 
-    }
-};
-
-(:~
- : Execute a chain of node transformers.
- :)
-declare function xf:do-each($nodes as node()*, $fns as array(*)) 
-    as node()* {
-    xf:do-each($fns)($nodes)
 };
 
 (:~
@@ -754,7 +724,7 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     for $node in $nodes
     return 
         if ($node/self::xf:apply) then
-            xf:apply-nodes($node/(@*, node()), (), $xform)
+            xf:apply-nodes($node, (), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {
                 $node/@*,
@@ -778,7 +748,9 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
     let $context := (xf:match-templates($node, $xform), $context)
     let $match := xf:matched-template($node, $context)
     return
-        if ($match instance of map(*)) then
+        if ($node/self::xf:apply) then
+            xf:apply-nodes($node/node(), $context, $xform)
+        else if ($match instance of map(*)) then
             xf:copy-nodes($match('fn')($node), $xform)
         else if ($node instance of element()) then
             element { node-name($node) } {

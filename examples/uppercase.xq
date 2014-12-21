@@ -10,9 +10,21 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
+
+let $input :=
+  document {
+    <a x="10">
+        <b y="20">
+            <c/>
+        </b>
+        <p/>
+        <a/>
+    </a>    
+  } 
+
 let $transform := xf:transform((
 
-    ['*', function($node) {
+    ['a', function($node) {
             element { QName(namespace-uri($node), upper-case(name($node))) } {
                 xf:apply($node/(@*, node()))
             }
@@ -26,15 +38,5 @@ let $transform := xf:transform((
         }
     ]
 ))
-
-let $input :=
-  document {
-    <a x="10">
-        <b y="20">
-            <c/>
-        </b>
-        <p/>
-    </a>    
-  } 
 
 return $transform($input)
