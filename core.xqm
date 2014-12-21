@@ -3,7 +3,7 @@ xquery version "3.0";
 (:~
  : Origami templating.
  :
- : Requires Basex 8.0 20141219 or later.
+ : Requires Basex 8.0 20141221 or later.
  :
  : @version 0.4 
  : @author Marc van Grootel

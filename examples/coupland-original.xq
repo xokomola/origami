@@ -11,11 +11,3 @@ let $input :=
 
 return
     cl:websites($input)
-    
-(: 
-    Parsing: 518.2 ms
-    Compiling: 69.4 ms
-    Evaluating: 30.69 ms
-    Printing: 11.49 ms
-    Total Time: 629.79 ms
-:)

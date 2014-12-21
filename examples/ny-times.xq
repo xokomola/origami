@@ -12,17 +12,17 @@ let $input := xf:html-resource(file:base-dir() || 'ny-times.html')
 let $input := xf:html-resource('http://www.nytimes.com')
 :)
 
+let $text := function($nodes) { xf:text($nodes[1]) }
 let $select-stories := xf:extract(['article[$in(@class,"story")]'])
-
-let $select-headline := xf:at(['((h2|h3|h5)//a)[1]', xf:text()])
-let $select-byline := xf:at(['*[$in(@class,"byline")][1]', xf:text()])
-let $select-summary := xf:at(['*[$in(@class,"summary")][1]', xf:text()])
+let $select-headline := xf:at(['(h2|h3|h5)//a', $text])
+let $select-byline := xf:at(['*[$in(@class,"byline")]', $text])
+let $select-summary := xf:at(['*[$in(@class,"summary")]', $text])
 
 for $story in $select-stories($input)
 
-    let $headline := $story => $select-headline()
-    let $byline := $story => $select-byline()
-    let $summary := $story => $select-summary()
+    let $headline := $select-headline($story)
+    let $byline :=  $select-byline($story)
+    let $summary := $select-summary($story)
     
     where $headline and $byline and $summary
     return
@@ -31,11 +31,3 @@ for $story in $select-stories($input)
         $byline => xf:wrap(<byline/>),
         $summary => xf:wrap(<summary/>)
       }</story>
-
-(:
-    Parsing: 510.38 ms
-    Compiling: 36.58 ms
-    Evaluating: 1.08 ms
-    Printing: 831.38 ms
-    Total Time: 1379.43 ms
- :)

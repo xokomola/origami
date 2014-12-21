@@ -8,8 +8,6 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $transform := xf:transform()
-
 let $input := 
     <a x="10">
         <b y="20">
@@ -18,12 +16,6 @@ let $input :=
         <p></p>
     </a>
 
-return $transform($input)
+let $transform := xf:transform()
 
-(:
-    Parsing: 506.69 ms
-    Compiling: 8.84 ms
-    Evaluating: 0.55 ms
-    Printing: 10.05 ms
-    Total Time: 526.13 ms
- :)
+return $transform($input)

@@ -8,13 +8,6 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $extract :=
-    xf:extract((
-        ['li[@id="last"]'], 
-        ['li'],
-        ['li[@id="first"]']
-    ))
- 
 let $input :=
   document {
     <ul>
@@ -23,5 +16,12 @@ let $input :=
       <li id="last">item 3</li>
     </ul>    
   }
+ 
+let $extract :=
+    xf:extract((
+        ['li[@id="last"]'], 
+        ['li'],
+        ['li[@id="first"]']
+    ))
  
 return $input => $extract()

@@ -10,7 +10,6 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-
 let $input :=
   document {
     <a x="10">

@@ -132,11 +132,3 @@ let $transform := xf:transform((
 ))
 
 return $transform($input)
-
-(:
-    Parsing: 514.41 ms
-    Compiling: 141.04 ms
-    Evaluating: 1506.98 ms    <<<<< ridiculous!
-    Printing: 13.98 ms
-    Total Time: 2176.41 ms
- :) 
