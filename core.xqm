@@ -105,7 +105,10 @@ declare function xf:extract-inner($selectors as array(*)*)
             xf:at($selector)
     return
         function($nodes as node()*) as node()* {
-            innermost($selectors($nodes))
+            innermost(
+                for $selector in $selectors
+                return $selector($nodes)
+            )
         }
 };
 
@@ -125,7 +128,10 @@ declare function xf:extract-outer($selectors as array(*)*)
         return xf:at($selector)
     return
         function($nodes as node()*) as node()* {
-            outermost($selectors($nodes))
+            outermost(
+                for $selector in $selectors
+                return $selector($nodes)
+            )
         }
 };
 
