@@ -749,7 +749,7 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
     let $match := xf:matched-template($node, $context)
     return
         if ($node/self::xf:apply) then
-            xf:apply-nodes($node/node(), $context, $xform)
+            xf:apply-nodes($node/(@*,node()), $context, $xform)
         else if ($match instance of map(*)) then
             xf:copy-nodes($match('fn')($node), $xform)
         else if ($node instance of element()) then

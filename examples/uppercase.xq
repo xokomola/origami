@@ -24,7 +24,7 @@ let $input :=
 
 let $transform := xf:transform((
 
-    ['a', function($node) {
+    ['*', function($node) {
             element { QName(namespace-uri($node), upper-case(name($node))) } {
                 xf:apply($node/(@*, node()))
             }
