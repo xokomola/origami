@@ -778,7 +778,7 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
  : Applies nodes to output, but runs the template node transformer when it
  : encounters a node that was matched.
  :)
-declare function xf:apply-nodes($nodes as node()*, $context as map(*)*, $xform as map(*)*)
+declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
     let $context := (xf:match-templates($node, $xform), $context)
@@ -811,7 +811,7 @@ declare function xf:apply($nodes as node()*)
  : Find all templates matched by this node and adds the matched nodes
  : to the templates.
  :)
-declare function xf:match-templates($node as node(), $xform as map(*)*) 
+declare %private function xf:match-templates($node as node(), $xform as map(*)*) 
     as map(*)* {
     fold-left(
         $xform, 
@@ -831,7 +831,7 @@ declare function xf:match-templates($node as node(), $xform as map(*)*)
  : Looks in the $context to find a template that was matched by this
  : node. First one found (most-specific) wins.
  :)
-declare function xf:matched-template($node as node(), $context as map(*)*) 
+declare %private function xf:matched-template($node as node(), $context as map(*)*) 
     as map(*)? {
     if (count($context) gt 0) then
         hof:until(
