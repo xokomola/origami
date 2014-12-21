@@ -47,7 +47,7 @@ declare %unit:test function test:root-select() {
 (:~ Transform node sequence :)
 declare %unit:test function test:do-at() {
     unit:assert-equals(
-        xf:do($test:input, (
+        xf:do($test:input, [
             xf:at(['li']), 
             function($n) {
                 <li>{ count($n) }</li>
@@ -55,7 +55,7 @@ declare %unit:test function test:do-at() {
             function($n) {
                 element n { $n }                
             }
-        )),
+        ]),
         <n><li>3</li></n>
     )
 };

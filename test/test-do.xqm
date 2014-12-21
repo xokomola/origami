@@ -19,14 +19,14 @@ declare variable $test:input :=
 (:~ Transform node sequence :)
 declare %unit:test function test:do() {
     unit:assert-equals(
-        xf:do($test:input//li, (
+        xf:do($test:input//li, [
             function($n) {
                 (<a/>,<b/>)
             },
             function($n) {
                 element n { $n }                
             }
-        )),
+        ]),
         <n><a/><b/></n>
     )
 };
@@ -34,14 +34,14 @@ declare %unit:test function test:do() {
 (:~ Transform each node separately :)
 declare %unit:test function test:each() {
     unit:assert-equals(
-        xf:do-each($test:input//li, (
+        xf:do-each($test:input//li, [
             function($n) {
                 (<a/>,<b/>)
             },
             function($n) {
                 element n { $n }                
             }
-        )),
+        ]),
         (<n><a/><b/></n>,
          <n><a/><b/></n>,
          <n><a/><b/></n>)
@@ -51,12 +51,12 @@ declare %unit:test function test:each() {
 (:~ Mixing `xf:do` and `xf:do-each` :)
 declare %unit:test function test:do-and-each-mixed() {
     unit:assert-equals(
-        xf:do-each($test:input//li, (
+        xf:do-each($test:input//li, [
             function($n) {
                 (<a/>,<b/>)
             },
-            xf:do(xf:wrap(<x/>))
-        )),
+            xf:do([xf:wrap(<x/>)])
+        ]),
         (<x><a/><b/></x>,
          <x><a/><b/></x>,
          <x><a/><b/></x>)
