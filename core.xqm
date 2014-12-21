@@ -90,12 +90,6 @@ declare function xf:extract($nodes as node()*, $selectors as array(*)*)
 (:~
  : Returns an extractor function that returns selected nodes,
  : only innermost, in document order and duplicates eliminitated.
- :
- : TODO: when using ['*',()] this should delete the element
- :
- : TODO: this version still suffers from the problem with transforms
- :       being done before the inner/outermost which means that 
- :       they still frustrate the distinct/duplicate nodes stuff
  :)
 declare function xf:extract-inner($selectors as array(*)*) 
     as function(node()*) as node()* {
@@ -178,8 +172,6 @@ declare %private function xf:selector($steps as array(*))
 (:~
  : Only nodes for which the chain of expressions evaluates to `true()`
  : are passed through.
- :
- : TODO: need to do proper xpath expression evaluation (not used descendent)
  :)
 declare function xf:if($conditions as item()*) 
     as function(node()*) as node()* {

@@ -21,10 +21,7 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 
 ## Requirements
 
-- BaseX 8.0 or higher
-
-Previously 7.9 worked but from 0.3 onwards you need a recent snapshot (I tested
-on 2014-11-16 snapshot).
+- BaseX 8.0 (at least [20141221 snapshot](http://basex.org/products/download/all-downloads/))
 
 ## Getting started
 
