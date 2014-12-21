@@ -172,44 +172,6 @@ declare function xf:at($nodes as node()*, $selector as item()*) {
     xf:at($selector)($nodes)
 };
 
-(:~
- : Define a transformation that starts with selecting nodes with an
- : XPath expression.
- :)
-declare %private function xf:selector($steps as array(*), $selector-fn as function(*)) 
-    as function(node()*) as node()* {
-    (: compile the steps :)
-    let $steps :=
-        array:fold-left(
-            $steps,
-            (),
-            function($result, $step) {
-                if ($step instance of xs:string) then
-                    ($result, $selector-fn($step))
-                else if ($step instance of function(*)) then
-                    ($result, $step)
-                else if ($step instance of node()*) then
-                    ($result, function($node as node()*) as node()* { $step })
-                else if ($step instance of empty-sequence()) then
-                    function($node as node()*) as node()* { () }
-                else
-                    ($result, text { $step })
-            }
-        )
-    return
-        function($nodes as node()*) as node()* {
-            for $selected in head($steps)($nodes)
-            return
-                fold-left(
-                    tail($steps),
-                    $selected,
-                    function($result, $step) {
-                        $step($result)
-                    }
-                )
-        }
-};
-
 declare %private function xf:selector($steps as array(*))
     as function(node()*) as node()* {
     xf:selector($steps, xf:select-all#1)
@@ -884,6 +846,44 @@ declare function xf:matched-template($node as node(), $context as map(*)*)
         ()
 };
 
+(:~
+ : Define a transformation that starts with selecting nodes with an
+ : XPath expression.
+ :)
+declare %private function xf:selector($steps as array(*), $selector-fn as function(*)) 
+    as function(node()*) as node()* {
+    (: compile the steps :)
+    let $steps :=
+        array:fold-left(
+            $steps,
+            (),
+            function($result, $step) {
+                if ($step instance of xs:string) then
+                    ($result, $selector-fn($step))
+                else if ($step instance of function(*)) then
+                    ($result, $step)
+                else if ($step instance of node()*) then
+                    ($result, function($node as node()*) as node()* { $step })
+                else if ($step instance of empty-sequence()) then
+                    function($node as node()*) as node()* { () }
+                else
+                    ($result, text { $step })
+            }
+        )
+    return
+        function($nodes as node()*) as node()* {
+            for $selected in head($steps)($nodes)
+            return
+                fold-left(
+                    tail($steps),
+                    $selected,
+                    function($result, $step) {
+                        $step($result)
+                    }
+                )
+        }
+};
+
 declare %private function xf:comp-expression($expressions as item()*)
     as (function(node()*) as node()*)* {
     for $expression in $expressions
@@ -902,84 +902,3 @@ declare %private function xf:is-node-in-sequence($node as node()?, $seq as node(
     as xs:boolean {
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
 };
-
-(: ======== :)
-
-(:~
- : TODO: NOT USED!
- :
- : Return matching nodes.
- :)
-declare %private function xf:select-nodes($nodes as node()*, $selectors as function(*)*)
-    as node()* {
-    for $selector in $selectors
-    return
-        for $node in $nodes
-        return
-            $selector($node)
-};
-
-(:~
- : TODO: NOT USED!
- :
- : Find the first matching template for a node and return
- : it's node transformation function.
- :)
-declare %private function xf:match-node($node as node(), $xform as map(*)*) 
-    as map(*)? {
-    hof:until(
-        function($templates as map(*)*) {
-            let $is-match := head($templates)
-            return
-                empty($is-match) or
-                ($is-match instance of map(*) and map:contains($is-match,'nodes'))
-        },
-        function($templates as map(*)*) {
-            let $template := head($templates)
-            let $matched-nodes := $template('select')($node)
-            return
-                (
-                    if ($matched-nodes) then
-                        map:new(($template, map { 'nodes': $matched-nodes }))
-                    else
-                        ()
-                    ,
-                    tail($templates)
-                )
-        },
-        $xform
-    )[1]
-};
-
-(:~
- : TODO: NOT USED!
- :
- : Find the first matching template for a node
- : and return a modified template that contains the matched nodes.
- :)
-declare %private function xf:match-template($node as node(), $xform as map(*)*) 
-    as map(*)? {
-    hof:until(
-        function($templates as map(*)*) {
-            let $is-match := head($templates)
-            return
-                empty($is-match) or
-                ($is-match instance of map(*) and map:contains($is-match,'nodes'))
-        },
-        function($templates as map(*)*) {
-            let $template := head($templates)
-            let $matched-nodes := $template('select')($node)
-            return
-                (
-                    if ($matched-nodes) then
-                        map:new(($template, map { 'nodes': $matched-nodes }))
-                    else
-                        ()
-                    ,
-                    tail($templates)
-                )
-        },
-        $xform
-    )[1]
-};
-
