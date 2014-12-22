@@ -46,31 +46,56 @@ declare function xf:parse-html($path) {
 (:~
  : Returns a template.
  :)
-declare function xf:template($template as node(), $selector as array(*), $slots as array(*)*)
-    as function(item()?) as node()* {
-    function($args as item()?) as node()* {
-        $template => xf:extract($selector) => xf:transform($slots)
-    }
+declare function xf:template($template as node(), $selector as array(*)?, $model as item()*)
+    as function(*) {
+    let $at := if ($selector instance of array(*)) then xf:at($selector) else function($nodes) { $nodes }
+    return
+        typeswitch ($model)
+        case function(*)
+        return
+            (: This is a bit of a hack to support returning a function with the correct arity :)
+            switch (function-arity($model))
+            case 0
+            return
+                function() as node()* {
+                    $template => $at() => xf:transform($model)
+                }
+            case 1
+            return
+                function($arg1 as item()?) as node()* {
+                    $template => $at() => xf:transform(apply($model, [$arg1]))
+                }
+            case 2
+            return
+                function($arg1 as item()?, $arg2 as item()?) as node()* {
+                    $template => $at() => xf:transform(apply($model, [$arg1, $arg2]))
+                }
+            case 3
+            return
+                function($arg1 as item()?, $arg2 as item()?, $arg3 as item()?) as node()* {
+                    $template => $at() => xf:transform(apply($model, [$arg1, $arg2, $arg3]))
+                }
+            default
+            (: max arity-4 supported :)
+            return
+                function($arg1 as item()?, $arg2 as item()?, $arg3 as item()?, $arg4 as item()?) as node()* {
+                    $template => $at() => xf:transform(apply($model, [$arg1, $arg2, $arg3, $arg4]))
+                }
+        case array(*)*
+        return
+            function() as node()* {
+                $template => $at() => xf:transform($model)
+            }
+        default
+        return
+            function() as node()* {
+                $template => $at()
+            }
 };
 
-declare function xf:template($template as node(), $slots as array(*)*)
-    as function(item()?) as node()* {
-    function($args as item()?) as node()* {
-        $template => xf:transform($slots)
-    }
-};
-
-(:~
- : Returns a template.
- :)
-declare function xf:snippet($template as node(), $selector as array(*))
-    as function(array(*)*) as node()* {
-    function($args as array(*)*) as node()* {
-        if (exists($args)) then
-            $template => xf:at($selector) => xf:transform($args)
-        else
-            $template => xf:at($selector)
-    }
+declare function xf:template($template as node(), $model as item()*)
+    as function() as node()* {
+    xf:template($template, (), $model)
 };
 
 (:~
