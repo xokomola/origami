@@ -48,14 +48,14 @@ declare function xf:parse-html($path) {
  :)
 declare function xf:template($template as node(), $selector as array(*), $slots as array(*)*)
     as function(item()?) as node()* {
-    function($args as item()?) {
+    function($args as item()?) as node()* {
         $template => xf:extract($selector) => xf:transform($slots)
     }
 };
 
 declare function xf:template($template as node(), $slots as array(*)*)
     as function(item()?) as node()* {
-    function($args as item()?) {
+    function($args as item()?) as node()* {
         $template => xf:transform($slots)
     }
 };
@@ -70,12 +70,6 @@ declare function xf:snippet($template as node(), $selector as array(*))
             $template => xf:at($selector) => xf:transform($args)
         else
             $template => xf:at($selector)
-    }
-};
-
-declare function xf:get($name as xs:string) {
-    function($args as map(*)) {
-        $args($name)
     }
 };
 
