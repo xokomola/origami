@@ -44,6 +44,39 @@ declare function xf:parse-html($path) {
 };
 
 (:~
+ : Returns a template.
+ :)
+declare function xf:template($template as node(), $selector as array(*), $slots as array(*)*)
+    as function(item()?) as node()* {
+    function($args as item()?) {
+        $template => xf:extract($selector) => xf:transform($slots)
+    }
+};
+
+declare function xf:template($template as node(), $slots as array(*)*)
+    as function(item()?) as node()* {
+    function($args as item()?) {
+        $template => xf:transform($slots)
+    }
+};
+
+(:~
+ : Returns a template.
+ :)
+declare function xf:snippet($template as node(), $selector as array(*))
+    as function(item()?) as node()* {
+    function($args as item()?) as node()* {
+        $template => xf:at($selector)
+    }
+};
+
+declare function xf:get($name as xs:string) {
+    function($args as map(*)) {
+        $args($name)
+    }
+};
+
+(:~
  : Returns a Transformer function.
  :)
 declare function xf:transform($templates as array(*)*) 
@@ -158,6 +191,7 @@ declare function xf:at($steps as array(*))
     as function(node()*) as node()* {
     xf:selector($steps, xf:select-all#1)
 };
+
 (:~
  : Execute a chain of node selectors. 
  :)
@@ -210,8 +244,10 @@ declare function xf:do($fns as array(*))
             $fns, 
             $nodes,
             function($nodes, $fn) {
-                if (exists($fn)) then
+                if ($fn instance of function(*)) then
                     $fn($nodes)
+                else if ($fn instance of node()*) then
+                    $fn
                 else
                     ()
             }
