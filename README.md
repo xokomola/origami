@@ -35,7 +35,7 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 
 - The [examples][examples] subdirectory contains examples.
 
-- The [test][test subdirectory contains the unit tests.
+- The [test][test] subdirectory contains the unit tests.
 
 Run an example:
 
