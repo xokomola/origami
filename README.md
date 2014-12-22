@@ -1,4 +1,4 @@
-# Origami 0.3
+# Origami 0.4
 
 Origami is a templating library for XQuery (3.0) inspired by XSLT and the
 [Enlive](https://github.com/cgrand/enlive) templating library for Clojure.
@@ -19,21 +19,29 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 - Extract nodes using composable selectors which are XPath expressions or XQuery
   functions.
 
+- Build composable templates for rendering HTML views or XML.
+
+## Limitations
+
+- No namespace support (planned for 0.5)
+
 ## Requirements
 
-- BaseX 8.0 (at least [20141221 snapshot](http://basex.org/products/download/all-downloads/))
+- BaseX 8.0 or higher (at least 2014121 snapshot)
 
 ## Getting started
 
-The `examples` subdirectory contains a few examples.
+- Some tutorials can be found on my [blog][blog].
+
+- The [examples][examples] subdirectory contains examples.
+
+- The [test][test subdirectory contains the unit tests.
 
 Run an example:
 
 ~~~xquery
 > basex examples/uppercase.xq
 ~~~
-
-The `test` subdirectory contains the unit tests.
 
 Run the unit tests:
 
@@ -52,5 +60,8 @@ import module namespace xf = 'http://xokomola.com/xquery/origami'
   at 'core.xqm';
 ~~~
 
+[examples]: https://github.com/xokomola/origami/tree/master/examples
+[tests]: https://github.com/xokomola/origami/tree/master/test
+[blog]: http://xokomola.com/
 [wiki]: https://github.com/xokomola/origami/wiki
 
