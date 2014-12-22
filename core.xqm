@@ -64,9 +64,12 @@ declare function xf:template($template as node(), $slots as array(*)*)
  : Returns a template.
  :)
 declare function xf:snippet($template as node(), $selector as array(*))
-    as function(item()?) as node()* {
-    function($args as item()?) as node()* {
-        $template => xf:at($selector)
+    as function(array(*)*) as node()* {
+    function($args as array(*)*) as node()* {
+        if (exists($args)) then
+            $template => xf:at($selector) => xf:transform($args)
+        else
+            $template => xf:at($selector)
     }
 };
 
