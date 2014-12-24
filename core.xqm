@@ -30,6 +30,13 @@ declare function xf:xml-resource($url-or-path) {
 };
 
 (:~
+ : Load a plain text resource.
+ :)
+declare function xf:text-resource($url-or-path) {
+    unparsed-text($url-or-path)
+};
+
+(:~
  : Fetch and parse HTML given a URL.
  :)
 declare function xf:fetch-html($url) {
@@ -53,7 +60,6 @@ declare function xf:template($template as node(), $selector as array(*)?, $model
         typeswitch ($model)
         case function(*)
         return
-            (: This is a bit of a hack to support returning a function with the correct arity :)
             switch (function-arity($model))
             case 0
             return
@@ -75,26 +81,33 @@ declare function xf:template($template as node(), $selector as array(*)?, $model
                 function($arg1 as item()?, $arg2 as item()?, $arg3 as item()?) as node()* {
                     $template => $at() => xf:transform(apply($model, [$arg1, $arg2, $arg3]))
                 }
-            default
             (: max arity-4 supported :)
+            case 4
             return
                 function($arg1 as item()?, $arg2 as item()?, $arg3 as item()?, $arg4 as item()?) as node()* {
                     $template => $at() => xf:transform(apply($model, [$arg1, $arg2, $arg3, $arg4]))
                 }
+            default
+            return 
+                error(xf:ArityNotSupported, 'A model function cannot have more than 4 arguments')
+            
         case array(*)*
         return
             function() as node()* {
                 $template => $at() => xf:transform($model)
             }
-        default
+        case empty-sequence()
         return
             function() as node()* {
                 $template => $at()
             }
+        default
+        return
+            error(xf:InvalidModel, 'This model cannot be used')
 };
 
 declare function xf:template($template as node(), $model as item()*)
-    as function() as node()* {
+    as function(*) {
     xf:template($template, (), $model)
 };
 
@@ -396,7 +409,7 @@ declare function xf:after($nodes as node()*, $after as node()*)
 };
 
 (:~
- : Inserts nodes as first child, before the current content.
+ : Inserts nodes as last child, after the current content.
  :)
 declare function xf:append($append as node()*)
     as function(node()*) as node()* {
@@ -447,7 +460,7 @@ declare function xf:prepend($nodes as node()*, $prepend as node()*)
  :)
 declare function xf:text()
     as function(node()*) as node()* {
-    function($nodes as node()*) as text()? {
+    function($nodes as item()*) as text()? {
         if (exists($nodes)) then
             text { normalize-space(string-join($nodes,'')) }
         else
@@ -455,7 +468,7 @@ declare function xf:text()
     }
 };
 
-declare function xf:text($nodes as node()*)
+declare function xf:text($nodes as item()*)
     as text()? {
     xf:text()($nodes)
 };
