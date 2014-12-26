@@ -821,9 +821,7 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
     as node()* {
     for $node in $nodes
         let $context := (xf:match-templates($node, $xform), $context)
-        let $foo := trace(count($context), 'CTX: ')
-        let $bar := if (count($context) gt 0) then trace($context[1], 'CONTEXT') else ()
-        let $match := trace(xf:matched-template(trace($node,'CURRENT: '), $context), 'MATCH: ')
+        let $match := xf:matched-template($node, $context)
         return
             if ($node/self::xf:apply) then
                 xf:apply-nodes($node/node(), $context, $xform)

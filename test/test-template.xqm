@@ -75,10 +75,10 @@ declare %unit:test function test:template-model-array-seq() {
             document { <p><x y="10"/></p> },
             (
                 ['x', xf:rename('a')],
-                ['p', xf:apply(xf:rename('b')) ]
+                ['p', xf:rename('b'), xf:apply() ]
             )
         )(),
-        <b><a y="10"/></b>,
+        document { <b><a y="10"/></b> },
         'A model with rules that rename x to a and p to b')
 };
 
