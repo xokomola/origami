@@ -1,7 +1,7 @@
 xquery version "3.0";
 
 (:~
- : Tests for xf:do
+ : Origami tests: xf:do
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 

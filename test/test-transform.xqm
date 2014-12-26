@@ -1,7 +1,7 @@
 xquery version "3.0";
 
 (:~
- : Origami tests
+ : Origami tests: xf:transform
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
@@ -17,10 +17,11 @@ declare %unit:test function test:transform-simple() {
                 ['p', function($node) { <foo/> }]
             )
         ),
-        <div><bar x="1"/><foo/><bar x="2"/><foo/></div>)
+        <div><bar x="1"/><foo/><bar x="2"/><foo/></div>,
+        'Transform rule functions are executed to produce output nodes')
 };
 
-declare %unit:test function test:transform-copy() {
+declare %unit:test function test:transform-identity-copy() {
 
     unit:assert-equals(
         xf:transform((),()),
@@ -54,24 +55,29 @@ declare %unit:test function test:transform-copy() {
 
 declare %unit:test function test:transform-remove-nodes() {
 
-    (: remove all elements :)
     unit:assert-equals(
         xf:transform(
             <x><y/></x>,
             ['*', ()]
         ),
-        <x/>),
+        <x/>,
+        'Removes all elements, except top-level'),
         
- 
-    (: remove some elements :)
-    (: NOTE: the top element can only be removed with a self::y :)
+    unit:assert-equals(
+        xf:transform(
+            document { <x><y/></x> },
+            ['*', ()]
+        ),
+        document { () },
+        'Removes all elements, except top-level'),
+         
     unit:assert-equals(
         xf:transform(
             (<x><y/></x>,<y/>,<z><z/></z>),
             ['y', ()]
         ),
-        (<x/>,<y/>,<z><z/></z>)
-    ),
+        (<x/>,<y/>,<z><z/></z>),
+        'Removes all y-elements, except if it is top-level'),
 
     unit:assert-equals(
         xf:transform(
@@ -81,63 +87,45 @@ declare %unit:test function test:transform-remove-nodes() {
                 ['self::y', ()]
             )
         ),
-        (<x/>,<z><z/></z>)
-    ),
+        (<x/>,<z><z/></z>),
+        'Removes all y-elements, including top-level due to self::y'),
 
-    (: remove all attributes :)
     unit:assert-equals(
         xf:transform(
             (<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>),
             ['@*', ()]
         ),
-        (<x/>,<y/>,<z><z/></z>)
-    ),
+        (<x/>,<y/>,<z><z/></z>),
+        'Removes all attributes'),
 
-    (: remove some attributes :)
     unit:assert-equals(
         xf:transform(
             (<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>),
             ['@b', ()]
         ),
-        (<x a="10"/>,<y/>,<z><z/></z>)
-    ),
+        (<x a="10"/>,<y/>,<z><z/></z>),
+        'Removes all b-attributes'),
 
-    (: remove all elements and attributes :)
-    (: NOTE: again the self::* is needed to remove top-level nodes :)
     unit:assert-equals(
         xf:transform(
             (<x a="10" b="20"/>,<y/>,<z><z b="30"/></z>),
-            (
-                ['@*', ()],
-                ['self::*', ()]
-            )
+            ['self::*', ()]
         ),
-        ()
-    ),
-
-    (: remove all elements and attributes but leave some others :)
-    (: TODO: verify if item()s should be allowed too :)
+        (),
+        'Removes all elements'),
 
     unit:assert-equals(
         xf:transform(
             (<x a="10" b="20"/>,<y/>,text { 'howdy' },<z><!-- hi --><z b="30"/></z>),
-            (
-                ['@*', ()],
-                ['self::*', ()]
-            )
+            ['self::*', ()]
         ),
-        text { 'howdy' }
-    )
+        text { 'howdy' },
+        'Removes all elements but leaves other nodes')
 
 };
 
-declare %unit:test %unit:ignore('TODO') function test:transform-custom-match-fn() {
+declare %unit:test function test:transform-custom-match-fn() {
 
-    (: remove all elements that have an attribute named 'x' :)
-    (: TODO: in a transform the custom fn should return the node itself :)
-    (:       this is different from extractors where it should return a boolean :)
-    (:       maybe this should be changed so extractors can use the same fn :)
-    (:       in an extractor the function body should be exist($node/@x) :)
     unit:assert-equals(
         xf:transform(
             <x><y><p x="10"/><p y="20"/></y></x>,
@@ -146,25 +134,25 @@ declare %unit:test %unit:ignore('TODO') function test:transform-custom-match-fn(
                 ()                               (: remove them  :)
             ]
         ),
-        <x><y><p y="20"/></y></x>
-    )
+        <x><y><p y="20"/></y></x>,
+        'A custom selector function returns the nodes, the empty sequence 
+        removes them')
 };
 
-declare %unit:test %unit:ignore('TODO') function test:transform-literal-result-template() {
+declare %unit:test function test:transform-literal-result-template() {
 
-    (: remove all elements that have an attribute named 'x' :)
     unit:assert-equals(
         xf:transform(
             (<x/>,<y/>,<z/>),
             ['self::*', <bla/>]
         ),
-        (<bla/>,<bla/>,<bla/>)
+        (<bla/>,<bla/>,<bla/>),
+        'Replace all elements with bla-element'
     )
 };
 
 declare %unit:test %unit:ignore('NS not supported yet') function test:transform-namespaces() {
 
-    (: handle namespaced elements :)
     unit:assert-equals(
         xf:transform(
             <foo><test:foo/></foo>,

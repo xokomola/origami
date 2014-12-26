@@ -1,12 +1,14 @@
 xquery version "3.0";
 
 (:~
- : Tests for node transformers.
+ : Origami tests for node transformers.
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
+
+(: TODO: xf:apply#0 :)
 
 declare %unit:test function test:wrap() {
     (: wrap an element :)
