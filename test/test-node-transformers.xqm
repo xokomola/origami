@@ -102,29 +102,6 @@ declare %unit:test function test:content() {
     )    
 };
 
-declare %unit:test function test:content-if() {
-    (: replace the content of an element :)
-    unit:assert-equals(
-        xf:content-if(<a>foobar</a>, text { 'hello' }),
-        <a>hello</a>
-    ),
-    (: replace the content of an empty element :)
-    unit:assert-equals(
-        xf:content-if(<a/>, text { 'hello' }),
-        <a>hello</a>
-    ),
-    (: when there is no content, don't replace content :)
-    unit:assert-equals(
-        xf:content-if(<a>foobar</a>, ()),
-        <a>foobar</a>
-    ),
-    (: empty nodes are never changed :)
-    unit:assert-equals(
-        xf:content-if((), <foo/>),
-        ()
-    )
-};
-
 declare %unit:test function test:replace() {
     (: replace the content of an element :)
     unit:assert-equals(
@@ -154,34 +131,6 @@ declare %unit:test function test:replace() {
     (: empty nodes are never replaced :)
     unit:assert-equals(
         xf:replace((), <foo/>),
-        ()
-    )
-};
-
-declare %unit:test function test:replace-if() {
-    (: replace the content of an element :)
-    unit:assert-equals(
-        xf:replace-if(<a>foobar</a>, text { 'hello' }),
-        text { 'hello' }
-    ),
-    (: replace the content of an empty element :)
-    unit:assert-equals(
-        xf:replace-if(<a/>, text { 'hello' }),
-        text { 'hello' }
-    ),
-    (: comments too :)
-    unit:assert-equals(
-        xf:replace-if(<!-- foobar -->, text { 'hello' }),
-        text { 'hello' }
-    ),
-    (: when there is no content, don't replace content :)
-    unit:assert-equals(
-        xf:replace-if(<a>foobar</a>, ()),
-        <a>foobar</a>
-    ),
-    (: empty nodes are never replaced :)
-    unit:assert-equals(
-        xf:replace-if((), <foo/>),
         ()
     )
 };
@@ -497,5 +446,38 @@ declare %unit:test function test:xslt() {
     unit:assert-equals(
         xf:xslt((<foo/>,text { 'foo' },<foo/>),$test:stylesheet, map {}),
         (<a><bar/></a>, text { 'foo' }, <a><bar/></a>)
+    )
+};
+
+declare %unit:test function test:rename() {
+    (: simple rename :)
+    unit:assert-equals(
+        xf:rename((<p/>,<p/>,<a/>,<p/>), map { 'p': 'x' }),
+        (<x/>,<x/>,<a/>,<x/>)
+    ),
+    (: simple rename using string argument (all elements will be renamed) :)
+    unit:assert-equals(
+        xf:rename((<p/>,<p/>,<a/>,<p/>), 'x'),
+        (<x/>,<x/>,<x/>,<x/>)
+    ),
+    (: simple rename using function :)
+    unit:assert-equals(
+        xf:rename((<p/>,<!-- hi -->,<a/>,text { 'hi' }), function($node) { 'x' }),
+        (<x/>,<!-- hi -->,<x/>,text { 'hi' })
+    ),
+    (: pass non-element nodes through unmodified :)
+    unit:assert-equals(
+        xf:rename((<p/>,<!-- hi -->,<a/>,text { 'hi' }), map { 'p': 'x' }),
+        (<x/>,<!-- hi -->,<a/>,text { 'hi' })
+    ),
+    (: do not replace child nodes :)
+    unit:assert-equals(
+        xf:rename((<p><p/></p>,<a><p/></a>), map { 'p': 'x' }),
+        (<x><p/></x>,<a><p/></a>)
+    ),
+    (: replace namespaced names and multiple mappings :)
+    unit:assert-equals(
+        xf:rename((<test:p/>,<xf:p/>), map { 'test:p': 'x', 'xf:p': 'y' }),
+        (<x/>,<y/>)
     )
 };

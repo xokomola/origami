@@ -58,6 +58,12 @@ declare function xf:template($template as node(), $selector as array(*)?, $model
     let $at := if ($selector instance of array(*)) then xf:at($selector) else function($nodes) { $nodes }
     return
         typeswitch ($model)
+        (: test array first because it is also a function :)
+        case array(*)*
+        return
+            function() as node()* {
+                $template => $at() => xf:transform($model)
+            }
         case function(*)
         return
             switch (function-arity($model))
@@ -89,13 +95,8 @@ declare function xf:template($template as node(), $selector as array(*)?, $model
                 }
             default
             return 
-                error(xf:ArityNotSupported, 'A model function cannot have more than 4 arguments')
+                error(xf:ArityNotSupportedError, 'A model function cannot have more than 4 arguments')
             
-        case array(*)*
-        return
-            function() as node()* {
-                $template => $at() => xf:transform($model)
-            }
         case empty-sequence()
         return
             function() as node()* {
@@ -103,12 +104,17 @@ declare function xf:template($template as node(), $selector as array(*)?, $model
             }
         default
         return
-            error(xf:InvalidModel, 'This model cannot be used')
+            error(xf:InvalidModelError, 'This model cannot be used')
 };
 
 declare function xf:template($template as node(), $model as item()*)
     as function(*) {
     xf:template($template, (), $model)
+};
+
+declare function xf:template($template as node())
+    as function(*) {
+    xf:template($template, (), ())
 };
 
 (:~
@@ -118,10 +124,13 @@ declare function xf:transform($templates as array(*)*)
     as function(node()*) as node()* {
     let $templates :=
         for $template in $templates
-        return xf:match($template)
+            return xf:match($template)
     return
         function($nodes as node()*) as node()* {
-            xf:apply-nodes($nodes, (), $templates)
+            xf:apply-nodes(
+                $nodes,
+                (), 
+                $templates)
         }
 };
 
@@ -163,13 +172,13 @@ declare function xf:extract-inner($selectors as array(*)*)
     as function(node()*) as node()* {
     let $selectors :=
         for $selector in $selectors
-        return
-            xf:at($selector)
+            return
+                xf:at($selector)
     return
         function($nodes as node()*) as node()* {
             innermost(
                 for $selector in $selectors
-                return $selector($nodes)
+                    return $selector($nodes)
             )
         }
 };
@@ -187,12 +196,12 @@ declare function xf:extract-outer($selectors as array(*)*)
     as function(node()*) as node()* {
     let $selectors :=
         for $selector in $selectors
-        return xf:at($selector)
+            return xf:at($selector)
     return
         function($nodes as node()*) as node()* {
             outermost(
                 for $selector in $selectors
-                return $selector($nodes)
+                    return $selector($nodes)
             )
         }
 };
@@ -234,10 +243,6 @@ declare function xf:at($nodes as node()*, $selector as item()*) {
     xf:at($selector)($nodes)
 };
 
-declare %private function xf:selector($steps as array(*))
-    as function(node()*) as node()* {
-    xf:selector($steps, xf:select-all#1)
-};
 (:~
  : Only nodes for which the chain of expressions evaluates to `true()`
  : are passed through.
@@ -320,28 +325,6 @@ declare function xf:content($element as element()?, $content as node()*)
 };
 
 (:~
- : Only replace the content of the input element when
- : the content is not empty.
- :)
-declare function xf:content-if($content as node()*)
-    as function(element()?) as element()? {
-    function($element as element()?) as element()? {
-        if (exists($content) and exists($element)) then
-            element { node-name($element) } {
-                $element/@*,
-                $content
-            }
-        else
-            $element
-    }
-};
-
-declare function xf:content-if($element as element()?, $content as node()*)
-    as element()? {
-    xf:content-if($content)($element)
-};
-
-(:~
  : Replace the current node.
  :)
 declare function xf:replace($replacement as node()*)
@@ -357,25 +340,6 @@ declare function xf:replace($replacement as node()*)
 declare function xf:replace($nodes as node()*, $replacement as node()*) 
     as node()* {
     xf:replace($replacement)($nodes)
-};
-
-(:~
- : Only replace the input nodes when the replacement
- : is not empty.
- :)
-declare function xf:replace-if($replacement as node()*)
-    as function(node()*) as node()* {
-    function($nodes as node()*) as node()* {
-        if (exists($replacement) and exists($nodes)) then
-            $replacement
-        else
-            $nodes
-    }
-};
-
-declare function xf:replace-if($nodes as node()*, $replacement as node()*)
-    as node()* {
-    xf:replace-if($replacement)($nodes)
 };
 
 (:~
@@ -481,25 +445,24 @@ declare function xf:set-attr($attributes as item())
     let $attributes := 
         typeswitch ($attributes)
         case map(*)
-        return 
-            map:for-each(
-                $attributes, 
-                function($name,$value) { 
-                    attribute { $name } { $value } 
-                })
+            return 
+                map:for-each(
+                    $attributes, 
+                    function($name,$value) { 
+                        attribute { $name } { $value } 
+                    })
         case element()
-        return $attributes/@*
+            return $attributes/@*
         default
-        return
-            ()
+            return ()
     return
         xf:element-transformer(
             function($node as element()) as node()* {
                 element { node-name($node) } {
                     $attributes,
                     for $att in $node/@*
-                    where node-name($att) != $attributes/node-name()
-                    return $att,
+                        where node-name($att) != $attributes/node-name()
+                        return $att,
                     $node/node()
                 }
             }
@@ -583,25 +546,25 @@ declare function xf:remove-attr($attributes as item()*)
     let $attributes := 
         typeswitch ($attributes) 
         case xs:string*
-        return for $name in $attributes return attribute { $name } { '' }
+            return for $name in $attributes return attribute { $name } { '' }
         case element()
-        return $attributes/@*
+            return $attributes/@*
         case map(*)
-        return             
-            map:for-each(
-                $attributes, 
-                function($name,$value) { 
-                    attribute { $name } { '' } 
-            })
+            return             
+                map:for-each(
+                    $attributes, 
+                    function($name,$value) { 
+                        attribute { $name } { '' } 
+                })
         default
-        return ()
+            return ()
     return
         xf:element-transformer(
             function($node as element()) as node()* {
                 element { node-name($node) } {
                     for $att in $node/@*
-                    where not(node-name($att) = $attributes/node-name())
-                    return $att
+                        where not(node-name($att) = $attributes/node-name())
+                        return $att
                 }
             }
         )($attributes)
@@ -611,6 +574,56 @@ declare function xf:remove-attr($attributes as item()*)
 declare function xf:remove-attr($nodes as node()*, $names as item()*) 
     as node()* {
     xf:remove-attr($names)($nodes)
+};
+
+(:~ 
+ : Rename element nodes, passing non-element nodes and element
+ : child nodes through unmodified.
+ :
+ : Renaming can be done using a:
+ :
+ : - `xs:string`: renames all elements
+ : - `map(*)`: looks up the element name in the map and uses the value as the 
+ :   new name
+ : - `function($node as element()) as item()`: passes the element node to the 
+ :   function using the return value as the new element name
+ :)
+declare function xf:rename($map as item()) 
+    as function(node()*) as node()* {
+    xf:element-transformer(
+        function($node as element()) as node()* {
+            typeswitch ($map)
+            case map(*)
+                return
+                    if ($map(node-name($node))) then    
+                        element { $map(node-name($node)) } {
+                            $node/(@*,node())
+                        }
+                    else if ($map(name($node))) then
+                        element { $map(name($node)) } {
+                            $node/(@*,node())
+                        }
+                    else
+                        $node
+             case function(*)
+                 return
+                    element { $map($node) } {
+                        $node/(@*,node())
+                    }             
+             case xs:string
+                 return
+                    element { $map } {
+                        $node/(@*,node())
+                    }
+             default
+                 return $node
+        }
+    )(true())
+};
+
+declare function xf:rename($nodes as node()*, $map as item())
+    as node()* {
+    xf:rename($map)($nodes)
 };
 
 (:~
@@ -695,11 +708,11 @@ declare function xf:element-transformer($transform as function(element()) as nod
         function($nodes as node()*) as node()* {
             if (exists($args)) then
                 for $node in $nodes
-                return
-                    if ($node instance of element()) then
-                        $transform($node)
-                    else
-                        $node
+                    return
+                        if ($node instance of element()) then
+                            $transform($node)
+                        else
+                            $node
             else
                 $nodes
         }
@@ -785,20 +798,19 @@ declare %private function xf:select-with-env($selector as xs:string, $env as map
 declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
-    return 
-        if ($node/self::xf:apply) then
-            xf:apply-nodes($node, (), $xform)
-        else if ($node instance of element()) then
-            element { node-name($node) } {
-                $node/@*,
-                xf:copy-nodes($node/node(), $xform)   
-            }
-        else if ($node instance of document-node()) then
-            document {
-                xf:copy-nodes($node/node(), $xform)
-            }
-        else
-            $node
+        return 
+            if ($node/self::xf:apply) then
+                xf:apply-nodes($node, (), $xform)
+            else if ($node instance of element()) then
+                element { node-name($node) } {
+                    $node/@*,
+                    xf:copy-nodes($node/node(), $xform)   
+                }
+            else if ($node instance of document-node()) then
+                document {
+                    xf:copy-nodes($node/node(), $xform)
+                }
+            else $node
 };
 
 (:~
@@ -808,23 +820,23 @@ declare %private function xf:copy-nodes($nodes as node()*, $xform as map(*)*)
 declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*, $xform as map(*)*)
     as node()* {
     for $node in $nodes
-    let $context := (xf:match-templates($node, $xform), $context)
-    let $match := xf:matched-template($node, $context)
-    return
-        if ($node/self::xf:apply) then
-            xf:apply-nodes($node/(@*,node()), $context, $xform)
-        else if ($match instance of map(*)) then
-            xf:copy-nodes($match('fn')($node), $xform)
-        else if ($node instance of element()) then
-            element { node-name($node) } {
-                xf:apply-nodes($node/(@*, node()), $context, $xform)   
-            }
-        else if ($node instance of document-node()) then
-            document {
-                xf:apply-nodes($node/node(), $context, $xform)
-            }
-        else
-            $node
+        let $context := (xf:match-templates($node, $xform), $context)
+        let $match := xf:matched-template($node, $context)
+        return
+            if ($node/self::xf:apply) then
+                xf:apply-nodes($node/(@*,node()), $context, $xform)
+            else if ($match instance of map(*)) then
+                xf:copy-nodes($match('fn')($node), $xform)
+            else if ($node instance of element()) then
+                element { node-name($node) } {
+                    xf:apply-nodes($node/(@*, node()), $context, $xform)   
+                }
+            else if ($node instance of document-node()) then
+                document {
+                    xf:apply-nodes($node/node(), $context, $xform)
+                }
+            else
+                $node
 };
 
 (:~
@@ -901,25 +913,24 @@ declare %private function xf:selector($steps as array(*), $selector-fn as functi
     return
         function($nodes as node()*) as node()* {
             for $selected in head($steps)($nodes)
-            return
-                fold-left(
-                    tail($steps),
-                    $selected,
-                    function($result, $step) {
-                        $step($result)
-                    }
-                )
+                return
+                    fold-left(
+                        tail($steps),
+                        $selected,
+                        function($result, $step) {
+                            $step($result)
+                        }
+                    )
         }
 };
 
 declare %private function xf:comp-expression($expressions as item()*)
     as (function(node()*) as node()*)* {
     for $expression in $expressions
-    return
-        if ($expression instance of xs:string) then
-            xf:select($expression)
-        else
-            $expression
+        return
+            if ($expression instance of xs:string) then 
+                xf:select($expression)
+            else $expression
 };
  
 (:~
