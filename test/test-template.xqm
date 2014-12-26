@@ -55,7 +55,7 @@ declare %unit:test function test:template-identity-function() {
         unmodified')
 };
 
-declare %unit:test %unit:ignore('TODO') function test:template-model-array-seq() {
+declare %unit:test function test:template-model-array-seq() {
     unit:assert-equals(
         xf:template(
             <p><x y="10"/></p>,
@@ -72,10 +72,10 @@ declare %unit:test %unit:ignore('TODO') function test:template-model-array-seq()
         'A model with a rule that renames x to a'),
     unit:assert-equals(
         xf:template(
-            <p><x y="10"/></p>,
+            document { <p><x y="10"/></p> },
             (
                 ['x', xf:rename('a')],
-                ['p', xf:rename('b')]
+                ['p', xf:apply(xf:rename('b')) ]
             )
         )(),
         <b><a y="10"/></b>,

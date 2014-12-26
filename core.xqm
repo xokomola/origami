@@ -821,10 +821,12 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
     as node()* {
     for $node in $nodes
         let $context := (xf:match-templates($node, $xform), $context)
-        let $match := xf:matched-template($node, $context)
+        let $foo := trace(count($context), 'CTX: ')
+        let $bar := if (count($context) gt 0) then trace($context[1], 'CONTEXT') else ()
+        let $match := trace(xf:matched-template(trace($node,'CURRENT: '), $context), 'MATCH: ')
         return
             if ($node/self::xf:apply) then
-                xf:apply-nodes($node/(@*,node()), $context, $xform)
+                xf:apply-nodes($node/node(), $context, $xform)
             else if ($match instance of map(*)) then
                 xf:copy-nodes($match('fn')($node), $xform)
             else if ($node instance of element()) then
@@ -844,7 +846,14 @@ declare %private function xf:apply-nodes($nodes as node()*, $context as map(*)*,
  :)
 declare function xf:apply($nodes as node()*) 
     as element(xf:apply) { 
-    <xf:apply>{ $nodes }</xf:apply> 
+    xf:apply()($nodes) 
+};
+
+declare function xf:apply()
+    as function(node()*) as element(xf:apply) {
+    function ($nodes as node()*) as element(xf:apply) {
+        <xf:apply>{ $nodes }</xf:apply>
+    }
 };
 
 (:~
