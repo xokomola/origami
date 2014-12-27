@@ -239,7 +239,7 @@ declare function xf:match($rule as array(*))
 };
 
 (:~
- : Create an transformation rule function.
+ : Create an selector rule function.
  :)
 declare function xf:at($rule as array(*))
     as function(node()*) as node()* {
@@ -252,6 +252,56 @@ declare function xf:at($rule as array(*))
 declare function xf:at($nodes as node()*, $rule as array(*))
     as node()* {
     xf:at($rule)($nodes)
+};
+
+(:~
+ : Build a node transformation function from a rule.
+ :)
+declare function xf:do($rule as array(*)) 
+    as function(item()*) as item()* {
+    function($nodes as item()*) as item()* {
+        xf:do-nodes($nodes, $rule)
+    }
+};
+
+declare %private function xf:do-nodes($nodes, $rule as array(*))
+    as item()* {
+    array:fold-left(
+        $rule, 
+        $nodes,
+        function($nodes, $step) {
+            if ($step instance of function(*)) then
+                $step($nodes)
+            else if ($step instance of node()*) then
+                $step
+            else
+                ()
+        }
+    )     
+};
+(:~
+ : Apply a node transformation rule.
+ :)
+declare function xf:do($nodes as item()*, $rule as array(*)) 
+    as item()* {
+    xf:do-nodes($nodes, $rule)
+};
+
+(:~
+ : Apply a node transformation rule.
+ :)
+declare function xf:each($rule as array(*)) 
+    as function(item()*) as item()* {
+    function($nodes as item()*) as item()* {
+        for $node in $nodes
+            return xf:do-nodes($node, $rule)
+    }
+};
+
+declare function xf:each($nodes as item()*, $rule as array(*)) 
+    as item()* {
+    for $node in $nodes
+        return xf:do-nodes($node, $rule)
 };
 
 (:~
@@ -283,35 +333,6 @@ declare function xf:if($conditions as item()*)
 declare function xf:if($nodes as node()*, $conditions as item()*) 
     as node()* {
     xf:if($conditions)($nodes)
-};
-
-(:~
- : Build a node transformation function from a rule.
- :)
-declare function xf:do($rule as array(*)) 
-    as function(node()*) as node()* {
-    function($nodes as node()*) as node()* {
-        array:fold-left(
-            $rule, 
-            $nodes,
-            function($nodes, $step) {
-                if ($step instance of function(*)) then
-                    $step($nodes)
-                else if ($step instance of node()*) then
-                    $step
-                else
-                    ()
-            }
-        ) 
-    }
-};
-
-(:~
- : Apply a node transformation rule.
- :)
-declare function xf:do($nodes as node()*, $rule as array(*)) 
-    as node()* {
-    xf:do($rule)($nodes)
 };
 
 (:~
@@ -454,10 +475,11 @@ declare function xf:prepend($nodes as node()*, $prepend as node()*)
  : the space normalized string value of a node.
  :)
 declare function xf:text()
-    as function(node()*) as node()* {
-    function($nodes as item()*) as text()? {
+    as function(item()*) as node()* {
+    function($nodes as item()*) as text()* {
         if (exists($nodes)) then
-            text { normalize-space(string-join($nodes,'')) }
+            for $node in $nodes
+                return text { string($node) }
         else
             ()
     }
@@ -467,7 +489,7 @@ declare function xf:text()
  : Outputs the text value of `$nodes`.
  :)
 declare function xf:text($nodes as item()*)
-    as text()? {
+    as text()* {
     xf:text()($nodes)
 };
 
@@ -676,8 +698,8 @@ declare function xf:rename($nodes as node()*, $map as item())
  : wrapped.
  :)
 declare function xf:wrap($element as element())
-    as function(node()*) as element()? {
-    function($nodes as node()*) as element()? {
+    as function(item()*) as element()? {
+    function($nodes as item()*) as element()? {
         if (exists($nodes)) then
             element { node-name($element) } {
                 $element/@*,
@@ -692,7 +714,7 @@ declare function xf:wrap($element as element())
  : Wraps `$nodes` in element `$node`. An empty sequence will
  : not be wrapped.
  :)
-declare function xf:wrap($nodes as node()*, $element as element())
+declare function xf:wrap($nodes as item()*, $element as element())
     as element()? {
     xf:wrap($element)($nodes)
 };
