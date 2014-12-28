@@ -1,11 +1,8 @@
 # Origami 0.4
 
-Origami is a templating library for XQuery (3.0) inspired by XSLT and the
+Origami is a templating library for XQuery (3.1) inspired by XSLT and the
 [Enlive](https://github.com/cgrand/enlive) templating library for Clojure.
-Currently it supports the [BaseX](http://basex.org) database version 8.0 or
-higher.
-
-For more information go the the [Wiki][wiki].
+Currently it supports the [BaseX](http://basex.org) database version 8.0.
 
 IMPORTANT: This library is not yet ready for production use and will change
 during the next few releases. I feel no obligation to maintain backwards

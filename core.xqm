@@ -224,7 +224,7 @@ declare function xf:extract-outer($nodes as item()*, $rules as array(*)*)
 };
 
 (:~
- : Create a match template.
+ : Create a match function from a rule.
  :)
 declare function xf:match($rule as array(*)) 
     as map(*)? {
@@ -239,7 +239,7 @@ declare function xf:match($rule as array(*))
 };
 
 (:~
- : Create an selector rule function.
+ : Create a selector function from a rule.
  :)
 declare function xf:at($rule as array(*))
     as function(item()*) as item()* {
@@ -247,7 +247,7 @@ declare function xf:at($rule as array(*))
 };
 
 (:~
- : Apply a transformation rule to `$nodes`. 
+ : Apply a transformation rule to input nodes. 
  :)
 declare function xf:at($nodes as item()*, $rule as array(*))
     as item()* {
@@ -255,13 +255,43 @@ declare function xf:at($nodes as item()*, $rule as array(*))
 };
 
 (:~
- : Build a node transformation function from a rule.
+ : Create a node transformer that applies a node transformation rule to a
+ : sequence of input nodes.
  :)
 declare function xf:do($rule as array(*)) 
     as function(item()*) as item()* {
     function($nodes as item()*) as item()* {
         xf:do-nodes($nodes, $rule)
     }
+};
+
+(:~
+ : Apply a node transformation rule to a sequence of nodes.
+ :)
+declare function xf:do($nodes as item()*, $rule as array(*)) 
+    as item()* {
+    xf:do-nodes($nodes, $rule)
+};
+
+(:~
+ : Create a node transformer that applies a node transformation rule to each 
+ : individual input node.
+ :)
+declare function xf:each($rule as array(*)) 
+    as function(item()*) as item()* {
+    function($nodes as item()*) as item()* {
+        for $node in $nodes
+            return xf:do-nodes($node, $rule)
+    }
+};
+
+(:~
+ : Apply a node transformation rule to each individual input node.
+ :)
+declare function xf:each($nodes as item()*, $rule as array(*)) 
+    as item()* {
+    for $node in $nodes
+        return xf:do-nodes($node, $rule)
 };
 
 declare %private function xf:do-nodes($nodes as item()*, $rule as array(*))
@@ -276,30 +306,6 @@ declare %private function xf:do-nodes($nodes as item()*, $rule as array(*))
                 $step
         }
     )     
-};
-(:~
- : Apply a node transformation rule.
- :)
-declare function xf:do($nodes as item()*, $rule as array(*)) 
-    as item()* {
-    xf:do-nodes($nodes, $rule)
-};
-
-(:~
- : Apply a node transformation rule.
- :)
-declare function xf:each($rule as array(*)) 
-    as function(item()*) as item()* {
-    function($nodes as item()*) as item()* {
-        for $node in $nodes
-            return xf:do-nodes($node, $rule)
-    }
-};
-
-declare function xf:each($nodes as item()*, $rule as array(*)) 
-    as item()* {
-    for $node in $nodes
-        return xf:do-nodes($node, $rule)
 };
 
 (:~
@@ -334,7 +340,7 @@ declare function xf:if($nodes as item()*, $conditions as item()*)
 };
 
 (:~
- : Return a node transformer that replaces the child nodes of an
+ : Create a node transformer that replaces the child nodes of an
  : element with `$content`.
  :)
 declare function xf:content($content as item()*)
@@ -359,7 +365,7 @@ declare function xf:content($element as element()?, $content as item()*)
 };
 
 (:~
- : Return a node transformer that replaces the nodes passed with
+ : Create a node transformer that replaces the nodes passed with
  : `$replacement`.
  :)
 declare function xf:replace($replacement as item()*)
@@ -381,7 +387,7 @@ declare function xf:replace($nodes as item()*, $replacement as item()*)
 };
 
 (:~
- : Returns a node transformer that inserts `$before` before
+ : Create a node transformer that inserts `$before` before
  : the nodes passed in.
  :)
 declare function xf:before($before as item()*)
@@ -400,7 +406,7 @@ declare function xf:before($nodes as item()*, $before as item()*)
 };
 
 (:~
- : Returns a node transformer that inserts `$after` after
+ : Create a node transformer that inserts `$after` after
  : the nodes passed in.
  :)
 declare function xf:after($after as item()*)
@@ -419,7 +425,7 @@ declare function xf:after($nodes as item()*, $after as item()*)
 };
 
 (:~
- : Returns a node transformer that appends `$append` nodes
+ : Create a node transformer that appends `$append` nodes
  : to the child nodes of each element of `$nodes`.
  :)
 declare function xf:append($append as item()*)
@@ -444,7 +450,7 @@ declare function xf:append($nodes as item()*, $append as item()*)
 };
 
 (:~
- : Returns a node transformer that prepends `$prepend` nodes
+ : Create a node transformer that prepends `$prepend` nodes
  : to the child nodes of each element of `$nodes`.
  :)
 declare function xf:prepend($prepend as item()*)
@@ -469,7 +475,7 @@ declare function xf:prepend($nodes as item()*, $prepend as item()*)
 };
 
 (:~
- : Returns a node transformer that returns a text node with
+ : Create a node transformer that returns a text node with
  : the space normalized string value of a node.
  :)
 declare function xf:text()
@@ -492,7 +498,7 @@ declare function xf:text($nodes as item()*)
 };
 
 (:~
- : Returns a node transformer that sets attributes using a map
+ : Create a node transformer that sets attributes using a map
  : on each element in the nodes passed.
  :)
 declare function xf:set-attr($attributes as item())
@@ -533,7 +539,7 @@ declare function xf:set-attr($nodes as item()*, $attributes as item())
 };
 
 (:~
- : Returns a node transformer that adds one or more class names to
+ : Create a node transformer that adds one or more class names to
  : each element in the nodes passed.
  :)
 declare function xf:add-class($names as xs:string*)
@@ -566,9 +572,9 @@ declare function xf:add-class($nodes as item()*, $names as xs:string*)
 };
 
 (:~
- : Remove one or more `$names` from the class attribute.
- : If the class attribute is empty after removing names it will be removed
- : from the element.
+ : Create a node transformer that removes one or more `$names` from the 
+ : class attribute. If the class attribute is empty after removing names it will 
+ : be removed from the element.
  :)
 declare function xf:remove-class($names as xs:string*)
     as function(item()*) as item()* {
@@ -598,7 +604,7 @@ declare function xf:remove-class($nodes as item()*, $names as xs:string*)
 };
 
 (:~
- : Returns a node transformer that remove attributes.
+ : Create a node transformer that remove attributes.
  :)
 declare function xf:remove-attr($attributes as item()*)
     as function(item()*) as item()* {
@@ -638,8 +644,8 @@ declare function xf:remove-attr($nodes as item()*, $names as item()*)
 };
 
 (:~ 
- : Rename element nodes, passing non-element nodes and element
- : child nodes through unmodified.
+ : Create a node-transformer that renames element nodes, passing non-element 
+ : nodes and element child nodes through unmodified.
  :
  : Renaming can be done using a:
  :
@@ -691,7 +697,7 @@ declare function xf:rename($nodes as item()*, $map as item())
 };
 
 (:~
- : Returns a node transformer that wraps nodes in
+ : Create a node transformer that wraps nodes in
  : an element `$element` and adding attributes from `$map` if present.
  : Attributes already on `$element` cannot be overwritten.
  : An empty sequence will not be wrapped.
@@ -740,7 +746,7 @@ declare function xf:wrap($nodes as item()*, $element-spec as item())
 };
 
 (:~
- : Returns a node transformer that removes (unwraps) the
+ : Create a node transformer that removes (unwraps) the
  : outer element of all nodes that are elements. Other nodes
  : are passed through unmodified.
  :
@@ -776,7 +782,7 @@ declare function xf:xslt($stylesheet as item())
 };
 
 (:~
- : Returns a node transformer that transforms nodes using
+ : Create a node transformer that transforms nodes using
  : an XSLT stylesheet with parameters.
  :)
 declare function xf:xslt($stylesheet as item(), $params as item()) 
