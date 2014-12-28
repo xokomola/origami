@@ -344,24 +344,23 @@ declare function xf:if($nodes as item()*, $conditions as item()*)
  : element with `$content`.
  :)
 declare function xf:content($content as item()*)
-    as function(element()?) as element()? {
-    function($element as element()?) as element()? {
-        if (exists($element)) then
-            element { node-name($element) } {
-                $element/@*,
-                $content
+    as function(item()*) as item()* {
+    xf:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                $node/(@*,$content)
             }
-        else
-            $element
-    }
+        }
+     (: HACK :)
+    )(true())
 };
 
 (:~
  : Replace the child nodes of `$element` with `$content`.
  :)
-declare function xf:content($element as element()?, $content as item()*) 
-    as element()? {
-    xf:content($content)($element)
+declare function xf:content($nodes as item()*, $content as item()*) 
+    as item()* {
+    xf:content($content)($nodes)
 };
 
 (:~
@@ -480,10 +479,23 @@ declare function xf:prepend($nodes as item()*, $prepend as item()*)
  :)
 declare function xf:text()
     as function(item()*) as item()* {
-    function($nodes as item()*) as text()* {
+    function($nodes as item()*) as item()* {
         if (exists($nodes)) then
             for $node in $nodes
-                return text { string($node) }
+                return 
+                    typeswitch ($node)
+                    case map(*)
+                    return
+                        $node
+                    case array(*)
+                    return 
+                        $node
+                    case function(*)
+                    return
+                        $node
+                    default
+                    return
+                        text { string($node) }
         else
             ()
     }
@@ -493,13 +505,15 @@ declare function xf:text()
  : Outputs the text value of `$nodes`.
  :)
 declare function xf:text($nodes as item()*)
-    as text()* {
+    as item()* {
     xf:text()($nodes)
 };
 
 (:~
  : Create a node transformer that sets attributes using a map
  : on each element in the nodes passed.
+ :
+ : Map keys must be valid as QNames or they will be ignored.
  :)
 declare function xf:set-attr($attributes as item())
     as function(item()*) as item()* {
@@ -510,8 +524,12 @@ declare function xf:set-attr($attributes as item())
                 map:for-each(
                     $attributes, 
                     function($name, $value) { 
-                        attribute { $name } { $value } 
-                    })
+                        if ($name castable as xs:QName) then
+                            attribute { $name } { $value }
+                        else
+                            ()
+                    }
+                )
         case element()
             return $attributes/@*
         default
@@ -605,13 +623,24 @@ declare function xf:remove-class($nodes as item()*, $names as xs:string*)
 
 (:~
  : Create a node transformer that remove attributes.
+ :
+ : If a name cannot be used as an attribute name (xs:QName) then
+ : it will be silently ignored.
  :)
 declare function xf:remove-attr($attributes as item()*)
     as function(item()*) as item()* {
-    let $attributes := 
-        typeswitch ($attributes) 
+    let $names := 
+        typeswitch ($attributes)
         case xs:string*
-            return for $name in $attributes return attribute { $name } { '' }
+            return 
+                for $name in $attributes 
+                return
+                    if ($name eq '*') then
+                        '*'
+                    else if ($name castable as xs:QName) then
+                        attribute { $name } { '' }
+                    else
+                        ()
         case element()
             return $attributes/@*
         case map(*)
@@ -619,7 +648,10 @@ declare function xf:remove-attr($attributes as item()*)
                 map:for-each(
                     $attributes, 
                     function($name,$value) { 
-                        attribute { $name } { '' } 
+                    if ($name castable as xs:QName) then
+                        attribute { $name } { '' }
+                    else
+                        ()
                 })
         default
             return ()
@@ -628,7 +660,8 @@ declare function xf:remove-attr($attributes as item()*)
             function($node as element()) as element() {
                 element { node-name($node) } {
                     for $att in $node/@*
-                        where not(node-name($att) = $attributes/node-name())
+                        where not($names = '*') and
+                              not(node-name($att) = $names/node-name()) 
                         return $att
                 }
             }
@@ -786,7 +819,7 @@ declare function xf:xslt($stylesheet as item())
  : an XSLT stylesheet with parameters.
  :)
 declare function xf:xslt($stylesheet as item(), $params as item()) 
-    as function(node()*) as node()* {
+    as function(item()*) as item()* {
     xf:element-transformer(
         function($node as element()) as element() {
             xslt:transform($node, $stylesheet, $params)/*
@@ -797,8 +830,8 @@ declare function xf:xslt($stylesheet as item(), $params as item())
 (:~
  : Transform `$nodes` using XSLT stylesheet.
  :)
-declare function xf:xslt($nodes as node()*, $stylesheet as item(), $params as item())
-    as node()* {
+declare function xf:xslt($nodes as item()*, $stylesheet as item(), $params as item())
+    as item()* {
     xf:xslt($stylesheet, $params)($nodes)
 };
 
@@ -1055,6 +1088,7 @@ declare %private function xf:selector($steps as array(*), $selector-fn as functi
     return
         function($nodes as item()*) as item()* {
             for $selected in head($steps)($nodes)
+                let $x := trace($selected/position(), 'POS: ')
                 return
                     fold-left(
                         tail($steps),

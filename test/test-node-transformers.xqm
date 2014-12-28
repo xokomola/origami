@@ -107,6 +107,11 @@ declare %unit:test function test:content() {
         xf:content(<a/>, text { 'hello' }),
         <a>hello</a>
     ),
+    (: replace the content of multiple elements :)
+    unit:assert-equals(
+        xf:content((<a/>,<b>goodbye<b/>), text { 'hello' }),
+        (<a>hello</a>,<b>hello</b>)
+    ),
     (: empty the content of an element :)
     unit:assert-equals(
         xf:content(<a>foobar</a>, ()),
@@ -116,7 +121,12 @@ declare %unit:test function test:content() {
     unit:assert-equals(
         xf:content((), <foo/>),
         ()
-    )    
+    ),    
+    (: non-node types have no children and pass unchanged  :)    
+    unit:assert-equals(
+        xf:content(('a',10,true(), map { 'hello': true() }, ['a','b']), <foo/>),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
+    )        
 };
 
 declare %unit:test function test:replace() {
@@ -149,7 +159,12 @@ declare %unit:test function test:replace() {
     unit:assert-equals(
         xf:replace((), <foo/>),
         ()
-    )
+    ),
+    (: non-node types can be replaced :)    
+    unit:assert-equals(
+        xf:replace(('a',10,true(), map { 'hello': true() }, ['a','b']), 'foo'),
+        ('foo')
+    )        
 };
 
 declare %unit:test function test:set-attr() {
@@ -162,6 +177,16 @@ declare %unit:test function test:set-attr() {
     unit:assert-equals(
         xf:set-attr(<a x="0"/>, map { 'x': 10 }),
         <a x="10"/>
+    ),   
+    (: change an atrribute :)
+    unit:assert-equals(
+        xf:set-attr(<a x="0"/>, map { xs:QName('x'): 10 }),
+        <a x="10"/>
+    ),  
+    (: map key is not a valid QName (ignore) :)
+    unit:assert-equals(
+        xf:set-attr(<a x="0"/>, map { 10: 'x' }),
+        <a x="0"/>
     ),   
     (: change an atrribute using another elements attributes :)
     unit:assert-equals(
@@ -187,6 +212,11 @@ declare %unit:test function test:set-attr() {
     unit:assert-equals(
         xf:set-attr((), <b x="10"/>),
         ()
+    ),
+    (: other data items are not modified :)    
+    unit:assert-equals(
+        xf:set-attr(('a',10,true(), map { 'hello': true() }, ['a','b']), <b x="10"/>),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
     )
 };
 
@@ -196,21 +226,26 @@ declare %unit:test function test:remove-attr() {
         xf:remove-attr(<a x="10"/>, 'x'),
         <a/>
     ),
+    (: attribute name is not a QName (ignore) :)
+    unit:assert-equals(
+        xf:remove-attr(<a x="10"/>, '10'),
+        <a x="10"/>
+    ),
     (: remove multiple atrributes :)
     unit:assert-equals(
         xf:remove-attr(<a x="10" y="20"/>, ('x','y')),
         <a/>
+    ),   
+    (: second value is not a QName (ignore) :)
+    unit:assert-equals(
+        xf:remove-attr(<a x="10" y="20"/>, ('x','20')),
+        <a y="20"/>
     ),   
     (: remove multiple atrributes from multiple elements :)
     unit:assert-equals(
         xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), ('x','y')),
         (<a z="20"/>,text { 'foo' },<b/>)
     ),
-    (: empty nodes are not modified :)
-    unit:assert-equals(
-        xf:remove-attr((), ('x','y')),
-        ()
-    ),   
     (: no attributes removed :)
     unit:assert-equals(
         xf:remove-attr((<a x="10"/>,<b y="20"/>), ()),
@@ -225,7 +260,32 @@ declare %unit:test function test:remove-attr() {
     unit:assert-equals(
         xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), map { 'x': '', 'y': '' }),
         (<a z="20"/>,text { 'foo' },<b/>)
-    )   
+    ),
+    (: map has key that cannot be converted to valid QName (ignore) :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), map { 'x': '', 10: '' }),
+        (<a z="20"/>,text { 'foo' },<b y="10"/>)
+    ),
+    (: remove attributes with map with QName keys :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), map { xs:QName('x'): '', xs:QName('y'): '' }),
+        (<a z="20"/>,text { 'foo' },<b/>)
+    ),
+    (: use "splat" argument to remove all attributes :)
+    unit:assert-equals(
+        xf:remove-attr((<a x="10" z="20"/>,text { 'foo' },<b y="10"/>), '*'),
+        (<a/>,text { 'foo' },<b/>)
+    ),    
+    (: empty nodes are not modified :)
+    unit:assert-equals(
+        xf:remove-attr((), ('*')),
+        ()
+    ),   
+    (: other data items are not modified :)    
+    unit:assert-equals(
+        xf:remove-attr(('a',10,true(), map { 'hello': true() }, ['a','b']), '*'),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
+    )
 };
 
 declare %unit:test function test:add-class() {
@@ -249,21 +309,27 @@ declare %unit:test function test:add-class() {
         xf:add-class(<foo class="a"/>,('a b')),
         <foo class="a b"/>
     ),
+    (: add class tokens to a sequence of nodes :)
+    unit:assert-equals(
+        xf:add-class((<foo/>,text { 'foo' },<bar/>),('a','b')),
+        (<foo class="a b"/>,text { 'foo' },<bar class="a b"/>)
+    ),
     (: empty nodes aren't touched :)
     unit:assert-equals(
         xf:add-class((),('a','b')),
         ()
     ),
-    (: add class tokens to a sequence of nodes :)
+    (: other data items are not modified :)    
     unit:assert-equals(
-        xf:add-class((<foo/>,text { 'foo' },<bar/>),('a','b')),
-        (<foo class="a b"/>,text { 'foo' },<bar class="a b"/>)
+        xf:add-class(('a',10,true(), map { 'hello': true() }, ['a','b']), ('a','b')),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
     )
 };
 
 declare %unit:test function test:remove-class() {
+    (: when all classes are removed the attribute is removed as well :)
     unit:assert-equals(
-        xf:remove-class(<foo class="a"/>, 'a'),
+        xf:remove-class((<foo class="b a"/>), ('a','b')),
         <foo/>
     ),
     unit:assert-equals(
@@ -289,6 +355,11 @@ declare %unit:test function test:remove-class() {
     unit:assert-equals(
         xf:remove-class((), 'a'),
         ()
+    ),
+    (: other data items are not modified :)    
+    unit:assert-equals(
+        xf:remove-class(('a',10,true(), map { 'hello': true() }, ['a','b']), 'a'),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
     )
 };
 
@@ -317,9 +388,16 @@ declare %unit:test function test:text() {
         xf:text(<a>foo <b x="10">bar</b></a>),
         text { 'foo bar' }
     ),
+    (: empty sequence is not modified :)
     unit:assert-equals(
         xf:text(()),
-        ())
+        ()
+    ),
+    (: only atomic values are changed to text nodes :)    
+    unit:assert-equals(
+        xf:text(('a',10,true(),map { 'hello': true() }, ['a','b'])),
+        (text { 'a' }, text { '10' }, text { 'true' }, map { 'hello': true() }, ['a','b'])
+    )
 };
 
 declare %unit:test function test:append() {
@@ -354,6 +432,11 @@ declare %unit:test function test:append() {
     unit:assert-equals(
         xf:append((),()),
         ()
+    ),
+    (: non-node types do not accept children :)    
+    unit:assert-equals(
+        xf:append(('a',10,true(), map { 'hello': true() }, ['a','b']), <b/>),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
     )
 };
 
@@ -389,7 +472,12 @@ declare %unit:test function test:prepend() {
     unit:assert-equals(
         xf:prepend((),()),
         ()
-    )
+    ),
+    (: non-node types do not accept children :)    
+    unit:assert-equals(
+        xf:prepend(('a',10,true(), map { 'hello': true() }, ['a','b']), <b/>),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
+    )    
 };
 
 declare %unit:test function test:before() {
@@ -412,7 +500,12 @@ declare %unit:test function test:before() {
     unit:assert-equals(
         xf:before((),()),
         ()
-    )
+    ),
+    (: non-node types pass unchanged :)    
+    unit:assert-equals(
+        xf:before(('a',10,true(), map { 'hello': true() }, ['a','b']), <b/>),
+        (<b/>,'a',10,true(), map { 'hello': true() }, ['a','b'])
+    )        
 };
 
 declare %unit:test function test:after() {
@@ -435,7 +528,12 @@ declare %unit:test function test:after() {
     unit:assert-equals(
         xf:after((),()),
         ()
-    )
+    ),
+    (: non-node types pass unchanged :)    
+    unit:assert-equals(
+        xf:after(('a',10,true(), map { 'hello': true() }, ['a','b']), <b/>),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'],<b/>)
+    )        
 };
 
 declare variable $test:stylesheet :=
@@ -467,7 +565,12 @@ declare %unit:test function test:xslt() {
     unit:assert-equals(
         xf:xslt((<foo/>,text { 'foo' },<foo/>),$test:stylesheet, map {}),
         (<a><bar/></a>, text { 'foo' }, <a><bar/></a>)
-    )
+    ),
+    (: non-node types pass unchanged :)    
+    unit:assert-equals(
+        xf:xslt(('a',10,true(), map { 'hello': true() }, ['a','b']),$test:stylesheet, map {}),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
+    )        
 };
 
 declare %unit:test function test:rename() {
@@ -500,5 +603,10 @@ declare %unit:test function test:rename() {
     unit:assert-equals(
         xf:rename((<test:p/>,<xf:p/>), map { 'test:p': 'x', 'xf:p': 'y' }),
         (<x/>,<y/>)
-    )
+    ),
+    (: non-node types pass unchanged :)    
+    unit:assert-equals(
+        xf:rename(('a',10,true(), map { 'hello': true() }, ['a','b']), map { 'a': 'b' }),
+        ('a',10,true(), map { 'hello': true() }, ['a','b'])
+    )        
 };
