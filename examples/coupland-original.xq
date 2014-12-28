@@ -10,4 +10,5 @@ let $input :=
     xf:xml-resource(file:base-dir() || 'coupland.xml')/*
 
 return
-    cl:websites($input)
+  cl:websites($input)
+  

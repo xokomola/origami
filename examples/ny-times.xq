@@ -1,16 +1,12 @@
 xquery version "3.0";
 
-(: A faster version of ny-times example :)
-(: This version is comparable to the previous one :)
-
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-let $input := xf:html-resource(file:base-dir() || 'ny-times.html')
+declare variable $url external := file:base-dir() || 'ny-times.html';
+(: declare variable $url external := 'http://www.nytimes.com'; :)
 
-(:
-let $input := xf:html-resource('http://www.nytimes.com')
-:)
+let $input := xf:html-resource($url)
 
 let $text := function($nodes) { xf:text($nodes[1]) }
 let $select-stories := xf:extract(['article[$in(@class,"story")]'])

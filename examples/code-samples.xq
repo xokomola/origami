@@ -10,8 +10,10 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
+declare variable $url external := "http://xokomola.com/2014/11/10/xquery-origami-1.html";
+
 let $input := 
-    xf:fetch-html("http://xokomola.com/2014/11/10/xquery-origami-1.html")
+    xf:fetch-html($url)
 
 let $code-samples := 
     xf:extract([
