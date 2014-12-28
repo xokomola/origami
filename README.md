@@ -33,6 +33,8 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 
 - Some tutorials can be found on my [blog][blog].
 
+- For documentation see the [wiki][wiki].
+
 - The [examples][examples] subdirectory contains examples.
 
 - The [test][tests] subdirectory contains the unit tests.
@@ -49,7 +51,11 @@ Run the unit tests:
 > basex -t test
 ~~~
 
-In code examples below I left out the namespace prefixes for clarity.
+Run the example (integration) tests:
+
+~~~xquery
+> basex -t examples
+~~~
 
 ### Import
 
