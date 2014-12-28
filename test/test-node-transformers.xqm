@@ -21,6 +21,21 @@ declare %unit:test function test:wrap() {
         xf:wrap(<a/>,<b x="1"/>),
         <b x="1"><a/></b>
     ),
+    (: wrap with an element with attribute :)
+    unit:assert-equals(
+        xf:wrap(<a/>,[<b x="1"/>, map {}]),
+        <b x="1"><a/></b>
+    ),
+    (: try to add an already existing attribute :)
+    unit:assert-equals(
+        xf:wrap(<a/>,[<b x="1"/>, map {'x': 2}]),
+        <b x="1"><a/></b>
+    ),
+    (: try to add an existing and a new attribute :)
+    unit:assert-equals(
+        xf:wrap(<a/>,[<b x="1"/>, map {'x': 2, 'y': 3}]),
+        <b x="1" y="3"><a/></b>
+    ),
     (: wrap with an element, only uses the outer element :)
     unit:assert-equals(
         xf:wrap(<a/>,<b><c/></b>),
@@ -284,7 +299,11 @@ declare %unit:test function test:text() {
     ),
     unit:assert-equals(
         xf:text((text { 'foo' }, text { 'bar' })),
-        text { 'foobar' }
+        (text { 'foo' }, text { 'bar'})
+    ),
+    unit:assert-equals(
+        xf:text(('a', 10, true())),
+        (text { 'a' }, text { '10'}, text { 'true' })
     ),
     unit:assert-equals(
         xf:text(<a>foo</a>),
@@ -292,7 +311,7 @@ declare %unit:test function test:text() {
     ),
     unit:assert-equals(
         xf:text((<a>foo</a>,<b>bar</b>)),
-        text { 'foobar' }
+        (text { 'foo' }, text { 'bar' })
     ),
     unit:assert-equals(
         xf:text(<a>foo <b x="10">bar</b></a>),
