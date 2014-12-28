@@ -109,7 +109,7 @@ declare %unit:test function test:content() {
     ),
     (: replace the content of multiple elements :)
     unit:assert-equals(
-        xf:content((<a/>,<b>goodbye<b/>), text { 'hello' }),
+        xf:content((<a/>,<b>goodbye</b>), text { 'hello' }),
         (<a>hello</a>,<b>hello</b>)
     ),
     (: empty the content of an element :)

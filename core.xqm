@@ -348,7 +348,8 @@ declare function xf:content($content as item()*)
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
-                $node/(@*,$content)
+                $node/@*,
+                $content
             }
         }
      (: HACK :)
@@ -1088,15 +1089,14 @@ declare %private function xf:selector($steps as array(*), $selector-fn as functi
     return
         function($nodes as item()*) as item()* {
             for $selected in head($steps)($nodes)
-                let $x := trace($selected/position(), 'POS: ')
-                return
-                    fold-left(
-                        tail($steps),
-                        $selected,
-                        function($result, $step) {
-                            $step($result)
-                        }
-                    )
+            return
+                fold-left(
+                    tail($steps),
+                    $selected,
+                    function($result, $step) {
+                        $step($result)
+                    }
+                )
         }
 };
 
