@@ -864,7 +864,7 @@ declare function xf:element-transformer($transform as function(element()) as ite
  : It also sets up a helper function $in to enable proper checks on tokenized
  : (space-delimited) attribute values such as @class.
  :)
-declare function xf:environment() {
+declare function xf:match-environment() {
     map {
         'bindings': function($nodes as node()*) as map(*) {
             map { 
@@ -902,7 +902,7 @@ declare function xf:expr-environment() {
  :)
 declare function xf:select-all($selector as xs:string) 
     as function(item()*) as item()* {
-    xf:select-with-env($selector, xf:environment())
+    xf:select-with-env($selector, xf:match-environment())
 };
 
 (:~
