@@ -898,6 +898,7 @@ declare function xf:environment($env-map as map(*)) as map(*) {
             let $vars := $env-map('bindings')
             where $vars instance of map(*)
             for $var in map:keys($vars)
+            where $var ne ''
             return
                 'declare variable $' || $var || ' external;'
                 
@@ -925,7 +926,7 @@ declare function xf:query($nodes as item()*, $env as map(*)) as function(*) {
         }
 };
 
-declare function xf:default-environment() {
+declare variable $xf:match-environment :=
     xf:environment(
         map { 'bindings': 
             map { 'in': 
@@ -934,8 +935,18 @@ declare function xf:default-environment() {
                         } 
                 }
         }
-    )
-};
+    );
+
+declare variable $xf:expr-environment :=
+    xf:environment(
+        map { 'bindings': 
+            map { 'in': 
+                        function($att, $token) as xs:boolean {
+                            $token = tokenize(string($att),'\s+')
+                        } 
+                }
+        }
+    );
 
 (:~
  : Find matches for XPath expression string applied to passed in nodes
@@ -943,12 +954,17 @@ declare function xf:default-environment() {
  :)
 declare function xf:select-all($selector as xs:string) 
     as function(item()*) as item()* {
-    let $env := xf:default-environment()
+    let $env := $xf:match-environment
+    let $bindings := $env('bindings')
+    let $options := $env('options')
+    let $prolog := $env('prolog')
     return  
         function($nodes as item()*) as item()* {
-            let $bindings := map:merge(($env('bindings'), map { '': $nodes/descendant-or-self::node() }))
-            return
-                xquery:eval($env('prolog') || $selector, $bindings, $env('options'))
+            xquery:eval(
+                $prolog || $selector, 
+                map:merge(($bindings,map {'': $nodes/descendant-or-self::node() })), 
+                $options
+            )
         }
 };
 
@@ -967,12 +983,17 @@ declare function xf:select-all($nodes as node()*, $selector as xs:string)
  :)
 declare function xf:select($selector as xs:string) 
     as function(item()*) as item()* {
-    let $env := xf:default-environment()
+    let $env := $xf:expr-environment
+    let $bindings := $env('bindings')
+    let $options := $env('options')
+    let $prolog := $env('prolog')
     return
         function($nodes as item()*) as item()* {
-            let $bindings := map:merge(($env('bindings'), map { '': $nodes }))
-            return
-                xquery:eval($env('prolog') || $selector, $bindings, $env('options'))
+            xquery:eval(
+                $prolog || $selector, 
+                map:merge(($bindings,map {'': $nodes })), 
+                $options
+            )
         }
 };
 
