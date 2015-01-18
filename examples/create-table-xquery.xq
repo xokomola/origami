@@ -1,8 +1,5 @@
 xquery version "3.0";
 
-import module namespace xf = 'http://xokomola.com/xquery/origami'
-    at '../core.xqm';
-
 declare variable $rows as xs:integer external := 10;
 
 let $input :=

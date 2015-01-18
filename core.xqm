@@ -433,7 +433,8 @@ declare function xf:append($append as item()*)
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
-                ($node/(@*,node()), $append)
+                $node/(@*,node()), 
+                $append
             }
         }
      (: HACK :)
@@ -864,36 +865,76 @@ declare function xf:element-transformer($transform as function(element()) as ite
  : It also sets up a helper function $in to enable proper checks on tokenized
  : (space-delimited) attribute values such as @class.
  :)
-declare function xf:environment() {
-    map {
-        'bindings': function($nodes as node()*) as map(*) {
-            map { 
-                '': $nodes/descendant-or-self::node(),
-                xs:QName('in'): function($att, $token) as xs:boolean {
-                    $token = tokenize(string($att),'\s+')
-                }
-            }
-        },
-        'query': function($selector as xs:string) {
-            'declare variable $in external; ' || $selector
+ 
+(:~
+ : Environment map
+ :
+ : bindings -  a map with the bindings
+ : namespaces - a map with namespaces
+ : imports - a map with imports (key = ns prefix, value is two item list (ns, location))
+ : options / memory
+ : options / timeout
+ : options / permission
+ :)
+declare function xf:environment($env-map as map(*)) as map(*) {
+    let $bindings := ($env-map('bindings'), map {})[1]
+    let $options := ($env-map('options'), map {})[1]
+    let $prolog := string-join((
+
+            let $imports := $env-map('imports')
+            where $imports instance of map(*)
+            for $import in map:keys($imports)
+            return
+                'import module namespace ' || $import || ' = "' || 
+                    $imports($import)[1] || '" at "' || 
+                    $imports($import)[2] || '";',
+
+            let $nss := $env-map('namespaces')
+            where $nss instance of map(*)
+            for $ns in map:keys($nss)
+            return
+                'declare namespace ' || $ns || ' = "' || $nss($ns) || '";',
+                
+            let $vars := $env-map('bindings')
+            where $vars instance of map(*)
+            for $var in map:keys($vars)
+            return
+                'declare variable $' || $var || ' external;'
+                
+            
+        ),'')
+    return
+        map { 
+            'bindings': $bindings,
+            'options': $options,
+            'prolog': $prolog
         }
-    }
+        
 };
 
-declare function xf:expr-environment() {
-    map {
-        'bindings': function($nodes as node()*) as map(*) {
-            map { 
-                '': $nodes,
-                xs:QName('in'): function($att, $token) as xs:boolean {
-                    $token = tokenize(string($att),'\s+')
-                }
-            }
-        },
-        'query': function($selector as xs:string) {
-            'declare variable $in external; ' || $selector
+(:~
+ : Create a function for querying over a given set of nodes.
+ :
+ : TODO: review if needed.
+ :)
+declare function xf:query($nodes as item()*, $env as map(*)) as function(*) {
+    let $bindings := map:merge(($env('bindings'), map { '': $nodes }))
+    return
+        function($query as xs:string) as item()* {
+            xquery:eval(trace($env('prolog') || $query, 'Q: '), $bindings, $env('options'))
         }
-    }
+};
+
+declare function xf:default-environment() {
+    xf:environment(
+        map { 'bindings': 
+            map { 'in': 
+                        function($att, $token) as xs:boolean {
+                            $token = tokenize(string($att),'\s+')
+                        } 
+                }
+        }
+    )
 };
 
 (:~
@@ -902,7 +943,13 @@ declare function xf:expr-environment() {
  :)
 declare function xf:select-all($selector as xs:string) 
     as function(item()*) as item()* {
-    xf:select-with-env($selector, xf:environment())
+    let $env := xf:default-environment()
+    return  
+        function($nodes as item()*) as item()* {
+            let $bindings := map:merge(($env('bindings'), map { '': $nodes/descendant-or-self::node() }))
+            return
+                xquery:eval($env('prolog') || $selector, $bindings, $env('options'))
+        }
 };
 
 (:~
@@ -916,10 +963,17 @@ declare function xf:select-all($nodes as node()*, $selector as xs:string)
 
 (:~
  : Find matches for XPath expression string applied to passed in nodes.
+ : TODO: remove this in favor of xf:selector($env)
  :)
 declare function xf:select($selector as xs:string) 
     as function(item()*) as item()* {
-    xf:select-with-env($selector, xf:expr-environment())
+    let $env := xf:default-environment()
+    return
+        function($nodes as item()*) as item()* {
+            let $bindings := map:merge(($env('bindings'), map { '': $nodes }))
+            return
+                xquery:eval($env('prolog') || $selector, $bindings, $env('options'))
+        }
 };
 
 (:~
@@ -928,16 +982,6 @@ declare function xf:select($selector as xs:string)
 declare function xf:select($nodes as item()*, $selector as xs:string) 
     as function(item()*) as item()* {
     xf:select($selector)($nodes)
-};
-
-declare %private function xf:select-with-env($selector as xs:string, $env as map(*)) 
-    as function(item()*) as item()* {
-    let $query := $env('query')($selector)
-    let $bindings := $env('bindings')
-    return
-        function($nodes as item()*) as item()* {
-            xquery:eval($query, $bindings($nodes))
-        }
 };
 
 (:~
@@ -1030,7 +1074,7 @@ declare %private function xf:match-templates($node as item(), $xform as map(*)*)
             let $matched-nodes := $template('select')($node)
             return
                 if (exists($matched-nodes)) then
-                    ($matched-templates, map:new(($template, map { 'nodes': $matched-nodes })))
+                    ($matched-templates, map:merge(($template, map { 'nodes': $matched-nodes })))
                 else
                     $matched-templates
         }
