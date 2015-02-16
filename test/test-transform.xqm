@@ -151,7 +151,8 @@ declare %unit:test function test:transform-literal-result-template() {
     )
 };
 
-declare %unit:test %unit:ignore('NS not supported yet') function test:transform-namespaces() {
+(: BASEX BUG? %unit:ignore('') results in bxerr:BASX0006 :)
+declare %unit:test %unit:ignore function test:transform-namespaces() {
 
     unit:assert-equals(
         xf:transform(
@@ -171,7 +172,7 @@ declare %unit:test %unit:ignore('NS not supported yet') function test:transform-
 
 };
 
-declare %unit:test %unit:ignore('NS not supported yet') function test:transform-document() {
+declare %unit:test %unit:ignore function test:transform-document() {
 
     unit:assert-equals(
         xf:transform(

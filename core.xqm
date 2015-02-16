@@ -1030,7 +1030,7 @@ declare %private function xf:match-templates($node as item(), $xform as map(*)*)
             let $matched-nodes := $template('select')($node)
             return
                 if (exists($matched-nodes)) then
-                    ($matched-templates, map:new(($template, map { 'nodes': $matched-nodes })))
+                    ($matched-templates, map:merge(($template, map { 'nodes': $matched-nodes })))
                 else
                     $matched-templates
         }

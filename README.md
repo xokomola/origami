@@ -24,7 +24,7 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 
 ## Requirements
 
-- BaseX 8.0 or higher (at least 2014121 snapshot)
+- BaseX 8.0
 
 ## Getting started
 
