@@ -16,7 +16,7 @@ let $input :=
     xf:fetch-html($url)
 
 let $code-samples := 
-    xf:extract([
+    xf:extractor([
         'pre/code', 
         xf:unwrap(), 
         xf:wrap(<code-sample/>)

@@ -21,7 +21,7 @@ let $input :=
     }
  
 let $extract :=
-    xf:extract((
+    xf:extractor((
         ['li[@id="last"]'],
         ['ul']
     ))

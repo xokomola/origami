@@ -29,7 +29,7 @@ let $parent :=
 let $input :=
     xf:xml-resource(file:base-dir() || 'coupland.xml')
 
-let $transform := xf:transform((
+let $transform := xf:transformer((
 
     ['websites', function($websites as element(websites)) {
         <html>

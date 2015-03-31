@@ -18,7 +18,7 @@ let $input :=
   }
  
 let $extract :=
-    xf:extract((
+    xf:extractor((
         ['li[@id="last"]'], 
         ['li'],
         ['li[@id="first"]']

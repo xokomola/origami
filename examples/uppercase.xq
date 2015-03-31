@@ -21,7 +21,7 @@ let $input :=
     </a>    
   } 
 
-let $transform := xf:transform((
+let $transform := xf:transformer((
 
     ['*', function($node) {
             element { QName(namespace-uri($node), upper-case(name($node))) } {

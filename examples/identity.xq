@@ -16,6 +16,6 @@ let $input :=
         <p></p>
     </a>
 
-let $transform := xf:transform()
+let $transform := xf:transformer()
 
 return $transform($input)

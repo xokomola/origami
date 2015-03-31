@@ -9,7 +9,7 @@ declare variable $url external := file:base-dir() || 'ny-times.html';
 let $input := xf:html-resource($url)
 
 let $text := function($nodes) { xf:text($nodes[1]) }
-let $select-stories := xf:extract(['article[$in(@class,"story")]'])
+let $select-stories := xf:extractor(['article[$in(@class,"story")]'])
 let $select-headline := xf:at(['(h2|h3|h5)//a', $text])
 let $select-byline := xf:at(['*[$in(@class,"byline")]', $text])
 let $select-summary := xf:at(['*[$in(@class,"summary")]', $text])
