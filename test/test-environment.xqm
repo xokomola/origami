@@ -46,23 +46,6 @@ declare %unit:test %unit:ignore function test:namespace-on-nodes-environment() {
 };
 
 (:~
- : If you want to use a namespace in a query you need to have
- : the namespace set in your environment otherwise you will get
- : "No namespace declared for 'x:foo'" back from xquery:eval().
- :)
-declare %unit:test %unit:ignore function test:namespace-environment() {
-    let $ctx := xf:environment(
-        map { 'namespaces': map {'x': 'urn:example'} }
-    )
-    let $eval := xf:select(<x:foo/>)
-    return
-        unit:assert-equals(
-            $eval('self::x:foo'),
-            <x:foo/>
-        )
-};
-
-(:~
  : To declare functions or variables in your eval environment you need to
  : pass them in as a bindings map.
  : Note that you always have to pass in context nodes argument even if empty

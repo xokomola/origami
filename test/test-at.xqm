@@ -19,7 +19,7 @@ declare variable $test:input :=
 (:~ Simple selector uses descendents axis :)
 declare %unit:test function test:simple-selector() {
     unit:assert-equals(
-        xf:at($test:input, ['li']),
+        xf:at(['li'])($test:input),
         (<li>item <span class="first">1</span></li>,
          <li>item <span>2</span></li>,
          <li>item <span class="last"><i>3</i></span></li>))
@@ -28,14 +28,14 @@ declare %unit:test function test:simple-selector() {
 (:~ Note that root element is not available for explicit selection :)
 declare %unit:test function test:id-select() {
     unit:assert-equals(
-        xf:at($test:input, ['@id']),
+        xf:at(['@id'])($test:input),
         attribute id { 'xyz' })
 };
 
 (:~ But when wrapping it in a document node it is :)
 declare %unit:test function test:root-select() {
     unit:assert-equals(
-        xf:at(document { $test:input }, ['/*']),
+        xf:at(['/*'])(document { $test:input }),
         <ul id="xyz">
             <li>item <span class="first">1</span></li>
             <li>item <span>2</span></li>

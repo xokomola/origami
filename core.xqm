@@ -126,7 +126,11 @@ declare function xf:template($template as item())
 (:~
  : Returns a Transformer function.
  :)
-declare function xf:transformer($rules as array(*)*) 
+declare function xf:transformer($rules as array(*)*) {
+    xf:transformer($rules, $xf:environment)
+};
+
+declare function xf:transformer($rules as array(*)*, $environment as map(*)) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
@@ -157,9 +161,15 @@ declare function xf:transform($nodes as item()*, $rules as array(*)*)
  : Returns an extractor function that only returns selected nodes 
  : only outermost, in document order and duplicates eliminated.
  :)
+
 declare function xf:extractor($rules as array(*)*) 
     as function(item()*) as item()* {
-    xf:outer-extractor($rules)
+    xf:outer-extractor($rules, $xf:environment)
+};
+
+declare function xf:extractor($rules as array(*)*, $environment as map(*)) 
+    as function(item()*) as item()* {
+    xf:outer-extractor($rules, $environment)
 };
 
 (:~
@@ -176,10 +186,15 @@ declare function xf:extract($nodes as item()*, $rules as array(*)*)
  :)
 declare function xf:inner-extractor($rules as array(*)*) 
     as function(item()*) as item()* {
+    xf:inner-extractor($rules, $xf:environment)
+};
+
+declare function xf:inner-extractor($rules as array(*)*, $environment as map(*)) 
+    as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
             return
-                xf:at($rule)
+                xf:at($rule, $environment)
     return
         function($nodes as item()*) as item()* {
             innermost(
@@ -203,9 +218,14 @@ declare function xf:extract-inner($nodes as item()*, $rules as array(*)*)
  :)
 declare function xf:outer-extractor($rules as array(*)*) 
     as function(item()*) as item()* {
+    xf:outer-extractor($rules, $xf:environment)
+};
+
+declare function xf:outer-extractor($rules as array(*)*, $environment as map(*)) 
+    as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
-            return xf:at($rule)
+            return xf:at($rule, $environment)
     return
         function($nodes as item()*) as item()* {
             outermost(
@@ -226,9 +246,13 @@ declare function xf:extract-outer($nodes as item()*, $rules as array(*)*)
 (:~
  : Create a match function from a rule.
  :)
-declare function xf:match($rule as array(*)) 
+declare function xf:match($rule as array(*))
     as map(*)? {
-    let $select := xf:selector([array:head($rule)], xf:select#1)
+    xf:match($rule, $xf:environment)
+};
+declare function xf:match($rule as array(*), $environment as map(*)) 
+    as map(*)? {
+    let $select := xf:selector([array:head($rule)], xf:select(?,$environment))
     let $body := xf:do(array:tail($rule))
     where array:size($rule) gt 0
     return
@@ -243,15 +267,12 @@ declare function xf:match($rule as array(*))
  :)
 declare function xf:at($rule as array(*))
     as function(item()*) as item()* {
-    xf:selector($rule, xf:select-all#1)
+    xf:at($rule, $xf:environment)
 };
 
-(:~
- : Apply a transformation rule to input nodes. 
- :)
-declare function xf:at($nodes as item()*, $rule as array(*))
-    as item()* {
-    xf:at($rule)($nodes)
+declare function xf:at($rule as array(*), $environment as map(*))
+    as function(item()*) as item()* {
+    xf:selector($rule, xf:select-all(?, $environment))
 };
 
 (:~
@@ -953,18 +974,7 @@ declare function xf:query($nodes as item()*, $env as map(*)) as function(*) {
         }
 };
 
-declare variable $xf:match-environment :=
-    xf:environment(
-        map { 'bindings': 
-            map { 'in': 
-                        function($att, $token) as xs:boolean {
-                            $token = tokenize(string($att),'\s+')
-                        } 
-                }
-        }
-    );
-
-declare variable $xf:expr-environment :=
+declare variable $xf:environment :=
     xf:environment(
         map { 'bindings': 
             map { 'in': 
@@ -979,12 +989,16 @@ declare variable $xf:expr-environment :=
  : Find matches for XPath expression string applied to passed in nodes
  : including all descendents.
  :)
-declare function xf:select-all($selector as xs:string) 
+declare %private function xf:select-all($selector as xs:string) 
     as function(item()*) as item()* {
-    let $env := $xf:match-environment
-    let $bindings := $env('bindings')
-    let $options := $env('options')
-    let $prolog := $env('prolog')
+    xf:select-all($selector, $xf:environment)
+};
+
+declare %private function xf:select-all($selector as xs:string, $environment as map(*)) 
+    as function(item()*) as item()* {
+    let $bindings := $environment('bindings')
+    let $options := $environment('options')
+    let $prolog := $environment('prolog')
     return  
         function($nodes as item()*) as item()* {
             xquery:eval(
@@ -996,24 +1010,19 @@ declare function xf:select-all($selector as xs:string)
 };
 
 (:~
- : Find matches for XPath expression string applied to passed in nodes
- : including all descendents.
- :)
-declare function xf:select-all($nodes as node()*, $selector as xs:string) 
-    as function(item()*) as item()* {
-    xf:select-all($selector)($nodes)
-};
-
-(:~
  : Find matches for XPath expression string applied to passed in nodes.
  : TODO: remove this in favor of xf:selector($env)
  :)
-declare function xf:select($selector as xs:string) 
+declare %private function xf:select($selector as xs:string)
     as function(item()*) as item()* {
-    let $env := $xf:expr-environment
-    let $bindings := $env('bindings')
-    let $options := $env('options')
-    let $prolog := $env('prolog')
+    xf:select($selector, $xf:environment)
+};
+
+declare %private function xf:select($selector as xs:string, $environment as map(*)) 
+    as function(item()*) as item()* {
+    let $bindings := $environment('bindings')
+    let $options := $environment('options')
+    let $prolog := $environment('prolog')
     return
         function($nodes as item()*) as item()* {
             xquery:eval(
@@ -1022,14 +1031,6 @@ declare function xf:select($selector as xs:string)
                 $options
             )
         }
-};
-
-(:~
- : Find matches for XPath expression string applied to passed in nodes.
- :)
-declare function xf:select($nodes as item()*, $selector as xs:string) 
-    as function(item()*) as item()* {
-    xf:select($selector)($nodes)
 };
 
 (:~
