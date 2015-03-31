@@ -155,12 +155,12 @@ declare %unit:test function test:identity() {
  : </testsuite>
  :
  :)
-declare %unit:test %unit:ignore function test:nolen() {
+declare %unit:test function test:nolen() {
     let $example := 'nolen.xq'
-    let $result := xquery:invoke($example)
+    let $result := xquery:invoke($example)/html
     return
         unit:assert-equals($result,
-        document { <html>
+        <html>
           <head>
             <title id="title">My Index</title>
             <link rel="stylesheet" type="text/css" href="main.css"/>
@@ -198,7 +198,7 @@ declare %unit:test %unit:ignore function test:nolen() {
             </div>
             <div class="column" id="footer">A boring footer</div>
           </body>
-        </html> })
+        </html>)
 };
 
 (:~

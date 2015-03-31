@@ -8,6 +8,8 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
+declare namespace x = 'foobar';
+
 declare %unit:test function test:transform-simple() {
     unit:assert-equals(
         xf:transform(
@@ -151,17 +153,24 @@ declare %unit:test function test:transform-literal-result-template() {
     )
 };
 
-(: BASEX BUG? %unit:ignore('') results in bxerr:BASX0006 :)
-declare %unit:test %unit:ignore function test:transform-namespaces() {
+declare %unit:test function test:transform-namespaces() {
 
     unit:assert-equals(
         xf:transform(
-            <foo><test:foo/></foo>,
-            ['test:foo', <x/>]
+            <foo><x:foo/></foo>,
+            ['x:foo', <x/>]
         ),
         <foo><x/></foo>
     ),
-        
+
+    unit:assert-equals(
+        xf:transform(
+            <foo><z:foo xmlns:z="foobar"/></foo>,
+            ['z:foo', <x/>]
+        ),
+        <foo><x/></foo>
+    ),
+
     unit:assert-equals(
         xf:transform(
             <foo><x/></foo>,

@@ -126,7 +126,7 @@ declare function xf:template($template as item())
 (:~
  : Returns a Transformer function.
  :)
-declare function xf:transform($rules as array(*)*) 
+declare function xf:transformer($rules as array(*)*) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
@@ -141,25 +141,25 @@ declare function xf:transform($rules as array(*)*)
 };
 
 (:~
+ : Identity transformer.
+ :)
+declare function xf:transformer() { xf:transformer(()) };
+
+(:~
  : Transform input, using the specified rules.
  :)
 declare function xf:transform($nodes as item()*, $rules as array(*)*)
     as item()* {
-    xf:transform($rules)($nodes)
+    xf:transformer($rules)($nodes)
 };
-
-(:~
- : Identity transformer.
- :)
-declare function xf:transform() { xf:transform(()) };
 
 (:~
  : Returns an extractor function that only returns selected nodes 
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract($rules as array(*)*) 
+declare function xf:extractor($rules as array(*)*) 
     as function(item()*) as item()* {
-    xf:extract-outer($rules)
+    xf:outer-extractor($rules)
 };
 
 (:~
@@ -167,14 +167,14 @@ declare function xf:extract($rules as array(*)*)
  :)
 declare function xf:extract($nodes as item()*, $rules as array(*)*) 
     as item()* {
-    xf:extract($rules)($nodes)
+    xf:extractor($rules)($nodes)
 };
 
 (:~
  : Returns an extractor function that returns selected nodes,
  : only innermost, in document order and duplicates eliminitated.
  :)
-declare function xf:extract-inner($rules as array(*)*) 
+declare function xf:inner-extractor($rules as array(*)*) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
@@ -194,14 +194,14 @@ declare function xf:extract-inner($rules as array(*)*)
  :)
 declare function xf:extract-inner($nodes as item()*, $rules as array(*)*) 
     as item()* {
-    xf:extract-inner($rules)($nodes)
+    xf:inner-extractor($rules)($nodes)
 };
 
 (:~
  : Returns an extractor function that returns selected nodes,
  : only outermost, in document order and duplicates eliminated.
  :)
-declare function xf:extract-outer($rules as array(*)*) 
+declare function xf:outer-extractor($rules as array(*)*) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
@@ -220,7 +220,7 @@ declare function xf:extract-outer($rules as array(*)*)
  :)
 declare function xf:extract-outer($nodes as item()*, $rules as array(*)*) 
     as item()* {
-    xf:extract-outer($rules)($nodes)
+    xf:outer-extractor($rules)($nodes)
 };
 
 (:~
@@ -337,6 +337,15 @@ declare function xf:if($conditions as item()*)
 declare function xf:if($nodes as item()*, $conditions as item()*) 
     as item()* {
     xf:if($conditions)($nodes)
+};
+
+declare %private function xf:comp-expression($expressions as item()*)
+    as (function(item()*) as item()*)* {
+    for $expression in $expressions
+        return
+            if ($expression instance of xs:string) then 
+                xf:select($expression)
+            else $expression
 };
 
 (:~
@@ -913,6 +922,24 @@ declare function xf:environment($env-map as map(*)) as map(*) {
         
 };
 
+(: TEST function for showing how to build a better env :)
+(:
+declare function xf:env($node) {
+    xf:in-scope-namespace-uris($node)
+};
+
+declare %private function xf:in-scope-namespace-uris($node as node()?) 
+    as xs:anyURI* {
+    fold-left(
+        fn:in-scope-prefixes($node),
+        (),
+        function($ns-list, $prefix) {
+            ($ns-list, [ $prefix, namespace-uri-for-prefix($prefix) ])
+        }
+    )
+};
+:)
+
 (:~
  : Create a function for querying over a given set of nodes.
  :
@@ -991,7 +1018,7 @@ declare function xf:select($selector as xs:string)
         function($nodes as item()*) as item()* {
             xquery:eval(
                 $prolog || $selector, 
-                map:merge(($bindings,map {'': $nodes })), 
+                map:merge(($bindings, map {'': $nodes })), 
                 $options
             )
         }
@@ -1165,15 +1192,6 @@ declare %private function xf:selector($steps as array(*), $selector-fn as functi
         }
 };
 
-declare %private function xf:comp-expression($expressions as item()*)
-    as (function(item()*) as item()*)* {
-    for $expression in $expressions
-        return
-            if ($expression instance of xs:string) then 
-                xf:select($expression)
-            else $expression
-};
- 
 (:~
  : Returns `true()` if the node `$node` is also in sequence `$seq`. 
  :
