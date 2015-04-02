@@ -895,7 +895,124 @@ declare function xf:element-transformer($transform as function(element()) as ite
  : It also sets up a helper function $in to enable proper checks on tokenized
  : (space-delimited) attribute values such as @class.
  :)
- 
+(:~
+ : Builds an eval environment from individual elements.
+ :
+ : Environments can be composed from smaller parts and
+ : when a transformer or extractor is created the environment
+ : can be passed as the third argument to provide a customized
+ : environment (e.g. namespaces, variables, imports etc.)
+ :)
+declare function xf:env($list as item()*) as map(*) {
+    map {
+        'bindings': fold-left(
+            $list,
+            map {},
+            function($bindings, $element) {
+                if ($element instance of array(*) and $element(1) eq xs:QName('xf:var'))
+                then map:merge(($bindings, map { $element(2): $element(3) }))
+                else $bindings
+            }
+        ),
+        'imports': fold-left(
+            $list,
+            map {},
+            function($imports, $element) {
+            if ($element instance of array(*) and $element(1) eq xs:QName('xf:import'))
+                then map:merge(($imports, 
+                    map { 
+                        xs:QName(name($element(2))): (data($element(2)),$element(3)) 
+                    }))
+                else $imports
+            }
+        ),
+        'namespaces': fold-left(
+            $list,
+            map {},
+            function($namespaces, $element) {
+                if ($element instance of namespace-node())
+                then map:merge(($namespaces, map { xs:QName(name($element)): data($element) }))
+                else $namespaces
+            }
+        ),
+        'options': fold-left(
+            $list,
+            map {},
+            function($options, $element) {
+                if ($element instance of array(*) and $element(1) eq xs:QName('xf:option'))
+                then map:merge(($options, map { $element(2): $element(3) }))
+                else $options
+            }
+        ),
+        '': fold-left(
+            $list,
+            (),
+            function($ctx, $element) {
+                if ($element instance of array(*) and $element(1) eq xs:QName('xf:ctx'))
+                then ($ctx, $element(2))
+                else $ctx
+            }
+        )
+    }
+};
+
+(:~
+ : Namespace declaration.
+ :)
+declare function xf:var($name, $value) {
+    [xs:QName('xf:var'), xs:QName($name), $value]
+};
+
+(:~
+ : Context declaration.
+ :)
+declare function xf:ctx($nodes as item()*) {
+    [xs:QName('xf:ctx'), $nodes]
+};
+
+(:~
+ : Namespace node. Get the $prefix using fn:name#1, and the $uri is the value 
+ : (or use fn:data#1
+ :)
+declare function xf:ns($prefix, $uri) {
+    namespace {$prefix} {$uri}
+};
+
+(:~
+ : Import repo module.
+ :)
+declare function xf:import($prefix, $uri) {
+    [xs:QName('xf:import'), namespace {$prefix} {$uri}, ()]
+};
+
+(:~
+ : Import file system module.
+ :)
+declare function xf:import($prefix, $uri, $path) {
+    [xs:QName('xf:import'), namespace {$prefix} {$uri}, resolve-uri($path)]
+};
+
+(:~
+ : Permission environment option.
+ :)
+declare function xf:permission($perms as xs:string) {
+    [xs:QName('xf:option'), 'permission', $perms]
+};
+
+(:~
+ : Timeout environment option.
+ :)
+declare function xf:timeout($seconds as xs:integer) {
+    [xs:QName('xf:option'), 'timeout', $seconds]
+};
+
+(:~
+ : Memory environment option.
+ :)
+declare function xf:memory($mb as xs:integer) {
+    [xs:QName('xf:option'), 'memory', $mb]
+};
+
 (:~
  : Environment map
  :
@@ -906,6 +1023,10 @@ declare function xf:element-transformer($transform as function(element()) as ite
  : options / timeout
  : options / permission
  :)
+declare function xf:environment() as map(*) {
+    xf:environment(map {})
+};
+
 declare function xf:environment($env-map as map(*)) as map(*) {
     let $bindings := ($env-map('bindings'), map {})[1]
     let $options := ($env-map('options'), map {})[1]
