@@ -2,6 +2,12 @@ xquery version "3.0";
 
 (:~ 
  : Example: basex -V -r 100 -b rows=10000 examples/create-table-origami.xq 
+ :
+ : Parsing: 15.96 ms (avg)
+ : Compiling: 6.11 ms (avg)
+ : Evaluating: 0.23 ms (avg)
+ : Printing: 127.25 ms (avg)
+ : Total Time: 149.55 ms (avg)
  :)
 
 import module namespace xf = 'http://xokomola.com/xquery/origami'

@@ -55,7 +55,12 @@ declare function xf:parse-html($path) {
  :)
 declare function xf:template($template as item()*, $selector as array(*)?, $model as item()*)
     as function(*) {
-    let $at := if ($selector instance of array(*)) then xf:at($selector) else function($nodes) { $nodes }
+    xf:template($template, $selector, $model, $xf:environment)
+};
+
+declare function xf:template($template as item()*, $selector as array(*)?, $model as item()*, $env as map(*))
+    as function(*) {
+    let $at := if ($selector instance of array(*)) then xf:at($selector, $env) else function($nodes) { $nodes }
     return
         typeswitch ($model)
         (: test array first because it is also a function :)
@@ -579,8 +584,8 @@ declare function xf:set-attr($attributes as item())
                 element { node-name($node) } {
                     $attributes,
                     for $att in $node/@*
-                        where node-name($att) != $attributes/node-name()
-                        return $att,
+                    where not(node-name($att) = $attributes/node-name())
+                    return $att,
                     $node/node()
                 }
             }
@@ -665,6 +670,8 @@ declare function xf:remove-class($nodes as item()*, $names as xs:string*)
  :
  : If a name cannot be used as an attribute name (xs:QName) then
  : it will be silently ignored.
+ :
+ : TODO: better testing and clean up code.
  :)
 declare function xf:remove-attr($attributes as item()*)
     as function(item()*) as item()* {
@@ -674,21 +681,21 @@ declare function xf:remove-attr($attributes as item()*)
             return 
                 for $name in $attributes 
                 return
-                    if ($name eq '*') then
-                        '*'
+                    if ($name eq '*' or starts-with($name, '*:')) then
+                        $name
                     else if ($name castable as xs:QName) then
-                        attribute { $name } { '' }
+                        xs:QName($name)
                     else
                         ()
         case element()
-            return $attributes/@*
+            return for $att in $attributes/@* return node-name($att)
         case map(*)
             return             
                 map:for-each(
                     $attributes, 
                     function($name,$value) { 
                     if ($name castable as xs:QName) then
-                        attribute { $name } { '' }
+                        xs:QName($name)
                     else
                         ()
                 })
@@ -699,8 +706,9 @@ declare function xf:remove-attr($attributes as item()*)
             function($node as element()) as element() {
                 element { node-name($node) } {
                     for $att in $node/@*
-                        where not($names = '*') and
-                              not(node-name($att) = $names/node-name()) 
+                        where not('*' = (for $name in $names return if ($name instance of xs:string) then $name else ())) and
+                              not(local-name($att) = (for $name in $names return if ($name instance of xs:string and starts-with($name,'*:')) then substring-after($name,'*:') else ())) and
+                              not(node-name($att) = (for $name in $names return if ($name instance of xs:QName) then $name else ()))
                         return $att
                 }
             }
@@ -1023,14 +1031,14 @@ declare function xf:memory($mb as xs:integer) {
 (:~
  : Builds a full evaluation context from an environment map.
  :)
-declare %private function xf:compile-environment($env as map(*)) {
+declare function xf:compile-environment($env as map(*)) {
     if (map:contains($env, 'prolog')) then
         $env
     else
         xf:compile-environment((), $env)
 };
 
-declare %private function xf:compile-environment($context as node()*, $env as map(*))
+declare function xf:compile-environment($context as node()*, $env as map(*))
     as map(*) {
     (: rebind env with new context :)
     if (map:contains($env, 'prolog')) then

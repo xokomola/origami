@@ -3,7 +3,14 @@ xquery version "3.0";
 (:~
  : Simple query that uses xquery:eval.
  :
- : Example: basex -v -r 100 examples/query.xq
+ : Example: basex -V -r 100 examples/query.xq
+ :
+ : Parsing: 27.14 ms (avg)
+ : Compiling: 5.12 ms (avg)
+ : Evaluating: 27.78 ms (avg)
+ : Printing: 0.03 ms (avg)
+ : Total Time: 60.06 ms (avg)
+ : 
  :)
 
 import module namespace xf = 'http://xokomola.com/xquery/origami'
