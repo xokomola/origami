@@ -3,8 +3,8 @@ xquery version "3.0";
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 
-declare option output:method "html";
-declare option output:version "5.0";
+(: declare option output:method "html"; :)
+(: declare option output:version "5.0"; :)
 
 let $tpl := function($name) {
     xf:html-resource(file:base-dir() || $name)

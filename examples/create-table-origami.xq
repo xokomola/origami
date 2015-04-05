@@ -1,5 +1,7 @@
 xquery version "3.0";
 
+(: Example: basex -V -r 100 -b rows=10000 examples/create-table-origami.xq :)
+
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
 

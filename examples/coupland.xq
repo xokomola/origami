@@ -11,6 +11,8 @@ xquery version "3.0";
  :
  : TODO: Currently runs at about 1.5 secs which is terrible.
  :       When running from basexgui it also gets increasingly slower.
+ :
+ :       With 8.0 and 8.1 it takes over the machine and doesn't return
  :)
 import module namespace xf = 'http://xokomola.com/xquery/origami'
     at '../core.xqm';
