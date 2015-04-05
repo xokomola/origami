@@ -158,7 +158,8 @@ declare %unit:test function test:transform-namespaces() {
     unit:assert-equals(
         xf:transform(
             <foo><x:foo/></foo>,
-            ['x:foo', <x/>]
+            ['x:foo', <x/>],
+            xf:env((xf:ns('x','foobar')))
         ),
         <foo><x/></foo>
     ),
@@ -166,7 +167,8 @@ declare %unit:test function test:transform-namespaces() {
     unit:assert-equals(
         xf:transform(
             <foo><z:foo xmlns:z="foobar"/></foo>,
-            ['z:foo', <x/>]
+            ['z:foo', <x/>],
+            xf:env((xf:ns('z','foobar')))
         ),
         <foo><x/></foo>
     ),
@@ -181,12 +183,13 @@ declare %unit:test function test:transform-namespaces() {
 
 };
 
-declare %unit:test %unit:ignore function test:transform-document() {
+declare %unit:test function test:transform-document() {
 
     unit:assert-equals(
         xf:transform(
             document { <foo><test:foo/></foo> },
-            ['test:foo', <x/>]
+            ['test:foo', <x/>],
+            xf:env((xf:ns('test','http://xokomola.com/xquery/origami/tests')))
         ),
         document { <foo><x/></foo> }
     )

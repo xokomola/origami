@@ -130,11 +130,11 @@ declare function xf:transformer($rules as array(*)*) {
     xf:transformer($rules, $xf:environment)
 };
 
-declare function xf:transformer($rules as array(*)*, $environment as map(*)) 
+declare function xf:transformer($rules as array(*)*, $env as map(*)) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
-            return xf:match($rule)
+            return xf:match($rule, $env)
     return
         function($nodes as item()*) as item()* {
             xf:apply-nodes(
@@ -157,6 +157,11 @@ declare function xf:transform($nodes as item()*, $rules as array(*)*)
     xf:transformer($rules)($nodes)
 };
 
+declare function xf:transform($nodes as item()*, $rules as array(*)*, $env as map(*))
+    as item()* {
+    xf:transformer($rules, $env)($nodes)
+};
+
 (:~
  : Returns an extractor function that only returns selected nodes 
  : only outermost, in document order and duplicates eliminated.
@@ -167,9 +172,9 @@ declare function xf:extractor($rules as array(*)*)
     xf:outer-extractor($rules, $xf:environment)
 };
 
-declare function xf:extractor($rules as array(*)*, $environment as map(*)) 
+declare function xf:extractor($rules as array(*)*, $env as map(*)) 
     as function(item()*) as item()* {
-    xf:outer-extractor($rules, $environment)
+    xf:outer-extractor($rules, $env)
 };
 
 (:~
@@ -189,12 +194,12 @@ declare function xf:inner-extractor($rules as array(*)*)
     xf:inner-extractor($rules, $xf:environment)
 };
 
-declare function xf:inner-extractor($rules as array(*)*, $environment as map(*)) 
+declare function xf:inner-extractor($rules as array(*)*, $env as map(*)) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
             return
-                xf:at($rule, $environment)
+                xf:at($rule, $env)
     return
         function($nodes as item()*) as item()* {
             innermost(
@@ -221,11 +226,11 @@ declare function xf:outer-extractor($rules as array(*)*)
     xf:outer-extractor($rules, $xf:environment)
 };
 
-declare function xf:outer-extractor($rules as array(*)*, $environment as map(*)) 
+declare function xf:outer-extractor($rules as array(*)*, $env as map(*)) 
     as function(item()*) as item()* {
     let $rules :=
         for $rule in $rules
-            return xf:at($rule, $environment)
+            return xf:at($rule, $env)
     return
         function($nodes as item()*) as item()* {
             outermost(
@@ -250,9 +255,9 @@ declare function xf:match($rule as array(*))
     as map(*)? {
     xf:match($rule, $xf:environment)
 };
-declare function xf:match($rule as array(*), $environment as map(*)) 
+declare function xf:match($rule as array(*), $env as map(*)) 
     as map(*)? {
-    let $select := xf:selector([array:head($rule)], xf:select(?,$environment))
+    let $select := xf:selector([array:head($rule)], xf:select(?, xf:compile-environment($env)))
     let $body := xf:do(array:tail($rule))
     where array:size($rule) gt 0
     return
@@ -270,9 +275,9 @@ declare function xf:at($rule as array(*))
     xf:at($rule, $xf:environment)
 };
 
-declare function xf:at($rule as array(*), $environment as map(*))
+declare function xf:at($rule as array(*), $env as map(*))
     as function(item()*) as item()* {
-    xf:selector($rule, xf:select-all(?, $environment))
+    xf:selector($rule, xf:select-all(?, xf:compile-environment($env)))
 };
 
 (:~
@@ -332,10 +337,12 @@ declare %private function xf:do-nodes($nodes as item()*, $rule as array(*))
 (:~
  : Only nodes for which the chain of expressions evaluates to `true()`
  : are passed through.
+ :
+ : TODO: how to deal with environment?
  :)
 declare function xf:if($conditions as item()*) 
     as function(item()*) as item()* {
-    let $conditions := xf:comp-expression($conditions)
+    let $conditions := xf:comp-expression($conditions, $xf:environment)
     return
         function($nodes as item()*) as item()* {
             fold-left(
@@ -360,12 +367,12 @@ declare function xf:if($nodes as item()*, $conditions as item()*)
     xf:if($conditions)($nodes)
 };
 
-declare %private function xf:comp-expression($expressions as item()*)
+declare %private function xf:comp-expression($expressions as item()*, $env as map(*))
     as (function(item()*) as item()*)* {
     for $expression in $expressions
         return
             if ($expression instance of xs:string) then 
-                xf:select($expression)
+                xf:select($expression, xf:compile-environment($env))
             else $expression
 };
 
@@ -944,7 +951,7 @@ declare function xf:env($list as item()*) as map(*) {
                 else $options
             }
         ),
-        '': fold-left(
+        'context': fold-left(
             $list,
             (),
             function($ctx, $element) {
@@ -1014,144 +1021,160 @@ declare function xf:memory($mb as xs:integer) {
 };
 
 (:~
- : Environment map
- :
- : bindings -  a map with the bindings
- : namespaces - a map with namespaces
- : imports - a map with imports (key = ns prefix, value is two item list (ns, location))
- : options / memory
- : options / timeout
- : options / permission
+ : Builds a full evaluation context from an environment map.
  :)
-declare function xf:environment() as map(*) {
-    xf:environment(map {})
+declare %private function xf:compile-environment($env as map(*)) {
+    if (map:contains($env, 'prolog')) then
+        $env
+    else
+        xf:compile-environment((), $env)
 };
 
-declare function xf:environment($env-map as map(*)) as map(*) {
-    let $bindings := ($env-map('bindings'), map {})[1]
-    let $options := ($env-map('options'), map {})[1]
-    let $prolog := string-join((
-
-            let $imports := $env-map('imports')
-            where $imports instance of map(*)
-            for $import in map:keys($imports)
-            return
-                'import module namespace ' || $import || ' = "' || 
-                    $imports($import)[1] || '" at "' || 
-                    $imports($import)[2] || '";',
-
-            let $nss := $env-map('namespaces')
-            where $nss instance of map(*)
-            for $ns in map:keys($nss)
-            return
-                'declare namespace ' || $ns || ' = "' || $nss($ns) || '";',
-                
-            let $vars := $env-map('bindings')
-            where $vars instance of map(*)
-            for $var in map:keys($vars)
-            where $var ne ''
-            return
-                'declare variable $' || $var || ' external;'
-                
-            
-        ),'')
-    return
-        map { 
-            'bindings': $bindings,
-            'options': $options,
-            'prolog': $prolog
+declare %private function xf:compile-environment($context as node()*, $env as map(*))
+    as map(*) {
+    (: rebind env with new context :)
+    if (map:contains($env, 'prolog')) then
+        map {
+            'bindings': map:merge(($env('bindings'), map { '': $context })),
+            'options': $env('options'),
+            'prolog': $env('prolog')
         }
-        
+    else        
+        let $bindings := ($env('bindings'), map {})[1]
+        let $options := ($env('options'), map {})[1]
+        let $prolog := string-join((
+    
+                let $imports := $env('imports')
+                where $imports instance of map(*)
+                for $import in map:keys($imports)
+                return
+                    'import module namespace ' || $import || ' = "' || 
+                        $imports($import)[1] || '" at "' || 
+                        $imports($import)[2] || '";',
+    
+                let $nss := $env('namespaces')
+                where $nss instance of map(*)
+                for $ns in map:keys($nss)
+                return
+                    'declare namespace ' || $ns || ' = "' || $nss($ns) || '";',
+                    
+                let $vars := $env('bindings')
+                where $vars instance of map(*)
+                for $var in map:keys($vars)
+                where $var instance of xs:QName
+                return
+                    'declare variable $' || $var || ' external;'
+                    
+                
+            ), '')
+        return
+            map {
+                'bindings': map:merge(($bindings, map { '': $context })),
+                'options': $options,
+                'prolog': $prolog
+            }
 };
-
-(: TEST function for showing how to build a better env :)
-(:
-declare function xf:env($node) {
-    xf:in-scope-namespace-uris($node)
-};
-
-declare %private function xf:in-scope-namespace-uris($node as node()?) 
-    as xs:anyURI* {
-    fold-left(
-        fn:in-scope-prefixes($node),
-        (),
-        function($ns-list, $prefix) {
-            ($ns-list, [ $prefix, namespace-uri-for-prefix($prefix) ])
-        }
-    )
-};
-:)
 
 (:~
  : Create a function for querying over a given set of nodes.
- :
- : TODO: review if needed.
  :)
-declare function xf:query($nodes as item()*, $env as map(*)) as function(*) {
-    let $bindings := map:merge(($env('bindings'), map { '': $nodes }))
+declare function xf:query($context) {
+    let $env :=
+        typeswitch  ($context)
+        case node()*
+        return xf:compile-environment($context, $xf:environment)
+        (: context is already a compiled env :)
+        case function(*)
+        return $context
+        default
+        return ()
     return
         function($query as xs:string) as item()* {
-            xquery:eval(trace($env('prolog') || $query, 'Q: '), $bindings, $env('options'))
+            xquery:eval(
+                $env('prolog') || $query, 
+                $env('bindings'), 
+                $env('options')
+            )
         }
 };
 
+(:~
+ : Convenience function for creating a query object and running
+ : a query.
+ :)
+declare function xf:query($query as xs:string, $context) {
+    xf:query($context)($query)
+};
+
+(:~
+ : Build an evaluation context given a node sequence or an environment.
+ : When given an environment it is the responsibility of the user to
+ : provide a valid context as part of the environment.
+ :)
+declare function xf:context() {
+    xf:context($xf:environment)
+};
+
+(:~
+ : Build an evaluation context consisting of a node sequence and an environment.
+ :)
+declare function xf:context($context) {
+    typeswitch ($context)
+    (: context is a node sequence, merge it with the default env :)
+    case node()*
+    return xf:compile-environment($context, $xf:environment)
+    (: context is a function-like object providing the environment :)
+    case function(*)
+    return xf:compile-environment($context)
+    default
+    return ()
+};
+
+declare function xf:context($context, $env) {
+    xf:compile-environment($context, $env)
+};
+
+(:~
+ : The default environment made for XHTML and SVG templating. 
+ :)
 declare variable $xf:environment :=
-    xf:environment(
-        map { 'bindings': 
-            map { 'in': 
-                        function($att, $token) as xs:boolean {
-                            $token = tokenize(string($att),'\s+')
-                        } 
-                }
-        }
-    );
+    xf:env((
+        xf:var('in', 
+            function($att, $token) as xs:boolean {
+                $token = tokenize(string($att),'\s+')
+            }),
+        xf:ns('html', 'http://www.w3.org/1999/xhtml'),
+        xf:ns('svg', 'http://www.w3.org/2000/svg')
+    ));
 
 (:~
  : Find matches for XPath expression string applied to passed in nodes
  : including all descendents.
  :)
-declare %private function xf:select-all($selector as xs:string) 
+declare %private function xf:select-all($selector as xs:string, $env as map(*)) 
     as function(item()*) as item()* {
-    xf:select-all($selector, $xf:environment)
-};
-
-declare %private function xf:select-all($selector as xs:string, $environment as map(*)) 
-    as function(item()*) as item()* {
-    let $bindings := $environment('bindings')
-    let $options := $environment('options')
-    let $prolog := $environment('prolog')
-    return  
-        function($nodes as item()*) as item()* {
-            xquery:eval(
-                $prolog || $selector, 
-                map:merge(($bindings,map {'': $nodes/descendant-or-self::node() })), 
-                $options
-            )
-        }
+    function($nodes as item()*) as item()* {
+        xquery:eval(
+            $env('prolog') || $selector, 
+            map:merge(($env('bindings'), map {'': $nodes/descendant-or-self::node() })), 
+            $env('options')
+        )
+    }
 };
 
 (:~
  : Find matches for XPath expression string applied to passed in nodes.
  : TODO: remove this in favor of xf:selector($env)
  :)
-declare %private function xf:select($selector as xs:string)
+declare %private function xf:select($selector as xs:string, $env as map(*)) 
     as function(item()*) as item()* {
-    xf:select($selector, $xf:environment)
-};
-
-declare %private function xf:select($selector as xs:string, $environment as map(*)) 
-    as function(item()*) as item()* {
-    let $bindings := $environment('bindings')
-    let $options := $environment('options')
-    let $prolog := $environment('prolog')
-    return
-        function($nodes as item()*) as item()* {
-            xquery:eval(
-                $prolog || $selector, 
-                map:merge(($bindings, map {'': $nodes })), 
-                $options
-            )
-        }
+    function($nodes as item()*) as item()* {
+        xquery:eval(
+            $env('prolog') || $selector, 
+            map:merge(($env('bindings'), map {'': $nodes })), 
+            $env('options')
+        )
+    }
 };
 
 (:~
