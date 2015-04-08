@@ -15,7 +15,9 @@ module namespace xf = 'http://xokomola.com/xquery/origami';
 (:~
  : Load an HTML resource.
  :)
-declare function xf:html-resource($url-or-path) {
+declare function xf:html-resource(
+$url-or-path)
+{
     if (starts-with($url-or-path,'http:/')) then
         xf:fetch-html($url-or-path)
     else
@@ -25,42 +27,63 @@ declare function xf:html-resource($url-or-path) {
 (:~
  : Load an XML resource.
  :)
-declare function xf:xml-resource($url-or-path) {
+declare function xf:xml-resource(
+$url-or-path)
+{
     doc($url-or-path)
 };
 
 (:~
  : Load a plain text resource.
  :)
-declare function xf:text-resource($url-or-path) {
+declare function xf:text-resource(
+$url-or-path)
+{
     unparsed-text($url-or-path)
 };
 
 (:~
  : Fetch and parse HTML given a URL.
  :)
-declare function xf:fetch-html($url) {
+declare function xf:fetch-html(
+$url)
+{
     html:parse(fetch:binary($url))
 };
 
 (:~
  : Parse HTML from a filesystem path.
  :)
-declare function xf:parse-html($path) {
+declare function xf:parse-html(
+$path)
+{
     html:parse(file:read-binary($path))
 };
 
 (:~
  : Returns a template function.
  :)
-declare function xf:template($template as item()*, $selector as array(*)?, $model as item()*)
-    as function(*) {
+declare function xf:template(
+$template as item()*, 
+$selector as array(*)?, 
+$model as item()*)
+as function(*) 
+{
     xf:template($template, $selector, $model, $xf:environment)
 };
 
-declare function xf:template($template as item()*, $selector as array(*)?, $model as item()*, $env as map(*))
-    as function(*) {
-    let $at := if ($selector instance of array(*)) then xf:at($selector, $env) else function($nodes) { $nodes }
+declare function xf:template(
+$template as item()*, 
+$selector as array(*)?, 
+$model as item()*, 
+$env as map(*))
+as function(*)
+{
+    let $at := 
+        if ($selector instance of array(*)) then 
+            xf:at($selector, $env) 
+        else
+            function($nodes) { $nodes }
     return
         typeswitch ($model)
         (: test array first because it is also a function :)
@@ -115,28 +138,38 @@ declare function xf:template($template as item()*, $selector as array(*)?, $mode
 (:~
  : Apply `$template` to template function.
  :)
-declare function xf:template($template as item(), $model as item()*)
-    as function(*) {
+declare function xf:template(
+$template as item(), 
+$model as item()*)
+as function(*)
+{
     xf:template($template, (), $model)
 };
 
 (:~
  : Template identity transform.
  :)
-declare function xf:template($template as item())
-    as function(*) {
+declare function xf:template(
+$template as item())
+as function(*)
+{
     xf:template($template, (), ())
 };
 
 (:~
  : Returns a Transformer function.
  :)
-declare function xf:transformer($rules as array(*)*) {
+declare function xf:transformer(
+$rules as array(*)*)
+{
     xf:transformer($rules, $xf:environment)
 };
 
-declare function xf:transformer($rules as array(*)*, $env as map(*)) 
-    as function(item()*) as item()* {
+declare function xf:transformer(
+$rules as array(*)*, 
+$env as map(*)) 
+as function(item()*) as item()* 
+{
     let $rules :=
         for $rule in $rules
             return xf:match($rule, $env)
@@ -152,18 +185,28 @@ declare function xf:transformer($rules as array(*)*, $env as map(*))
 (:~
  : Identity transformer.
  :)
-declare function xf:transformer() { xf:transformer(()) };
+declare function xf:transformer() 
+{ 
+    xf:transformer(()) 
+};
 
 (:~
  : Transform input, using the specified rules.
  :)
-declare function xf:transform($nodes as item()*, $rules as array(*)*)
-    as item()* {
+declare function xf:transform(
+$nodes as item()*, 
+$rules as array(*)*)
+as item()*
+{
     xf:transformer($rules)($nodes)
 };
 
-declare function xf:transform($nodes as item()*, $rules as array(*)*, $env as map(*))
-    as item()* {
+declare function xf:transform(
+$nodes as item()*, 
+$rules as array(*)*, 
+$env as map(*))
+as item()*
+{
     xf:transformer($rules, $env)($nodes)
 };
 
@@ -172,21 +215,29 @@ declare function xf:transform($nodes as item()*, $rules as array(*)*, $env as ma
  : only outermost, in document order and duplicates eliminated.
  :)
 
-declare function xf:extractor($rules as array(*)*) 
-    as function(item()*) as item()* {
+declare function xf:extractor(
+$rules as array(*)*) 
+as function(item()*) as item()*
+{
     xf:outer-extractor($rules, $xf:environment)
 };
 
-declare function xf:extractor($rules as array(*)*, $env as map(*)) 
-    as function(item()*) as item()* {
+declare function xf:extractor(
+$rules as array(*)*, 
+$env as map(*)) 
+as function(item()*) as item()*
+{
     xf:outer-extractor($rules, $env)
 };
 
 (:~
  : Extracts nodes from input, using the specified rules.
  :)
-declare function xf:extract($nodes as item()*, $rules as array(*)*) 
-    as item()* {
+declare function xf:extract(
+$nodes as item()*, 
+$rules as array(*)*) 
+as item()*
+{
     xf:extractor($rules)($nodes)
 };
 
@@ -194,13 +245,18 @@ declare function xf:extract($nodes as item()*, $rules as array(*)*)
  : Returns an extractor function that returns selected nodes,
  : only innermost, in document order and duplicates eliminitated.
  :)
-declare function xf:inner-extractor($rules as array(*)*) 
-    as function(item()*) as item()* {
+declare function xf:inner-extractor(
+$rules as array(*)*) 
+as function(item()*) as item()*
+{
     xf:inner-extractor($rules, $xf:environment)
 };
 
-declare function xf:inner-extractor($rules as array(*)*, $env as map(*)) 
-    as function(item()*) as item()* {
+declare function xf:inner-extractor(
+$rules as array(*)*, 
+$env as map(*)) 
+as function(item()*) as item()*
+{
     let $rules :=
         for $rule in $rules
             return
@@ -217,8 +273,11 @@ declare function xf:inner-extractor($rules as array(*)*, $env as map(*))
 (:~
  : Apply extractor rules to `$nodes` and return the innermost nodes.
  :)
-declare function xf:extract-inner($nodes as item()*, $rules as array(*)*) 
-    as item()* {
+declare function xf:extract-inner(
+$nodes as item()*, 
+$rules as array(*)*) 
+as item()*
+{
     xf:inner-extractor($rules)($nodes)
 };
 
@@ -227,12 +286,16 @@ declare function xf:extract-inner($nodes as item()*, $rules as array(*)*)
  : only outermost, in document order and duplicates eliminated.
  :)
 declare function xf:outer-extractor($rules as array(*)*) 
-    as function(item()*) as item()* {
+as function(item()*) as item()*
+{
     xf:outer-extractor($rules, $xf:environment)
 };
 
-declare function xf:outer-extractor($rules as array(*)*, $env as map(*)) 
-    as function(item()*) as item()* {
+declare function xf:outer-extractor(
+$rules as array(*)*, 
+$env as map(*)) 
+as function(item()*) as item()*
+{
     let $rules :=
         for $rule in $rules
             return xf:at($rule, $env)
@@ -248,20 +311,28 @@ declare function xf:outer-extractor($rules as array(*)*, $env as map(*))
 (:~
  : Apply extractor rules to `$nodes` and return the outermost nodes.
  :)
-declare function xf:extract-outer($nodes as item()*, $rules as array(*)*) 
-    as item()* {
+declare function xf:extract-outer(
+$nodes as item()*, 
+$rules as array(*)*) 
+as item()*
+{
     xf:outer-extractor($rules)($nodes)
 };
 
 (:~
  : Create a match function from a rule.
  :)
-declare function xf:match($rule as array(*))
-    as map(*)? {
+declare function xf:match(
+$rule as array(*))
+as map(*)?
+{
     xf:match($rule, $xf:environment)
 };
-declare function xf:match($rule as array(*), $env as map(*)) 
-    as map(*)? {
+declare function xf:match(
+$rule as array(*), 
+$env as map(*)) 
+as map(*)?
+{
     let $select := xf:selector([array:head($rule)], xf:select(?, xf:compile-environment($env)))
     let $body := xf:do(array:tail($rule))
     where array:size($rule) gt 0
@@ -275,13 +346,18 @@ declare function xf:match($rule as array(*), $env as map(*))
 (:~
  : Create a selector function from a rule.
  :)
-declare function xf:at($rule as array(*))
-    as function(item()*) as item()* {
+declare function xf:at(
+$rule as array(*))
+as function(item()*) as item()* 
+{
     xf:at($rule, $xf:environment)
 };
 
-declare function xf:at($rule as array(*), $env as map(*))
-    as function(item()*) as item()* {
+declare function xf:at(
+$rule as array(*), 
+$env as map(*))
+as function(item()*) as item()*
+{
     xf:selector($rule, xf:select-all(?, xf:compile-environment($env)))
 };
 
@@ -289,8 +365,10 @@ declare function xf:at($rule as array(*), $env as map(*))
  : Create a node transformer that applies a node transformation rule to a
  : sequence of input nodes.
  :)
-declare function xf:do($rule as array(*)) 
-    as function(item()*) as item()* {
+declare function xf:do(
+$rule as array(*)) 
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         xf:do-nodes($nodes, $rule)
     }
@@ -299,8 +377,11 @@ declare function xf:do($rule as array(*))
 (:~
  : Apply a node transformation rule to a sequence of nodes.
  :)
-declare function xf:do($nodes as item()*, $rule as array(*)) 
-    as item()* {
+declare function xf:do(
+$nodes as item()*, 
+$rule as array(*)) 
+as item()*
+{
     xf:do-nodes($nodes, $rule)
 };
 
@@ -308,8 +389,10 @@ declare function xf:do($nodes as item()*, $rule as array(*))
  : Create a node transformer that applies a node transformation rule to each 
  : individual input node.
  :)
-declare function xf:each($rule as array(*)) 
-    as function(item()*) as item()* {
+declare function xf:each(
+$rule as array(*)) 
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         for $node in $nodes
             return xf:do-nodes($node, $rule)
@@ -319,14 +402,20 @@ declare function xf:each($rule as array(*))
 (:~
  : Apply a node transformation rule to each individual input node.
  :)
-declare function xf:each($nodes as item()*, $rule as array(*)) 
-    as item()* {
+declare function xf:each(
+$nodes as item()*, 
+$rule as array(*)) 
+as item()*
+{
     for $node in $nodes
         return xf:do-nodes($node, $rule)
 };
 
-declare %private function xf:do-nodes($nodes as item()*, $rule as array(*))
-    as item()* {
+declare %private function xf:do-nodes(
+$nodes as item()*, 
+$rule as array(*))
+as item()*
+{
     array:fold-left(
         $rule, 
         $nodes,
@@ -345,8 +434,10 @@ declare %private function xf:do-nodes($nodes as item()*, $rule as array(*))
  :
  : TODO: how to deal with environment?
  :)
-declare function xf:if($conditions as item()*) 
-    as function(item()*) as item()* {
+declare function xf:if(
+$conditions as item()*) 
+as function(item()*) as item()*
+{
     let $conditions := xf:comp-expression($conditions, $xf:environment)
     return
         function($nodes as item()*) as item()* {
@@ -367,13 +458,19 @@ declare function xf:if($conditions as item()*)
  : Filter nodes based on evaluating a chain of expressions, letting only
  : those nodes through for which it returns `true()`.
  :) 
-declare function xf:if($nodes as item()*, $conditions as item()*) 
-    as item()* {
+declare function xf:if(
+$nodes as item()*, 
+$conditions as item()*) 
+as item()*
+{
     xf:if($conditions)($nodes)
 };
 
-declare %private function xf:comp-expression($expressions as item()*, $env as map(*))
-    as (function(item()*) as item()*)* {
+declare %private function xf:comp-expression(
+$expressions as item()*, 
+$env as map(*))
+as (function(item()*) as item()*)*
+{
     for $expression in $expressions
         return
             if ($expression instance of xs:string) then 
@@ -385,8 +482,10 @@ declare %private function xf:comp-expression($expressions as item()*, $env as ma
  : Create a node transformer that replaces the child nodes of an
  : element with `$content`.
  :)
-declare function xf:content($content as item()*)
-    as function(item()*) as item()* {
+declare function xf:content(
+$content as item()*)
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
@@ -401,8 +500,11 @@ declare function xf:content($content as item()*)
 (:~
  : Replace the child nodes of `$element` with `$content`.
  :)
-declare function xf:content($nodes as item()*, $content as item()*) 
-    as item()* {
+declare function xf:content(
+$nodes as item()*, 
+$content as item()*) 
+as item()*
+{
     xf:content($content)($nodes)
 };
 
@@ -410,8 +512,10 @@ declare function xf:content($nodes as item()*, $content as item()*)
  : Create a node transformer that replaces the nodes passed with
  : `$replacement`.
  :)
-declare function xf:replace($replacement as item()*)
-    as function(item()*) as item()* {
+declare function xf:replace(
+$replacement as item()*)
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         if (exists($nodes)) then
             $replacement
@@ -423,8 +527,11 @@ declare function xf:replace($replacement as item()*)
 (:~
  : Replace `$nodes` with `$replacement`.
  :)
-declare function xf:replace($nodes as item()*, $replacement as item()*) 
-    as item()* {
+declare function xf:replace(
+$nodes as item()*, 
+$replacement as item()*) 
+as item()*
+{
     xf:replace($replacement)($nodes)
 };
 
@@ -432,8 +539,10 @@ declare function xf:replace($nodes as item()*, $replacement as item()*)
  : Create a node transformer that inserts `$before` before
  : the nodes passed in.
  :)
-declare function xf:before($before as item()*)
-    as function(item()*) as item()* {
+declare function xf:before(
+$before as item()*)
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         ($before, $nodes)
     }
@@ -442,8 +551,11 @@ declare function xf:before($before as item()*)
 (:~
  : Inserts the `$before` nodes, before `$nodes`.
  :)
-declare function xf:before($nodes as item()*, $before as item()*)
-    as item()* {
+declare function xf:before(
+$nodes as item()*, 
+$before as item()*)
+as item()*
+{
     xf:before($before)($nodes)
 };
 
@@ -451,8 +563,10 @@ declare function xf:before($nodes as item()*, $before as item()*)
  : Create a node transformer that inserts `$after` after
  : the nodes passed in.
  :)
-declare function xf:after($after as item()*)
-    as function(item()*) as item()* {
+declare function xf:after(
+$after as item()*)
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         ($nodes, $after)
     }
@@ -461,8 +575,11 @@ declare function xf:after($after as item()*)
 (:~
  : Inserts the `$after` nodes, after `$nodes`.
  :)
-declare function xf:after($nodes as item()*, $after as item()*) 
-    as item()* {
+declare function xf:after(
+$nodes as item()*, 
+$after as item()*) 
+as item()*
+{
     xf:after($after)($nodes)
 };
 
@@ -470,8 +587,10 @@ declare function xf:after($nodes as item()*, $after as item()*)
  : Create a node transformer that appends `$append` nodes
  : to the child nodes of each element of `$nodes`.
  :)
-declare function xf:append($append as item()*)
-    as function(item()*) as item()* {
+declare function xf:append(
+$append as item()*)
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
@@ -487,8 +606,11 @@ declare function xf:append($append as item()*)
  : Inserts `$append` nodes to the child nodes of each element in
  : `$nodes`.
  :)
-declare function xf:append($nodes as item()*, $append as item()*) 
-    as item()* {
+declare function xf:append(
+$nodes as item()*, 
+$append as item()*) 
+as item()*
+{
     xf:append($append)($nodes)
 };
 
@@ -496,8 +618,10 @@ declare function xf:append($nodes as item()*, $append as item()*)
  : Create a node transformer that prepends `$prepend` nodes
  : to the child nodes of each element of `$nodes`.
  :)
-declare function xf:prepend($prepend as item()*)
-    as function(item()*) as item()* {
+declare function xf:prepend(
+$prepend as item()*)
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
@@ -512,8 +636,11 @@ declare function xf:prepend($prepend as item()*)
  : Inserts `$prepend` nodes before the first child node of each element
  : in `$nodes`.
  :)
-declare function xf:prepend($nodes as item()*, $prepend as item()*) 
-    as item()* {
+declare function xf:prepend(
+$nodes as item()*, 
+$prepend as item()*) 
+as item()*
+{
     xf:prepend($prepend)($nodes)
 };
 
@@ -522,7 +649,8 @@ declare function xf:prepend($nodes as item()*, $prepend as item()*)
  : the space normalized string value of a node.
  :)
 declare function xf:text()
-    as function(item()*) as item()* {
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         if (exists($nodes)) then
             for $node in $nodes
@@ -548,8 +676,10 @@ declare function xf:text()
 (:~
  : Outputs the text value of `$nodes`.
  :)
-declare function xf:text($nodes as item()*)
-    as item()* {
+declare function xf:text(
+$nodes as item()*)
+as item()*
+{
     xf:text()($nodes)
 };
 
@@ -559,8 +689,10 @@ declare function xf:text($nodes as item()*)
  :
  : Map keys must be valid as QNames or they will be ignored.
  :)
-declare function xf:set-attr($attributes as item())
-    as function(item()*) as item()* {
+declare function xf:set-attr(
+$attributes as item())
+as function(item()*) as item()*
+{
     let $attributes := 
         typeswitch ($attributes)
         case map(*)
@@ -595,8 +727,11 @@ declare function xf:set-attr($attributes as item())
 (:~
  : Set attributes using a map on each element in `$nodes`.
  :)
-declare function xf:set-attr($nodes as item()*, $attributes as item()) 
-    as item()* {
+declare function xf:set-attr(
+$nodes as item()*, 
+$attributes as item()) 
+as item()*
+{
     xf:set-attr($attributes)($nodes)
 };
 
@@ -604,8 +739,10 @@ declare function xf:set-attr($nodes as item()*, $attributes as item())
  : Create a node transformer that adds one or more class names to
  : each element in the nodes passed.
  :)
-declare function xf:add-class($names as xs:string*)
-    as function(item()*) as item()* {
+declare function xf:add-class(
+$names as xs:string*)
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
@@ -628,8 +765,11 @@ declare function xf:add-class($names as xs:string*)
  : Add one or more `$names` to the class attribute of `$element`. 
  : If it doesn't exist it is added.
  :)
-declare function xf:add-class($nodes as item()*, $names as xs:string*) 
-    as item()* {
+declare function xf:add-class(
+$nodes as item()*, 
+$names as xs:string*) 
+as item()*
+{
     xf:add-class($names)($nodes)
 };
 
@@ -638,8 +778,10 @@ declare function xf:add-class($nodes as item()*, $names as xs:string*)
  : class attribute. If the class attribute is empty after removing names it will 
  : be removed from the element.
  :)
-declare function xf:remove-class($names as xs:string*)
-    as function(item()*) as item()* {
+declare function xf:remove-class(
+$names as xs:string*)
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             element { node-name($node) } {
@@ -660,8 +802,11 @@ declare function xf:remove-class($names as xs:string*)
  : If the class attribute is empty after removing names it will be removed
  : from the element.
  :)
-declare function xf:remove-class($nodes as item()*, $names as xs:string*) 
-    as item()* {
+declare function xf:remove-class(
+$nodes as item()*, 
+$names as xs:string*) 
+as item()*
+{
     xf:remove-class($names)($nodes)
 };
 
@@ -673,8 +818,10 @@ declare function xf:remove-class($nodes as item()*, $names as xs:string*)
  :
  : TODO: better testing and clean up code.
  :)
-declare function xf:remove-attr($attributes as item()*)
-    as function(item()*) as item()* {
+declare function xf:remove-attr(
+$attributes as item()*)
+as function(item()*) as item()*
+{
     let $names := 
         typeswitch ($attributes)
         case xs:string*
@@ -718,8 +865,11 @@ declare function xf:remove-attr($attributes as item()*)
 (:~
  : Remove attributes from each element in `$nodes`.
  :)
-declare function xf:remove-attr($nodes as item()*, $names as item()*) 
-    as item()* {
+declare function xf:remove-attr(
+$nodes as item()*, 
+$names as item()*) 
+as item()*
+{
     xf:remove-attr($names)($nodes)
 };
 
@@ -735,8 +885,10 @@ declare function xf:remove-attr($nodes as item()*, $names as item()*)
  : - `function($node as element()) as item()`: passes the element node to the 
  :   function using the return value as the new element name
  :)
-declare function xf:rename($map as item()) 
-    as function(item()*) as item()* {
+declare function xf:rename(
+$map as item()) 
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             typeswitch ($map)
@@ -771,8 +923,11 @@ declare function xf:rename($map as item())
 (:~
  : Renames elements in `$nodes`.
  :)
-declare function xf:rename($nodes as item()*, $map as item())
-    as item()* {
+declare function xf:rename(
+$nodes as item()*, 
+$map as item())
+as item()*
+{
     xf:rename($map)($nodes)
 };
 
@@ -782,8 +937,10 @@ declare function xf:rename($nodes as item()*, $map as item())
  : Attributes already on `$element` cannot be overwritten.
  : An empty sequence will not be wrapped.
  :)
-declare function xf:wrap($element-spec as item())
-    as function(item()*) as element()? {
+declare function xf:wrap(
+$element-spec as item())
+as function(item()*) as element()?
+{
     let $args :=
         if ($element-spec instance of element()) then 
             $element-spec 
@@ -820,8 +977,11 @@ declare function xf:wrap($element-spec as item())
  : Wraps `$nodes` in element `$node`. An empty sequence will
  : not be wrapped.
  :)
-declare function xf:wrap($nodes as item()*, $element-spec as item())
-    as element()? {
+declare function xf:wrap(
+$nodes as item()*, 
+$element-spec as item())
+as element()?
+{
     xf:wrap($element-spec)($nodes)
 };
 
@@ -833,7 +993,8 @@ declare function xf:wrap($nodes as item()*, $element-spec as item())
  : This function is safe for use as a node selector.
  :)
 declare function xf:unwrap()
-    as function(item()*) as item()* {
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as node()* {
             $node/node()
@@ -847,8 +1008,10 @@ declare function xf:unwrap()
 (:~
  : Unwraps all nodes that are elements.
  :)
-declare function xf:unwrap($nodes as item()*)
-    as item()* {
+declare function xf:unwrap(
+$nodes as item()*)
+as item()*
+{
     xf:unwrap()($nodes)
 };
 
@@ -856,8 +1019,10 @@ declare function xf:unwrap($nodes as item()*)
  : Returns a node transformer that transforms nodes using
  : an XSLT stylesheet.
  :)
-declare function xf:xslt($stylesheet as item()) 
-    as function(node()*) as node()* {
+declare function xf:xslt(
+$stylesheet as item()) 
+as function(node()*) as node()*
+{
     xf:xslt($stylesheet, map {})
 };
 
@@ -865,8 +1030,11 @@ declare function xf:xslt($stylesheet as item())
  : Create a node transformer that transforms nodes using
  : an XSLT stylesheet with parameters.
  :)
-declare function xf:xslt($stylesheet as item(), $params as item()) 
-    as function(item()*) as item()* {
+declare function xf:xslt(
+$stylesheet as item(), 
+$params as item()) 
+as function(item()*) as item()*
+{
     xf:element-transformer(
         function($node as element()) as element() {
             xslt:transform($node, $stylesheet, $params)/*
@@ -877,8 +1045,12 @@ declare function xf:xslt($stylesheet as item(), $params as item())
 (:~
  : Transform `$nodes` using XSLT stylesheet.
  :)
-declare function xf:xslt($nodes as item()*, $stylesheet as item(), $params as item())
-    as item()* {
+declare function xf:xslt(
+$nodes as item()*, 
+$stylesheet as item(), 
+$params as item())
+as item()*
+{
     xf:xslt($stylesheet, $params)($nodes)
 };
 
@@ -886,8 +1058,10 @@ declare function xf:xslt($nodes as item()*, $stylesheet as item(), $params as it
  : Creates a generic element node transformer function. It applies
  : `$transform` to each element passed.
  :)
-declare function xf:element-transformer($transform as function(element()) as item()*) 
-    as function(*) {
+declare function xf:element-transformer(
+$transform as function(element()) as item()*) 
+as function(*)
+{
     function($args as item()*) as function(*) {
         function($nodes as item()*) as item()* {
             if (exists($args)) then
@@ -904,13 +1078,6 @@ declare function xf:element-transformer($transform as function(element()) as ite
 };
 
 (:~
- : Sets up a default environment which can be customized.
- : Represents the default bindings for selecting nodes.
- : The context is set to $nodes and all it's descendant elements.
- : It also sets up a helper function $in to enable proper checks on tokenized
- : (space-delimited) attribute values such as @class.
- :)
-(:~
  : Builds an eval environment from individual elements.
  :
  : Environments can be composed from smaller parts and
@@ -918,7 +1085,10 @@ declare function xf:element-transformer($transform as function(element()) as ite
  : can be passed as the third argument to provide a customized
  : environment (e.g. namespaces, variables, imports etc.)
  :)
-declare function xf:env($list as item()*) as map(*) {
+declare function xf:env(
+$list as item()*) 
+as map(*) 
+{
     map {
         'bindings': fold-left(
             $list,
@@ -974,14 +1144,19 @@ declare function xf:env($list as item()*) as map(*) {
 (:~
  : Namespace declaration.
  :)
-declare function xf:var($name, $value) {
+declare function xf:var(
+$name, 
+$value)
+{
     [xs:QName('xf:var'), xs:QName($name), $value]
 };
 
 (:~
  : Context declaration.
  :)
-declare function xf:ctx($nodes as item()*) {
+declare function xf:ctx(
+$nodes as item()*)
+{
     [xs:QName('xf:ctx'), $nodes]
 };
 
@@ -989,57 +1164,78 @@ declare function xf:ctx($nodes as item()*) {
  : Namespace node. Get the $prefix using fn:name#1, and the $uri is the value 
  : (or use fn:data#1
  :)
-declare function xf:ns($prefix, $uri) {
+declare function xf:ns(
+$prefix, 
+$uri)
+{
     namespace {$prefix} {$uri}
 };
 
 (:~
  : Import repo module.
  :)
-declare function xf:import($prefix, $uri) {
+declare function xf:import(
+$prefix, 
+$uri)
+{
     [xs:QName('xf:import'), namespace {$prefix} {$uri}, ()]
 };
 
 (:~
  : Import file system module.
  :)
-declare function xf:import($prefix, $uri, $path) {
+declare function xf:import(
+$prefix, 
+$uri, 
+$path)
+{
     [xs:QName('xf:import'), namespace {$prefix} {$uri}, resolve-uri($path)]
 };
 
 (:~
  : Permission environment option.
  :)
-declare function xf:permission($perms as xs:string) {
+declare function xf:permission(
+$perms as xs:string)
+{
     [xs:QName('xf:option'), 'permission', $perms]
 };
 
 (:~
  : Timeout environment option.
  :)
-declare function xf:timeout($seconds as xs:integer) {
+declare function xf:timeout(
+$seconds as xs:integer)
+{
     [xs:QName('xf:option'), 'timeout', $seconds]
 };
 
 (:~
  : Memory environment option.
  :)
-declare function xf:memory($mb as xs:integer) {
+declare function xf:memory(
+$mb as xs:integer)
+{
     [xs:QName('xf:option'), 'memory', $mb]
 };
 
 (:~
  : Builds a full evaluation context from an environment map.
  :)
-declare function xf:compile-environment($env as map(*)) {
+declare function xf:compile-environment(
+$env as map(*))
+{
     if (map:contains($env, 'prolog')) then
         $env
     else
         xf:compile-environment((), $env)
 };
 
-declare function xf:compile-environment($context as node()*, $env as map(*))
-    as map(*) {
+declare function xf:compile-environment(
+$context as node()*, 
+$env as map(*))
+as map(*)
+{
     (: rebind env with new context :)
     if (map:contains($env, 'prolog')) then
         map {
@@ -1086,7 +1282,9 @@ declare function xf:compile-environment($context as node()*, $env as map(*))
 (:~
  : Create a function for querying over a given set of nodes.
  :)
-declare function xf:query($context) {
+declare function xf:query(
+$context)
+{
     let $env :=
         typeswitch  ($context)
         case node()*
@@ -1110,7 +1308,10 @@ declare function xf:query($context) {
  : Convenience function for creating a query object and running
  : a query.
  :)
-declare function xf:query($query as xs:string, $context) {
+declare function xf:query(
+$query as xs:string, 
+$context) 
+{
     xf:query($context)($query)
 };
 
@@ -1119,14 +1320,17 @@ declare function xf:query($query as xs:string, $context) {
  : When given an environment it is the responsibility of the user to
  : provide a valid context as part of the environment.
  :)
-declare function xf:context() {
+declare function xf:context()
+{
     xf:context($xf:environment)
 };
 
 (:~
  : Build an evaluation context consisting of a node sequence and an environment.
  :)
-declare function xf:context($context) {
+declare function xf:context(
+$context)
+{
     typeswitch ($context)
     (: context is a node sequence, merge it with the default env :)
     case node()*
@@ -1138,7 +1342,10 @@ declare function xf:context($context) {
     return ()
 };
 
-declare function xf:context($context, $env) {
+declare function xf:context(
+$context, 
+$env)
+{
     xf:compile-environment($context, $env)
 };
 
@@ -1159,8 +1366,11 @@ declare variable $xf:environment :=
  : Find matches for XPath expression string applied to passed in nodes
  : including all descendents.
  :)
-declare %private function xf:select-all($selector as xs:string, $env as map(*)) 
-    as function(item()*) as item()* {
+declare %private function xf:select-all(
+$selector as xs:string, 
+$env as map(*)) 
+as function(item()*) as item()* 
+{
     function($nodes as item()*) as item()* {
         xquery:eval(
             $env('prolog') || $selector, 
@@ -1174,8 +1384,11 @@ declare %private function xf:select-all($selector as xs:string, $env as map(*))
  : Find matches for XPath expression string applied to passed in nodes.
  : TODO: remove this in favor of xf:selector($env)
  :)
-declare %private function xf:select($selector as xs:string, $env as map(*)) 
-    as function(item()*) as item()* {
+declare %private function xf:select(
+$selector as xs:string, 
+$env as map(*)) 
+as function(item()*) as item()*
+{
     function($nodes as item()*) as item()* {
         xquery:eval(
             $env('prolog') || $selector, 
@@ -1189,8 +1402,11 @@ declare %private function xf:select($selector as xs:string, $env as map(*))
  : Copies nodes to output, and calls apply for
  : nodes that are wrapped inside <xf:apply>.
  :)
-declare %private function xf:copy-nodes($nodes as item()*, $xform as map(*)*)
-    as item()* {
+declare %private function xf:copy-nodes(
+$nodes as item()*, 
+$xform as map(*)*)
+as item()*
+{
     for $node in $nodes
         return 
             if ($node/self::xf:apply) then
@@ -1211,8 +1427,12 @@ declare %private function xf:copy-nodes($nodes as item()*, $xform as map(*)*)
  : Applies nodes to output, but runs the template node transformer when it
  : encounters a node that was matched.
  :)
-declare %private function xf:apply-nodes($nodes as item()*, $context as map(*)*, $xform as map(*)*)
-    as item()* {
+declare %private function xf:apply-nodes(
+$nodes as item()*, 
+$context as map(*)*, 
+$xform as map(*)*)
+as item()*
+{
     for $node in $nodes
         let $context := (xf:match-templates($node, $xform), $context)
         let $match := xf:matched-template($node, $context)
@@ -1236,8 +1456,10 @@ declare %private function xf:apply-nodes($nodes as item()*, $context as map(*)*,
 (:~
  : Apply to be used from within templates.
  :)
-declare function xf:apply($nodes as item()*) 
-    as element() { 
+declare function xf:apply(
+$nodes as item()*) 
+as element()
+{ 
     xf:apply()($nodes) 
 };
 
@@ -1247,7 +1469,8 @@ declare function xf:apply($nodes as item()*)
  : `<xsl:apply-templates/>` in XSLT.
  :)
 declare function xf:apply()
-    as function(item()*) as element() {
+as function(item()*) as element()
+{
     function ($nodes as item()*) as element() {
         typeswitch ($nodes)
         case element()
@@ -1266,8 +1489,11 @@ declare function xf:apply()
  : Find all templates matched by this node and adds the matched nodes
  : to the templates.
  :)
-declare %private function xf:match-templates($node as item(), $xform as map(*)*) 
-    as map(*)* {
+declare %private function xf:match-templates(
+$node as item(), 
+$xform as map(*)*) 
+as map(*)*
+{
     fold-left(
         $xform, 
         (),
@@ -1286,8 +1512,11 @@ declare %private function xf:match-templates($node as item(), $xform as map(*)*)
  : Looks in the $context to find a template that was matched by this
  : node. First one found (most-specific) wins.
  :)
-declare %private function xf:matched-template($node as item(), $context as map(*)*) 
-    as map(*)? {
+declare %private function xf:matched-template(
+$node as item(), 
+$context as map(*)*) 
+as map(*)?
+{
     if (count($context) gt 0) then
         hof:until(
             function($context as map(*)*) { 
@@ -1305,8 +1534,11 @@ declare %private function xf:matched-template($node as item(), $context as map(*
  : Define a transformation that starts with selecting nodes with an
  : XPath expression.
  :)
-declare %private function xf:selector($steps as array(*), $selector-fn as function(*)) 
-    as function(item()*) as item()* {
+declare %private function xf:selector(
+$steps as array(*), 
+$selector-fn as function(*)) 
+as function(item()*) as item()*
+{
     (: compile the steps :)
     let $steps :=
         array:fold-left(
@@ -1350,13 +1582,18 @@ declare %private function xf:selector($steps as array(*), $selector-fn as functi
  :
  : @see http://www.xqueryfunctions.com/xq/functx_is-node-in-sequence.html
  :)
-declare %private function xf:is-node-in-sequence($node as node()?, $seq as node()*)
-    as xs:boolean {
+declare %private function xf:is-node-in-sequence(
+$node as node()?, 
+$seq as node()*)
+as xs:boolean
+{
     some $nodeInSeq in $seq satisfies $nodeInSeq is $node
 };
 
-declare %private function xf:copy($node as node()) 
-    as node() {
+declare %private function xf:copy(
+$node as node()) 
+as node()
+{
     typeswitch($node)
     case element()
         return
