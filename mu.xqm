@@ -73,7 +73,7 @@ declare function μ:json($items as item()*)
 
 declare function μ:json($items as item()*, $ctx as array(*)) 
 {
-    serialize(μ:to-json($items, $ctx), map { 'method': 'json' })
+    serialize(μ:to-json(if (count($items) gt 1) then array { $items } else $items, $ctx), map { 'method': 'json' })
 };
 
 declare function μ:mu($xml)
@@ -188,7 +188,7 @@ declare %private function μ:to-json($items as item()*, $ctx as array(*))
             map:merge(
                 map:for-each($item, 
                     function($a,$b) { 
-                        map:entry($a, data($b)) }))
+                        map:entry($a, μ:to-json($b, $ctx)) }))
         case function(*) return μ:to-json(apply($item, $ctx), $ctx)
         case node() return μ:from-xml($item)
         default return $item
