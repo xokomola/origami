@@ -225,7 +225,7 @@ declare %unit:test function test:json()
 
 };
 
-declare %unit:test function test:do-xml()
+declare %unit:test function test:xml-template()
 {
 
     (:~
@@ -238,6 +238,7 @@ declare %unit:test function test:do-xml()
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     ),
 
+    (: μ:xml-template returns a function with arity one :)
     unit:assert-equals(
         μ:xml-template(['ul', 
             function($x) { 
@@ -249,7 +250,8 @@ declare %unit:test function test:do-xml()
    
     (:~
      : The function may produce XML nodes. This is identical
-     : to the above.
+     : to the above but uses a literal element constructor
+     : to construct the li elements.
      :)
     unit:assert-equals(
         μ:xml-template(['ul', 
@@ -266,7 +268,8 @@ declare %unit:test function test:do-xml()
     ),
   
     (:~
-     : Produce a table.
+     : Produce a table. Multiple arguments have to be specified as a sequence
+     : or an array.
      :)
     unit:assert-equals(
         μ:xml-template(['table', 
@@ -280,7 +283,7 @@ declare %unit:test function test:do-xml()
                                 ['td', concat('item ',$i,',',$j)]
                         }]
             }
-        ])((3,2)),
+        ])([3,2]),
         <table>
             <tr>
               <td>item 1,1</td>
