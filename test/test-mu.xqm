@@ -23,8 +23,8 @@ declare %unit:test function test:xml()
     unit:assert-equals(
         μ:xml(('a','b','c')),
         (text { 'a' }, text { 'b'}, text { 'c' })
-    )
-(:
+    ),
+    
     (:~
      : A one item array creates an empty element without attributes.
      :)
@@ -40,7 +40,7 @@ declare %unit:test function test:xml()
         μ:xml(['a','hello']),
         <a>hello</a>
     ),
-
+    
     unit:assert-equals(
         μ:xml(['a','hello', 'world']),
         <a>helloworld</a>
@@ -62,7 +62,7 @@ declare %unit:test function test:xml()
         μ:xml(['a',map { }]),
         <a/>
     ),
-
+    
     (:~
      : A three item array returns an element with attributes
      : and child nodes.
@@ -95,7 +95,7 @@ declare %unit:test function test:xml()
         μ:xml(['a',map { }, ()]),
         <a/>
     ),
-
+    
     (:~
      : If an item is already an XML node than it is passed
      : unmodified.
@@ -151,11 +151,6 @@ declare %unit:test function test:xml()
         <a x="1" y="2 3">bc</a>
     ),
 
-    unit:assert-equals(
-        μ:xml(['a', (map {'x': 1}, (map {'y': [2,[3]] }, 'b', 'c'))]),
-        <a x="1" y="2 3">bc</a>
-    ),
-
     (:~
      : Atomic values will be converted into text nodes.
      :)
@@ -171,7 +166,7 @@ declare %unit:test function test:xml()
         μ:xml(['a', ('foo', ['b', 'bar', ['c'], 'baz'])]),
         <a>foo<b>bar<c/>baz</b></a>
     )
-:)
+    
 };
 
 declare %unit:test function test:json()
@@ -244,21 +239,20 @@ declare %unit:test function test:do-xml()
     ),
 
     unit:assert-equals(
-        μ:xml(['ul', 
+        μ:xml-template(['ul', 
             function($x) { 
                 for $i in 1 to $x 
                 return ['li', concat('item ', $i)] 
             }])(3),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
-    )
- (:
+    ),
    
     (:~
      : The function may produce XML nodes. This is identical
      : to the above.
      :)
     unit:assert-equals(
-        μ:xml(['ul', 
+        μ:xml-template(['ul', 
             function($x) { 
                 for $i in 1 to $x 
                 return element li { concat('item ', $i) } 
@@ -270,12 +264,12 @@ declare %unit:test function test:do-xml()
             <li>item 3</li>
         </ul>
     ),
-    
+  
     (:~
      : Produce a table.
      :)
     unit:assert-equals(
-        μ:xml(['table', 
+        μ:xml-template(['table', 
             function($r,$c) { 
                 for $i in 1 to $r 
                 return 
@@ -302,7 +296,6 @@ declare %unit:test function test:do-xml()
             </tr>
           </table>
     )
-:) 
 };
 
 declare %unit:test function test:mu() 
