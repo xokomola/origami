@@ -88,7 +88,7 @@ declare function xf:template(
 $template as node()*, $rules as array(*)*, $context as function(*))
 as function(*)
 {
-    xf:template(trace($template,'TPL: '), $rules, $context, xf:compile-transformer#2)
+    xf:template($template, $rules, $context, xf:compile-transformer#2)
 };
 
 declare %private function xf:template(
