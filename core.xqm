@@ -513,7 +513,7 @@ as item()*
         case element()
         return 
             element { node-name($node) } { 
-                $node/@*, 
+                $node/@* except $node/@xf:*, 
                 for $cnode in $content 
                 return xf:apply-nodes($node, $cnode, $context) 
             }
