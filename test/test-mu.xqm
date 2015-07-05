@@ -457,7 +457,7 @@ declare %unit:test function test:xml-templating-obfuscated()
             function($x) { 
                 for $i in 1 to $x 
                 return μ:xml(function($x) { ['li', concat('item ', $x)] }, [$i]) 
-            }], [3]),
+            }], 3),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     ),
 
@@ -467,7 +467,7 @@ declare %unit:test function test:xml-templating-obfuscated()
             function($x) { 
                 for $i in 1 to $x 
                 return function($x) { ['li', concat('item ', $x)] }($i) 
-            }], [3]),
+            }], 3),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     )
 };
