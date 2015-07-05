@@ -23,26 +23,27 @@ declare %unit:test function test:lists()
               <li>item 3</li>
             </ul>
         ),
+        (: NOTE: apply leaves extra sequences in, they should have significance for output structure :)
         unit:assert-equals(
             μ:apply($template, ('item 1', μ:mixed(('item ', ['b', '2'])), 'item 3')),
             [
               "ul",
-              [
+              ([
                 "li",
                 "item 1"
               ],
               [
                 "li",
-                "item ",
+                ("item ",
                 [
                   "b",
                   "2"
-                ]
+                ])
               ],
               [
                 "li",
                 "item 3"
-              ]
+              ])
             ]
         )
     )   

@@ -158,6 +158,11 @@ as item()*
     for $node in $xml
     return
         typeswitch($node)
+        case array(*)
+        return
+            array:fold-left($node, [],
+                function($a,$b) { array:append($a, μ:from-xml($b)) }
+            )
         case element()
         return
             array { 
@@ -306,12 +311,6 @@ as array(*)
     [(), $nodes]
 };
 
-declare function μ:cons($a,$b) 
-as item()*
-{
-    ($a,$b)
-};
-
 declare function μ:head($mu as array(*)?)
 as item()*
 {
@@ -338,7 +337,7 @@ as item()*
 {
     typeswitch ($mu)
         case array(*)
-            return array:fold-left($mu, (), μ:cons#2)
+            return array:fold-left($mu, (), function($a,$b) { ($a,$b) })
         default
             return $mu
 };
