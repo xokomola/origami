@@ -1,15 +1,8 @@
 xquery version "3.1";
 
-(:~ Origami μ-templates :)
-
-(: TODO: add XML serialization options :)
-(: TODO: add option to move all ns declarations at document element (sane namespaces) !? :)
-(: TODO: better json serialization :)
-(: TODO: remove args from :xml :)
-(: TODO: can we scan $items for function items and if so return a function automatically? :)
-
-(: DONE: add ways to configure how names are mapped to qnames (e.g. define a mapping a la JSON-LD) :)
-(: DONE: add default element namespace :)
+(:~ 
+ : Origami μ-templates 
+ :)
 
 module namespace μ = 'http://xokomola.com/xquery/origami/μ';
 
@@ -74,11 +67,13 @@ as item()*
 };
 
 declare function μ:mu($xml)
+as item()*
 {
     μ:from-xml($xml)
 };
 
-declare %private function μ:to-json($items as item()*, $args as array(*), $name-resolver as function(*)) 
+declare %private function μ:to-json($items as item()*, $args as array(*), $name-resolver as function(*))
+as item()*
 {
     for $item in $items
     return
