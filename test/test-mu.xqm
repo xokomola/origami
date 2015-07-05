@@ -373,7 +373,7 @@ declare %unit:test function test:json()
 
 };
 
-declare %unit:test function test:xml-template()
+declare %unit:test function test:xml-templating()
 {
     (:~
      : This is the simplest way to build a list.
@@ -385,13 +385,12 @@ declare %unit:test function test:xml-template()
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     ),
 
-    (: μ:xml-template returns a function with arity one :)
     unit:assert-equals(
-        μ:xml-template(['ul', 
+        μ:xml(['ul', 
             function($x) { 
                 for $i in 1 to $x 
                 return ['li', concat('item ', $i)] 
-            }])(3),
+            }], [3]),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     ),
    
@@ -401,12 +400,12 @@ declare %unit:test function test:xml-template()
      : to construct the li elements.
      :)
     unit:assert-equals(
-        μ:xml-template(['ul', 
+        μ:xml(['ul', 
             function($x) { 
                 for $i in 1 to $x 
                 return element li { concat('item ', $i) } 
             }
-        ])(3),
+        ], [3]),
         <ul>
             <li>item 1</li>
             <li>item 2</li>
@@ -420,7 +419,7 @@ declare %unit:test function test:xml-template()
      : can be used with fn:apply.
      :)
     unit:assert-equals(
-        μ:xml-template(['table', 
+        μ:xml(['table', 
             function($r,$c) { 
                 for $i in 1 to $r 
                 return 
@@ -429,9 +428,10 @@ declare %unit:test function test:xml-template()
                             for $j in 1 to $c
                             return
                                 ['td', concat('item ',$i,',',$j)]
-                        }]
+                        }
+                    ]
             }
-        ])([3,2]),
+        ], [3,2]),
         <table>
             <tr>
               <td>item 1,1</td>
@@ -449,37 +449,37 @@ declare %unit:test function test:xml-template()
     )
 };
 
-declare %unit:test function test:xml-templates-obfuscated()
+declare %unit:test function test:xml-templating-obfuscated()
 {
     (: Not very useful but xml-templates can be nested. :)
     unit:assert-equals(
-        μ:xml-template(['ul', 
+        μ:xml(['ul', 
             function($x) { 
                 for $i in 1 to $x 
-                return μ:xml-template(function($x) { ['li', concat('item ', $x)] })($i) 
-            }])(3),
+                return μ:xml(function($x) { ['li', concat('item ', $x)] }, [$i]) 
+            }], [3]),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     ),
 
     (: Still not very useful, but demonstrates how the above is simplified a bit :)
     unit:assert-equals(
-        μ:xml-template(['ul', 
+        μ:xml(['ul', 
             function($x) { 
                 for $i in 1 to $x 
                 return function($x) { ['li', concat('item ', $x)] }($i) 
-            }])(3),
+            }], [3]),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     )
 };
 
-declare %unit:test("expected", "err:FOAP0001") function test:xml-template-arity-error()
+declare %unit:test("expected", "err:FOAP0001") function test:xml-templating-arity-error()
 {
     (: 
      : When a template receives the incorrect number of arguments it will raise an
      : arity error.
      :)
     unit:assert-equals(
-        μ:xml-template(['table', 
+        μ:xml(['table', 
             function($r,$c) { 
                 for $i in 1 to $r 
                 return 
@@ -490,7 +490,7 @@ declare %unit:test("expected", "err:FOAP0001") function test:xml-template-arity-
                                 ['td', concat('item ',$i,',',$j)]
                         }]
             }
-        ])((3,2,1)),
+        ], [(3,2,1)]),
         <table>
             <tr>
               <td>item 1,1</td>
@@ -562,27 +562,4 @@ declare %unit:test function test:cdata()
         <b><c>x</c></b>
     ) 
     :)
-};
-
-declare %unit:test function test:xhtml()
-{    
-    (:~
-     : EXPERIMENTAL:
-     : This only works for namespaces that are also declared inside
-     : the library module. It cannot be changed unilaterally by the user.
-     :)
-    unit:assert-equals(
-        μ:xml(['h:html']),
-        <h:html/>
-    ),
-    
-    unit:assert-equals(
-        μ:xml(['h:html', ['x']]),
-        <h:html><x/></h:html>
-    ),
-
-    unit:assert-equals(
-        μ:mu(<h:html><x/></h:html>),
-        ['h:html', ['x']]
-    )
 };

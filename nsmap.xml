@@ -1,0 +1,15 @@
+<nsmap>
+    <ns prefix="μ" uri="http://xokomola.com/xquery/origami/μ"/>
+    <ns prefix="h" uri="http://www.w3.org/1999/xhtml"/>
+    <ns prefix="atom" uri="http://www.w3.org/2005/Atom"/>
+    <ns prefix="app" uri="http://www.w3.org/2007/app"/>
+    <ns prefix="rdf" uri="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>
+    <ns prefix="rdfs" uri="http://www.w3.org/2000/01/rdf-schema#"/>
+    <ns prefix="svg" uri="http://www.w3.org/2000/svg"/>
+    <ns prefix="fo" uri="http://www.w3.org/1999/XSL/Format"/>
+    <ns prefix="xsl" uri="http://www.w3.org/1999/XSL/Transform"/>
+    <ns prefix="xsd" uri="http://www.w3.org/2001/XMLSchema"/>
+    <ns prefix="xsi" uri="http://www.w3.org/2001/XMLSchema-instance"/>
+    <ns prefix="xlink" uri="http://www.w3.org/1999/xlink"/>
+</nsmap>
+

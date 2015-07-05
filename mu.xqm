@@ -3,67 +3,34 @@ xquery version "3.1";
 (:~ Origami μ-templates :)
 
 (: TODO: add XML serialization options :)
-(: TODO: add default element namespace :)
 (: TODO: add option to move all ns declarations at document element (sane namespaces) !? :)
-(: TODO: add ways to configure how names are mapped to qnames (e.g. define a mapping a la JSON-LD) :)
 (: TODO: better json serialization :)
 (: TODO: remove args from :xml :)
 (: TODO: can we scan $items for function items and if so return a function automatically? :)
 
+(: DONE: add ways to configure how names are mapped to qnames (e.g. define a mapping a la JSON-LD) :)
+(: DONE: add default element namespace :)
+
 module namespace μ = 'http://xokomola.com/xquery/origami/μ';
-
-declare function μ:xml-template($items as item()*)
-{
-    function($ctx) {
-        μ:xml(
-            $items,
-            if ($ctx instance of array(*)) then $ctx 
-            else array { $ctx })
-    }
-};
-
-declare function μ:json-template($items as item()*)
-{
-    function($ctx) {
-        μ:json(
-            $items,
-            if ($ctx instance of array(*)) then $ctx 
-            else array { $ctx })
-    }
-};
 
 declare function μ:xml($items as item()*)
 {
-    μ:xml($items, μ:ns(), [])
+    μ:xml($items, [], μ:qname-resolver())
 };
 
-declare function μ:xml($items as item()*, $ctx as item()) 
+declare function μ:xml($items as item()*, $resolver-or-args as function(*)) 
 as node()*
 {
-    let $args :=
-        typeswitch ($ctx)
-        case array(*)
-        return $ctx
-        case map(*)
-        return if (map:contains($ctx, 'args')) then $ctx('args') else []
-        default
-        return array { $ctx }
-    let $ns-map :=
-        typeswitch ($ctx)
-        case array(*)
-        return μ:ns()
-        case map(*)
-        return  if (map:contains($ctx, 'ns')) then μ:ns($ctx('ns')) else μ:ns($ctx)
-        default
-        return μ:ns()
-    return
-        μ:xml($items, $ns-map, $args)
+    if ($resolver-or-args instance of array(*)) then
+        μ:xml($items, $resolver-or-args, μ:qname-resolver())
+    else
+        μ:xml($items, [], $resolver-or-args)
 };
 
-declare function μ:xml($items as item()*, $ns-map as map(*), $args as array(*)) 
+declare function μ:xml($items as item()*, $args as array(*), $name-resolver as function(*)) 
 as node()*
 {
-    μ:to-xml($items, map { 'ns': $ns-map, 'args': $args, 'xmlns': 'http://www.w3.org/1999/xhtml' })
+    μ:to-xml($items, $args, $name-resolver)
 };
 
 declare function μ:json($items as item()*)
@@ -79,85 +46,6 @@ declare function μ:json($items as item()*, $ctx as array(*))
 declare function μ:mu($xml)
 {
     μ:from-xml($xml)
-};
-
-(: Utility functions :)
-
-declare function μ:ns()
-{
-    μ:ns(map {})
-};
-
-declare function μ:ns($ns-map as map(*))
-{
-    let $default-ns-map :=
-        map {
-            'μ': 'http://xokomola.com/xquery/origami/μ',
-            'h': 'http://www.w3.org/1999/xhtml',
-            'atom': 'http://www.w3.org/2005/Atom',
-            'app': 'http://www.w3.org/2007/app',
-            'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
-            'svg': 'http://www.w3.org/2000/svg',
-            'fo': 'http://www.w3.org/1999/XSL/Format',
-            'xsl': 'http://www.w3.org/1999/XSL/Transform',
-            'xsd': 'http://www.w3.org/2001/XMLSchema',
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'xlink': 'http://www.w3.org/1999/xlink'
-        }
-    return
-        if (empty($ns-map)) then
-            $default-ns-map
-        else
-            map:merge(($default-ns-map, $ns-map))
-};
-
-declare function μ:cons($a,$b) {
-    ($a,$b)
-};
-
-declare function μ:head($mu as array(*)?)
-{
-    if (empty($mu)) then
-        ()
-    else
-        array:head($mu)
-};
-
-declare function μ:tail($mu as array(*)?)
-as array(*)*
-{
-    if (not(empty($mu))) then
-        tail(μ:seq($mu))
-    else
-        ()
-};
-
-(:~ 
- : Remove level of array and change it into a normal sequence.
- :)
-declare function μ:seq($mu as array(*))
-{
-    typeswitch ($mu)
-        case array(*)
-            return array:fold-left($mu, (), μ:cons#2)
-        default
-            return $mu
-};
-
-declare function μ:content($mu)
-{
-    typeswitch($mu)
-    case array(*)
-    return
-        let $c := array:tail($mu)
-        return
-            if (array:head($c) instance of map(*)) then
-                array:tail($c)
-            else
-                $c
-    default 
-    return $mu/node()
 };
 
 declare %private function μ:to-json($items as item()*, $ctx as array(*)) 
@@ -195,6 +83,7 @@ declare %private function μ:to-json($items as item()*, $ctx as array(*))
 };
 
 declare %private function μ:from-xml($xml)
+as item()*
 {
     for $node in $xml
     return
@@ -215,31 +104,30 @@ declare %private function μ:from-xml($xml)
         default return string($node)
 };
 
-declare %private function μ:to-xml($items as item()*, $ctx as map(*))
+declare %private function μ:to-xml($items as item()*, $args as array(*), $name-resolver as function(*))
+as node()*
 {
     for $item in $items
     return
         typeswitch ($item)
-        case array(*) return μ:to-element($item, $ctx)   
-        case map(*) return  μ:to-attributes($item, $ctx)
-        case function(*) return μ:to-xml(apply($item, $ctx('args')), $ctx)
+        case array(*) return μ:to-element($item, $args, $name-resolver)   
+        case map(*) return  μ:to-attributes($item, $args, $name-resolver)
+        case function(*) return μ:to-xml(apply($item, $args), $args, $name-resolver)
         case empty-sequence() return ()
         case node() return $item
         default return text { $item }
 };
 
-declare %private function μ:to-element($item as array(*), $ctx as map(*))
+declare %private function μ:to-element($item as array(*), $args as array(*), $name-resolver as function(*))
 as element()?
 {
     if (array:size($item) gt 0) then
-        element { μ:qname(array:head($item), $ctx('ns'),
-                    if (map:contains($ctx,'xmlns')) then $ctx('xmlns') else () 
-                  ) } {
+        element { $name-resolver(array:head($item)) } {
             array:fold-left(
                 array:tail($item),
                 (),
                 function($n, $i) {
-                    ($n, μ:to-xml($i, $ctx))
+                    ($n, μ:to-xml($i, $args, $name-resolver))
                 }
             )
         }
@@ -247,17 +135,17 @@ as element()?
         ()
 };
 
-declare %private function μ:to-attributes($item as map(*), $ctx as map(*))
+declare %private function μ:to-attributes($item as map(*), $args as array(*), $name-resolver as function(*))
 as attribute()*
 {
     map:for-each($item, 
         function($k,$v) {
             if (not(starts-with($k,'μ:'))) then
-                attribute { μ:qname($k, $ctx('ns')) } { 
+                attribute { $name-resolver($k) } { 
                     data(
                         typeswitch ($v)
                         case function(*)
-                        return apply($v, $ctx('args'))
+                        return apply($v, $args)
                         default
                         return $v
                     ) }
@@ -266,32 +154,115 @@ as attribute()*
         })
 };
 
+declare function μ:qname-resolver()
+as function(xs:string) as xs:QName
+{
+    μ:qname(?, μ:ns(), ())
+};
+
+declare function μ:qname-resolver($ns-map as map(*))
+as function(xs:string) as xs:QName
+{
+    μ:qname(?, $ns-map, ())
+};
+
+declare function μ:qname-resolver($ns-map as map(*), $default-ns as xs:string)
+as function(xs:string) as xs:QName
+{
+    μ:qname(?, $ns-map, $default-ns)
+};
+
 (:~
  : As XQuery doesn't allow access to namespace nodes (as XSLT does)
  : construct them indirectly via QName#2.
  :)
-declare %private function μ:qname($name, $ns-map)
+declare function μ:qname($name as xs:string, $ns-map as map(*))
+as xs:QName
 {
     μ:qname($name, $ns-map, ())
 };
 
-declare %private function μ:qname($name, $ns-map, $default-ns as xs:string*)
+declare function μ:qname($name as xs:string, $ns-map as map(*), $default-ns as xs:string?)
+as xs:QName
 {
     if (contains($name, ':')) then
         let $prefix := substring-before($name,':')
         let $local := substring-after($name, ':')
         let $ns := $ns-map($prefix)
         return
-            (: TODO: implement default element namespace in render options :)
             if ($ns = $default-ns) then
                 QName($ns, $local)
             else
                 QName($ns, concat($prefix,':',$local))
     else
-        let $ns := $ns-map('')
+        if ($default-ns) then
+            QName($default-ns, $name)
+        else
+            QName((), $name)
+};
+
+declare function μ:ns()
+{
+    μ:ns(map {})
+};
+
+declare function μ:ns($ns-map as map(*))
+{
+    map:merge((
+        $ns-map,
+        for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
         return
-            if (not(empty($ns))) then
-                QName($ns, $name)
+            map:entry(string($ns/@prefix), string($ns/@uri))
+    ))
+};
+
+
+declare function μ:cons($a,$b) {
+    ($a,$b)
+};
+
+declare function μ:head($mu as array(*)?)
+{
+    if (empty($mu)) then
+        ()
+    else
+        array:head($mu)
+};
+
+declare function μ:tail($mu as array(*)?)
+as array(*)*
+{
+    if (not(empty($mu))) then
+        tail(μ:seq($mu))
+    else
+        ()
+};
+
+(:~ 
+ : Remove level of array and change it into a normal sequence.
+ :)
+declare function μ:seq($mu as array(*))
+as item()*
+{
+    typeswitch ($mu)
+        case array(*)
+            return array:fold-left($mu, (), μ:cons#2)
+        default
+            return $mu
+};
+
+declare function μ:content($mu)
+as item()*
+{
+    typeswitch($mu)
+    case array(*)
+    return
+        let $c := array:tail($mu)
+        return
+            if (array:head($c) instance of map(*)) then
+                array:tail($c)
             else
-                $name
+                $c
+    default 
+    return $mu/node()
 };
