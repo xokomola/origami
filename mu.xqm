@@ -55,6 +55,24 @@ as xs:string
     serialize(μ:to-json(if (count($items) gt 1) then array { $items } else $items, $args, $name-resolver), map { 'method': 'json' })
 };
 
+declare function μ:apply($items as item()*)
+as item()*
+{
+    μ:apply($items, [])
+};
+
+declare function μ:apply($items as item()*, $args as array(*)) 
+as item()*
+{
+    for $item in $items
+    return
+        typeswitch ($item)
+        case array(*) return $item   
+        case map(*) return  $item
+        case function(*) return μ:apply(apply($item, $args), $args)
+        default return $item
+};
+
 declare function μ:mu($xml)
 {
     μ:from-xml($xml)
@@ -113,7 +131,8 @@ as item()*
                 μ:from-xml($node/node())
             }
         case comment() | processing-instruction() return ()
-        default return string($node)
+        case text() return string($node)
+        default return $node
 };
 
 declare %private function μ:to-xml($items as item()*, $args as array(*), $name-resolver as function(*))
