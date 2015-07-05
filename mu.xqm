@@ -14,6 +14,7 @@ xquery version "3.1";
 module namespace μ = 'http://xokomola.com/xquery/origami/μ';
 
 declare function μ:xml($items as item()*)
+as node()*
 {
     μ:xml($items, [], μ:qname-resolver())
 };
@@ -34,12 +35,13 @@ as node()*
 };
 
 declare function μ:json($items as item()*)
+as xs:string
 {
     μ:json($items, [], function($name) { $name })
 };
 
 declare function μ:json($items as item()*, $resolver-or-args as function(*)) 
-as node()*
+as xs:string
 {
     if ($resolver-or-args instance of array(*)) then
         μ:json($items, $resolver-or-args, μ:qname-resolver())
@@ -48,6 +50,7 @@ as node()*
 };
 
 declare function μ:json($items as item()*, $args as array(*), $name-resolver as function(*)) 
+as xs:string
 {
     serialize(μ:to-json(if (count($items) gt 1) then array { $items } else $items, $args, $name-resolver), map { 'method': 'json' })
 };
