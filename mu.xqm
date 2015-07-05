@@ -35,12 +35,21 @@ as node()*
 
 declare function μ:json($items as item()*)
 {
-    μ:json($items, [])
+    μ:json($items, [], function($name) { $name })
 };
 
-declare function μ:json($items as item()*, $ctx as array(*)) 
+declare function μ:json($items as item()*, $resolver-or-args as function(*)) 
+as node()*
 {
-    serialize(μ:to-json(if (count($items) gt 1) then array { $items } else $items, $ctx), map { 'method': 'json' })
+    if ($resolver-or-args instance of array(*)) then
+        μ:json($items, $resolver-or-args, μ:qname-resolver())
+    else
+        μ:json($items, [], $resolver-or-args)
+};
+
+declare function μ:json($items as item()*, $args as array(*), $name-resolver as function(*)) 
+{
+    serialize(μ:to-json(if (count($items) gt 1) then array { $items } else $items, $args, $name-resolver), map { 'method': 'json' })
 };
 
 declare function μ:mu($xml)
@@ -48,7 +57,7 @@ declare function μ:mu($xml)
     μ:from-xml($xml)
 };
 
-declare %private function μ:to-json($items as item()*, $ctx as array(*)) 
+declare %private function μ:to-json($items as item()*, $args as array(*), $name-resolver as function(*)) 
 {
     for $item in $items
     return
@@ -64,11 +73,11 @@ declare %private function μ:to-json($items as item()*, $ctx as array(*))
                             $a, 
                             fold-left($b, [], 
                                 function($c,$d) { 
-                                    array:append($c, μ:to-json($d, $ctx))
+                                    array:append($c, μ:to-json($d, $args, $name-resolver))
                                 })
                         ))
                     else
-                        array:append($a, μ:to-json($b, $ctx))
+                        array:append($a, μ:to-json($b, $args, $name-resolver))
                 }
             )
         case map(*)
@@ -76,8 +85,8 @@ declare %private function μ:to-json($items as item()*, $ctx as array(*))
             map:merge(
                 map:for-each($item, 
                     function($a,$b) { 
-                        map:entry($a, μ:to-json($b, $ctx)) }))
-        case function(*) return μ:to-json(apply($item, $ctx), $ctx)
+                        map:entry($a, μ:to-json($b, $args, $name-resolver)) }))
+        case function(*) return μ:to-json(apply($item, $args), $args, $name-resolver)
         case node() return μ:from-xml($item)
         default return $item
 };
