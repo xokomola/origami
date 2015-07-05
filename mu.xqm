@@ -12,7 +12,7 @@ as node()*
     μ:xml($items, [], μ:qname-resolver())
 };
 
-declare function μ:xml($items as item()*, $resolver-or-args as item()) 
+declare function μ:xml($items as item()*, $resolver-or-args as item()*) 
 as node()*
 {
     typeswitch ($resolver-or-args)
@@ -38,7 +38,7 @@ as xs:string
     μ:json($items, [], function($name) { $name })
 };
 
-declare function μ:json($items as item()*, $resolver-or-args as function(*)) 
+declare function μ:json($items as item()*, $resolver-or-args as item()*) 
 as xs:string
 {
     typeswitch ($resolver-or-args)
@@ -67,17 +67,48 @@ as item()*
     μ:apply($items, [])
 };
 
-declare function μ:apply($items as item()*, $args as item()) 
+declare function μ:apply($items as item()*, $args as item()*) 
 as item()*
 {
     let $args := if ($args instance of array(*)) then $args else [ $args ]
     for $item in $items
     return
-        typeswitch ($item)
-        case array(*) return [μ:head($item), μ:apply(μ:tail($item), $args)]   
-        case map(*) return  $item
-        case function(*) return μ:apply(apply($item, $args), $args)
-        default return $item
+        μ:to-apply($item, $args)
+};
+
+declare %private function μ:to-apply($item as item(), $args as array(*)) 
+as item()*
+{
+    typeswitch ($item)
+    case array(*) 
+    return
+        let $name := array:head($item)
+        return
+            if (empty($name)) then
+                for $item in μ:seq(array:tail($item)) return μ:to-apply($item, $args)    
+            else
+                array:fold-left($item, [], 
+                    function($a,$b) {
+                        if (empty($b)) then
+                            $a
+                        else
+                            array:append($a, for $item in $b return μ:to-apply($item, $args))
+                    }
+                )
+    case map(*) 
+    return
+        map:for-each($item, 
+            function($k,$v) {
+                typeswitch ($v)
+                case function(*)
+                return map:entry($k, apply($v, $args))
+                default
+                return $v
+            }
+        )
+    case function(*) 
+    return for $item in apply($item, $args) return μ:to-apply($item, $args)
+    default return $item
 };
 
 declare function μ:mu($xml)
@@ -159,18 +190,29 @@ as node()*
 };
 
 declare %private function μ:to-element($item as array(*), $args as array(*), $name-resolver as function(*))
-as element()?
+as item()*
 {
     if (array:size($item) gt 0) then
-        element { $name-resolver(array:head($item)) } {
-            array:fold-left(
-                array:tail($item),
-                (),
-                function($n, $i) {
-                    ($n, μ:to-xml($i, $args, $name-resolver))
+        let $name := array:head($item)
+        return
+            if (empty($name)) then
+                array:fold-left(
+                    array:tail($item),
+                    (),
+                    function($n, $i) {
+                        ($n, μ:to-xml($i, $args, $name-resolver))
+                    }
+                )
+            else
+                element { $name-resolver($name) } {
+                    array:fold-left(
+                        array:tail($item),
+                        (),
+                        function($n, $i) {
+                            ($n, μ:to-xml($i, $args, $name-resolver))
+                        }
+                    )
                 }
-            )
-        }
     else
         ()
 };
@@ -258,6 +300,11 @@ as map(*)
     ))
 };
 
+declare function μ:mixed($nodes) 
+as array(*)
+{
+    [(), $nodes]
+};
 
 declare function μ:cons($a,$b) 
 as item()*
