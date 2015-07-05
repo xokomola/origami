@@ -211,11 +211,13 @@ as xs:QName
 };
 
 declare function μ:ns()
+as map(*)
 {
     μ:ns(map {})
 };
 
 declare function μ:ns($ns-map as map(*))
+as map(*)
 {
     map:merge((
         $ns-map,
@@ -226,11 +228,14 @@ declare function μ:ns($ns-map as map(*))
 };
 
 
-declare function μ:cons($a,$b) {
+declare function μ:cons($a,$b) 
+as item()*
+{
     ($a,$b)
 };
 
 declare function μ:head($mu as array(*)?)
+as item()*
 {
     if (empty($mu)) then
         ()
@@ -239,7 +244,7 @@ declare function μ:head($mu as array(*)?)
 };
 
 declare function μ:tail($mu as array(*)?)
-as array(*)*
+as item()*
 {
     if (not(empty($mu))) then
         tail(μ:seq($mu))
