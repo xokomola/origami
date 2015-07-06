@@ -8,6 +8,7 @@ declare %private variable $xf:ns := 'http://xokomola.com/xquery/origami';
 
 (: FIXME: when giving html without namespace somehow Saxon or BaseX is not dealing with link elements properly :)
 
+(: TODO: maybe use ω as prefix :)
 (: TODO: maybe generalize xf:template even further and allow more control
  :       over the transformation so their's a tighther integration with
  :       XSLT.

@@ -1,5 +1,6 @@
 <nsmap>
     <ns prefix="μ" uri="http://xokomola.com/xquery/origami/μ"/>
+    <ns prefix="ω" uri="http://xokomola.com/xquery/origami"/>
     <ns prefix="h" uri="http://www.w3.org/1999/xhtml"/>
     <ns prefix="atom" uri="http://www.w3.org/2005/Atom"/>
     <ns prefix="app" uri="http://www.w3.org/2007/app"/>
