@@ -1,8 +1,12 @@
-# Origami 0.4
+# Origami 0.6
 
-Origami is a templating library for XQuery (3.1) inspired by XSLT and the
-[Enlive](https://github.com/cgrand/enlive) templating library for Clojure.
-Currently it supports the [BaseX](http://basex.org) database version 8.0.
+Origami is a templating library for XQuery (3.1). It consists of two different modules which support different templating paradigms.
+
+- Origami-ω is inspired by the Clojure [Enlive](https://github.com/cgrand/enlive) templating library. It makes use of Origami-μ but it can be used without μ's templating structures.
+
+- Origami-μ is a micro-template module that defines XML or JSON structures using XQuery 3.1 arrays and maps. It is inspired by the Clojure [Hiccup](https://github.com/weavejester/hiccup) templating library. This module can be used independently of the other.
+
+Currently it can be used with the [BaseX](http://basex.org) database version 8.2.
 
 IMPORTANT: This library is not yet ready for production use and will change
 during the next few releases. I feel no obligation to maintain backwards
@@ -13,8 +17,7 @@ posts](http://xokomola.com/) up-to-date with the latest release.
 
 - Transform nodes using XSLT-style transformations.
 
-- Extract nodes using composable selectors which are XPath expressions or XQuery
-  functions.
+- Extract nodes using composable selectors which are XPath expressions or XQuery functions.
 
 - Build composable templates for rendering HTML views or XML.
 
@@ -56,12 +59,22 @@ Run the example (integration) tests:
 
 ### Import
 
-To use Origami transformers import the module.
+To use Origami-ω transformers import the `om.xqm` module.
 
 ~~~xquery
 import module namespace xf = 'http://xokomola.com/xquery/origami'
-  at 'core.xqm';
+  at 'origami/om.xqm';
 ~~~
+
+To use Origami-μ transformers import the `mu.xqm` module.
+
+~~~xquery
+import module namespace xf = 'http://xokomola.com/xquery/origami'
+  at 'origami/mu.xqm';
+~~~
+
+Of course, you can use any other namespace prefix if you feel the
+greek characters are too awkward or cumbersome to type. In that case I suggest you use `om` and `mu` respectively.
 
 [examples]: https://github.com/xokomola/origami/tree/master/examples
 [tests]: https://github.com/xokomola/origami/tree/master/test
