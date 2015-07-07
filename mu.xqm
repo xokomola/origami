@@ -6,60 +6,60 @@ xquery version "3.1";
 
 module namespace μ = 'http://xokomola.com/xquery/origami/μ';
 
-declare function μ:xml($items as item()*)
+declare function μ:xml($mu as item()*)
 as node()*
 {
-    μ:to-xml($items, μ:qname-resolver())
+    μ:to-xml($mu, μ:qname-resolver())
 };
 
-declare function μ:xml($items as item()*, $name-resolver as function(*)) 
+declare function μ:xml($mu as item()*, $name-resolver as function(*)) 
 as node()*
 {
-    μ:to-xml($items, $name-resolver)
+    μ:to-xml($mu, $name-resolver)
 };
 
-declare function μ:json($items as item()*)
+declare function μ:json($mu as item()*)
 as xs:string
 {
-    μ:json($items, function($name) { $name })
+    μ:json($mu, function($name) { $name })
 };
 
-declare function μ:json($items as item()*, $name-resolver as function(*)) 
+declare function μ:json($mu as item()*, $name-resolver as function(*)) 
 as xs:string
 {
     serialize(
-        μ:to-json(if (count($items) gt 1) then array { $items } else $items, $name-resolver), 
+        μ:to-json(if (count($mu) gt 1) then array { $mu } else $mu, $name-resolver), 
         map { 'method': 'json' }
     )
 };
 
-declare function μ:apply($items as item()*)
+declare function μ:apply($mu as item()*)
 as item()*
 {
-    μ:apply($items, [])
+    μ:apply($mu, [])
 };
 
-declare function μ:apply($items as item()*, $args as item()*) 
+declare function μ:apply($mu as item()*, $args as item()*) 
 as item()*
 {
     let $args := if ($args instance of array(*)) then $args else [ $args ]
-    for $item in $items
+    for $item in $mu
     return
         μ:to-apply($item, $args)
 };
 
-declare %private function μ:to-apply($item as item(), $args as array(*)) 
+declare %private function μ:to-apply($mu as item(), $args as array(*)) 
 as item()*
 {
-    typeswitch ($item)
+    typeswitch ($mu)
     case array(*) 
     return
-        let $name := array:head($item)
+        let $name := array:head($mu)
         return
             if (empty($name)) then
-                for $item in μ:seq(array:tail($item)) return μ:to-apply($item, $args)    
+                for $item in μ:seq(array:tail($mu)) return μ:to-apply($item, $args)    
             else
-                array:fold-left($item, [], 
+                array:fold-left($mu, [], 
                     function($a,$b) {
                         if (empty($b)) then
                             $a
@@ -69,7 +69,7 @@ as item()*
                 )
     case map(*) 
     return
-        map:for-each($item, 
+        map:for-each($mu, 
             function($k,$v) {
                 typeswitch ($v)
                 case function(*)
@@ -79,8 +79,8 @@ as item()*
             }
         )
     case function(*) 
-    return for $item in apply($item, $args) return μ:to-apply($item, $args)
-    default return $item
+    return for $item in apply($mu, $args) return μ:to-apply($item, $args)
+    default return $mu
 };
 
 declare function μ:mu($xml)
@@ -89,10 +89,10 @@ as item()*
     μ:from-xml($xml)
 };
 
-declare %private function μ:to-json($items as item()*, $name-resolver as function(*))
+declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
 as item()*
 {
-    for $item in $items
+    for $item in $mu
     return
         typeswitch ($item)
         case array(*)
@@ -152,10 +152,10 @@ as item()*
         default return $node
 };
 
-declare %private function μ:to-xml($items as item()*, $name-resolver as function(*))
+declare %private function μ:to-xml($mu as item()*, $name-resolver as function(*))
 as node()*
 {
-    for $item in $items
+    for $item in $mu
     return
         typeswitch ($item)
         case array(*) return μ:to-element($item, $name-resolver)   
@@ -166,15 +166,15 @@ as node()*
         default return text { $item }
 };
 
-declare %private function μ:to-element($item as array(*), $name-resolver as function(*))
+declare %private function μ:to-element($mu as array(*), $name-resolver as function(*))
 as item()*
 {
-    if (array:size($item) gt 0) then
-        let $name := array:head($item)
+    if (array:size($mu) gt 0) then
+        let $name := array:head($mu)
         return
             if (empty($name)) then
                 array:fold-left(
-                    array:tail($item),
+                    array:tail($mu),
                     (),
                     function($n, $i) {
                         ($n, μ:to-xml($i, $name-resolver))
@@ -183,7 +183,7 @@ as item()*
             else
                 element { $name-resolver($name) } {
                     array:fold-left(
-                        array:tail($item),
+                        array:tail($mu),
                         (),
                         function($n, $i) {
                             ($n, μ:to-xml($i, $name-resolver))
@@ -194,10 +194,10 @@ as item()*
         ()
 };
 
-declare %private function μ:to-attributes($item as map(*), $name-resolver as function(*))
+declare %private function μ:to-attributes($mu as map(*), $name-resolver as function(*))
 as attribute()*
 {
-    map:for-each($item, 
+    map:for-each($mu, 
         function($k,$v) {
             if (not(starts-with($k,'μ:'))) then
                 attribute { $name-resolver($k) } { 
@@ -278,10 +278,10 @@ as map(*)
     ))
 };
 
-declare function μ:mixed($nodes) 
+declare function μ:mix($mu) 
 as array(*)
 {
-    [(), $nodes]
+    [(), $mu]
 };
 
 declare function μ:head($mu as array(*)?)
@@ -296,10 +296,10 @@ as item()*
 declare function μ:tail($mu as array(*)?)
 as item()*
 {
-    if (not(empty($mu))) then
-        tail(μ:seq($mu))
-    else
+    if (empty($mu)) then
         ()
+    else
+        tail(μ:seq($mu))
 };
 
 (:~ 
