@@ -9,54 +9,26 @@ module namespace μ = 'http://xokomola.com/xquery/origami/μ';
 declare function μ:xml($items as item()*)
 as node()*
 {
-    μ:xml($items, [], μ:qname-resolver())
+    μ:to-xml($items, μ:qname-resolver())
 };
 
-declare function μ:xml($items as item()*, $resolver-or-args as item()*) 
+declare function μ:xml($items as item()*, $name-resolver as function(*)) 
 as node()*
 {
-    typeswitch ($resolver-or-args)
-    case array(*)
-    return μ:xml($items, $resolver-or-args, μ:qname-resolver())
-    case map(*)
-    return μ:xml($items, [ $resolver-or-args ], μ:qname-resolver())
-    case function(*)
-    return μ:xml($items, [], $resolver-or-args)
-    default
-    return μ:xml($items, [ $resolver-or-args ], μ:qname-resolver())
-};
-
-declare function μ:xml($items as item()*, $args as item(), $name-resolver as function(*)) 
-as node()*
-{
-    μ:to-xml($items, if ($args instance of array(*)) then $args else [ $args ], $name-resolver)
+    μ:to-xml($items, $name-resolver)
 };
 
 declare function μ:json($items as item()*)
 as xs:string
 {
-    μ:json($items, [], function($name) { $name })
+    μ:json($items, function($name) { $name })
 };
 
-declare function μ:json($items as item()*, $resolver-or-args as item()*) 
-as xs:string
-{
-    typeswitch ($resolver-or-args)
-    case array(*)
-    return μ:json($items, $resolver-or-args, function($name) { $name })
-    case map(*)
-    return μ:json($items, [ $resolver-or-args ], function($name) { $name })
-    case function(*)
-    return μ:json($items, [], $resolver-or-args)
-    default
-    return μ:json($items, [ $resolver-or-args ], function($name) { $name })
-};
-
-declare function μ:json($items as item()*, $args as array(*), $name-resolver as function(*)) 
+declare function μ:json($items as item()*, $name-resolver as function(*)) 
 as xs:string
 {
     serialize(
-        μ:to-json(if (count($items) gt 1) then array { $items } else $items, $args, $name-resolver), 
+        μ:to-json(if (count($items) gt 1) then array { $items } else $items, $name-resolver), 
         map { 'method': 'json' }
     )
 };
@@ -117,7 +89,7 @@ as item()*
     μ:from-xml($xml)
 };
 
-declare %private function μ:to-json($items as item()*, $args as array(*), $name-resolver as function(*))
+declare %private function μ:to-json($items as item()*, $name-resolver as function(*))
 as item()*
 {
     for $item in $items
@@ -134,11 +106,11 @@ as item()*
                             $a, 
                             fold-left($b, [], 
                                 function($c,$d) { 
-                                    array:append($c, μ:to-json($d, $args, $name-resolver))
+                                    array:append($c, μ:to-json($d, $name-resolver))
                                 })
                         ))
                     else
-                        array:append($a, μ:to-json($b, $args, $name-resolver))
+                        array:append($a, μ:to-json($b, $name-resolver))
                 }
             )
         case map(*)
@@ -146,8 +118,8 @@ as item()*
             map:merge(
                 map:for-each($item, 
                     function($a,$b) { 
-                        map:entry($a, μ:to-json($b, $args, $name-resolver)) }))
-        case function(*) return μ:to-json(apply($item, $args), $args, $name-resolver)
+                        map:entry($a, μ:to-json($b, $name-resolver)) }))
+        case function(*) return ()
         case node() return μ:from-xml($item)
         default return $item
 };
@@ -180,21 +152,21 @@ as item()*
         default return $node
 };
 
-declare %private function μ:to-xml($items as item()*, $args as array(*), $name-resolver as function(*))
+declare %private function μ:to-xml($items as item()*, $name-resolver as function(*))
 as node()*
 {
     for $item in $items
     return
         typeswitch ($item)
-        case array(*) return μ:to-element($item, $args, $name-resolver)   
-        case map(*) return  μ:to-attributes($item, $args, $name-resolver)
-        case function(*) return μ:to-xml(apply($item, $args), $args, $name-resolver)
+        case array(*) return μ:to-element($item, $name-resolver)   
+        case map(*) return  μ:to-attributes($item, $name-resolver)
+        case function(*) return ()
         case empty-sequence() return ()
         case node() return $item
         default return text { $item }
 };
 
-declare %private function μ:to-element($item as array(*), $args as array(*), $name-resolver as function(*))
+declare %private function μ:to-element($item as array(*), $name-resolver as function(*))
 as item()*
 {
     if (array:size($item) gt 0) then
@@ -205,7 +177,7 @@ as item()*
                     array:tail($item),
                     (),
                     function($n, $i) {
-                        ($n, μ:to-xml($i, $args, $name-resolver))
+                        ($n, μ:to-xml($i, $name-resolver))
                     }
                 )
             else
@@ -214,7 +186,7 @@ as item()*
                         array:tail($item),
                         (),
                         function($n, $i) {
-                            ($n, μ:to-xml($i, $args, $name-resolver))
+                            ($n, μ:to-xml($i, $name-resolver))
                         }
                     )
                 }
@@ -222,7 +194,7 @@ as item()*
         ()
 };
 
-declare %private function μ:to-attributes($item as map(*), $args as array(*), $name-resolver as function(*))
+declare %private function μ:to-attributes($item as map(*), $name-resolver as function(*))
 as attribute()*
 {
     map:for-each($item, 
@@ -231,11 +203,12 @@ as attribute()*
                 attribute { $name-resolver($k) } { 
                     data(
                         typeswitch ($v)
-                        case function(*)
-                        return apply($v, $args)
-                        default
-                        return $v
-                    ) }
+                        case array(*) return $v
+                        case map(*) return $v
+                        case function(*) return ()
+                        default return $v
+                    )
+                }
             else
                 ()
         })
