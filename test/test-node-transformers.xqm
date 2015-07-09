@@ -8,6 +8,10 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace λ = 'http://xokomola.com/xquery/origami/λ'
     at '../la.xqm';
 
+(: 
+ : NOTE: functions cannot be compared so although they 
+ :       may appear as part of mu nodes.
+ :)
 declare %unit:test function test:content()
 {
     unit:assert-equals(
@@ -53,5 +57,9 @@ declare %unit:test function test:wrap()
     unit:assert-equals(
         ['p'] => λ:wrap(['x', map { 'a': 1 }, 'foo']),
         ['x', map { 'a': 1 }, ['p']]
-    )        
+    ),        
+    unit:assert-equals(
+        ['p'] => λ:wrap(['x', 'foo']),
+        ['x', ['p']]
+    )
 };
