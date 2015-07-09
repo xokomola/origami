@@ -315,18 +315,27 @@ as item()*
             return $mu
 };
 
-declare function μ:content($mu)
+declare function μ:content($mu as array(*)?)
 as item()*
 {
-    typeswitch($mu)
-    case array(*)
+    let $c := array:tail($mu)
     return
-        let $c := array:tail($mu)
-        return
-            if (array:head($c) instance of map(*)) then
-                array:tail($c)
-            else
-                $c
-    default 
-    return $mu/node()
+        if (array:head($c) instance of map(*)) then
+            array:tail($c)
+        else
+            $c
+};
+
+declare function μ:element($mu as array(*)?)
+as item()*
+{
+    let $e := array:head($mu)
+    let $c := array:tail($mu)
+    return
+        if (array:size($c) eq 0) then
+            [$e]
+        else if (array:head($c) instance of map(*)) then
+            [$e, array:head($c)]
+        else
+            [$e]
 };
