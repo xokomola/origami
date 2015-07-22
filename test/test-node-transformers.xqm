@@ -6,7 +6,7 @@ xquery version "3.1";
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace λ = 'http://xokomola.com/xquery/origami/λ'
-    at '../la.xqm';
+    at '../lambda.xqm';
 
 (: 
  : NOTE: functions cannot be compared so although they 

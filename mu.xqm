@@ -48,7 +48,7 @@ as item()*
         μ:to-apply($item, $args)
 };
 
-declare %private function μ:to-apply($mu as item(), $args as array(*)) 
+declare function μ:to-apply($mu as item(), $args as array(*)) 
 as item()*
 {
     typeswitch ($mu)
@@ -89,7 +89,7 @@ as item()*
     μ:from-xml($xml)
 };
 
-declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
+declare function μ:to-json($mu as item()*, $name-resolver as function(*))
 as item()*
 {
     for $item in $mu
@@ -120,11 +120,12 @@ as item()*
                     function($a,$b) { 
                         map:entry($a, μ:to-json($b, $name-resolver)) }))
         case function(*) return ()
+        (: FIXME: I think this should be using to-json as well :)
         case node() return μ:from-xml($item)
         default return $item
 };
 
-declare %private function μ:from-xml($xml)
+declare function μ:from-xml($xml)
 as item()*
 {
     for $node in $xml
@@ -152,7 +153,7 @@ as item()*
         default return $node
 };
 
-declare %private function μ:to-xml($mu as item()*, $name-resolver as function(*))
+declare function μ:to-xml($mu as item()*, $name-resolver as function(*))
 as node()*
 {
     for $item in $mu
@@ -166,7 +167,7 @@ as node()*
         default return text { $item }
 };
 
-declare %private function μ:to-element($mu as array(*), $name-resolver as function(*))
+declare function μ:to-element($mu as array(*), $name-resolver as function(*))
 as item()*
 {
     if (array:size($mu) gt 0) then
@@ -194,7 +195,7 @@ as item()*
         ()
 };
 
-declare %private function μ:to-attributes($mu as map(*), $name-resolver as function(*))
+declare function μ:to-attributes($mu as map(*), $name-resolver as function(*))
 as attribute()*
 {
     map:for-each($mu, 
@@ -315,27 +316,28 @@ as item()*
             return $mu
 };
 
-declare function μ:content($mu as array(*)?)
+declare function μ:children($mu as array(*))
 as item()*
 {
-    let $c := array:tail($mu)
-    return
-        if (array:head($c) instance of map(*)) then
-            array:tail($c)
-        else
-            $c
+    if (array:size($mu) > 0) then
+        let $c := array:tail($mu)
+        return
+            if (array:size($c) > 0 and array:head($c) instance of map(*)) then
+                μ:seq(array:tail($c))
+            else
+                μ:seq($c)
+    else
+        ()
 };
 
-declare function μ:element($mu as array(*)?)
-as item()*
+declare function μ:attributes($mu as array(*))
+as map(*)
 {
-    let $e := array:head($mu)
-    let $c := array:tail($mu)
-    return
-        if (array:size($c) eq 0) then
-            [$e]
-        else if (array:head($c) instance of map(*)) then
-            [$e, array:head($c)]
-        else
-            [$e]
+    if (array:size($mu) gt 1 and $mu(2) instance of map(*)) then $mu(2) else map {}
+};
+
+declare function μ:element($mu as array(*))
+as xs:string?
+{
+    if (array:size($mu) eq 0) then () else $mu(1)
 };

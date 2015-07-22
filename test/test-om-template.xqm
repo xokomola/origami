@@ -6,7 +6,7 @@ xquery version "3.1";
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace ω = 'http://xokomola.com/xquery/origami/ω'
-    at '../om.xqm';
+    at '../omega.xqm';
 
 declare %unit:test function test:template-identity-function() 
 {

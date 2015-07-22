@@ -3,7 +3,7 @@ xquery version "3.1";
 (:~
  : Tests for μ-templates
  :)
-module namespace test = 'http://xokomola.com/xquery/origami/μ/tests';
+module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace μ = 'http://xokomola.com/xquery/origami/μ' at '../mu.xqm'; 
 
