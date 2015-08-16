@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/μ' at '../mu.xqm'; 
+import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
 
 declare namespace h = 'http://www.w3.org/1999/xhtml';
 
@@ -344,38 +344,38 @@ declare %unit:test("expected", "err:FOAP0001") function test:xml-templating-arit
     )
 };
 
-declare %unit:test function test:mu() 
+declare %unit:test function test:parse-xml() 
 {
     unit:assert-equals(
-        μ:mu(<x/>),
+        μ:nodes(<x/>),
         ['x']),
 
     unit:assert-equals(
-        μ:mu((<x/>, <y/>)),
+        μ:nodes((<x/>, <y/>)),
         (['x'], ['y'])),
 
     unit:assert-equals(
-        μ:mu(<x>hello</x>),
+        μ:nodes(<x>hello</x>),
         ['x', 'hello']),
 
     unit:assert-equals(
-        μ:mu(<x><y/></x>),
+        μ:nodes(<x><y/></x>),
         ['x', ['y']]),
 
     unit:assert-equals(
-        μ:mu(<x a="10" b="y"/>),
+        μ:nodes(<x a="10" b="y"/>),
         ['x', map { 'a': '10', 'b': 'y' }]),
 
     unit:assert-equals(
-        μ:mu(<x a="10" b="y">hello</x>),
+        μ:nodes(<x a="10" b="y">hello</x>),
         ['x', map { 'a': '10', 'b': 'y' }, 'hello']),
 
     unit:assert-equals(
-        μ:mu(<x a="10" b="y">hello <b>world</b></x>),
+        μ:nodes(<x a="10" b="y">hello <b>world</b></x>),
         ['x', map { 'a': '10', 'b': 'y' }, 'hello ', ['b', 'world']]),
 
     unit:assert-equals(
-        μ:mu(<x><!-- hello -->world</x>),
+        μ:nodes(<x><!-- hello -->world</x>),
         ['x', 'world'])
 };
 

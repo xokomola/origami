@@ -1,0 +1,6 @@
+test001.html - minimal HTML 5 document (utf-8)
+test002.html - minimal HTML 5 document (iso-latin-1)
+test003.html - minimal HTML 5 document (iso-latin-7)
+test004.html - HTML 5 with some unknown elements (nobogons test)
+
+

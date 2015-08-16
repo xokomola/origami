@@ -1,8 +1,8 @@
 xquery version "3.0";
 
-module namespace λ = 'http://xokomola.com/xquery/origami/λ';
+module namespace λ = 'http://xokomola.com/xquery/origami/xf';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/μ' at 'mu.xqm'; 
+import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at 'mu.xqm'; 
 
 (:~
  : Create a node transformer that replaces the child nodes of an
@@ -12,7 +12,7 @@ declare function λ:content($content as item()*)
 as function(*) 
 {
     function($mu as array(*)) {
-        array:append(μ:element($mu), $content)
+        array:append(μ:tag($mu), $content)
     }
 };
 
@@ -42,7 +42,7 @@ declare function λ:wrap($mu as array(*)?)
 as function(*)
 {
     function($context as item()*) {
-        array:append(μ:element($mu), $context)
+        array:append(μ:tag($mu), $context)
     }
 };
 

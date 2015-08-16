@@ -5,14 +5,14 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace λ = 'http://xokomola.com/xquery/origami/λ'
-    at '../lambda.xqm';
+import module namespace λ = 'http://xokomola.com/xquery/origami/xf'
+    at '../xf.xqm';
 
 (: 
  : NOTE: functions cannot be compared so although they 
  :       may appear as part of mu nodes.
  :)
-declare %unit:test function test:content()
+declare %unit:test %unit:ignore function test:content()
 {
     unit:assert-equals(
         ['p'] => λ:content(['x']),
@@ -28,7 +28,7 @@ declare %unit:test function test:content()
     )        
 };
 
-declare %unit:test function test:replace()
+declare %unit:test %unit:ignore function test:replace()
 {
     unit:assert-equals(
         ['p'] => λ:replace(['x']),
@@ -44,7 +44,7 @@ declare %unit:test function test:replace()
     )        
 };
 
-declare %unit:test function test:wrap()
+declare %unit:test %unit:ignore function test:wrap()
 {
     unit:assert-equals(
         ['p'] => λ:wrap(['x']),

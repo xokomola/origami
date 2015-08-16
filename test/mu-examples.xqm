@@ -1,64 +1,97 @@
 xquery version "3.1";
 
 (:~
- : Tests for μ-templates
+ : Examples for μ-documents
  :)
-module namespace test = 'http://xokomola.com/xquery/origami/tests';
+module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/μ' at '../mu.xqm'; 
+import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
 
-declare %unit:test function test:lists() 
+(:
+ : A datastructure with functions can be used
+ : as a template with the μ:apply function.
+ :)
+declare variable $ex:list :=
+  ['ul', function($seq) {
+    for $item in $seq
+    return array:append(['li'], $item)
+  }];
+
+(: 
+ : In mixed content an attributes map is not allowed.
+ : Only values will be used as text nodes.
+ :)
+declare function ex:list-template() 
 {
-    let $template := ['ul', function($seq) {
-            for $item in $seq
-            return
-                ['li', $item]
-            }]
-    return (
-        unit:assert-equals(
-            μ:xml($template, ('item 1', μ:mixed(('item ', ['b', '2'])), 'item 3')),
-            <ul>
-              <li>item 1</li>
-              <li>item <b>2</b></li>
-              <li>item 3</li>
-            </ul>
-        ),
-        (: NOTE: apply leaves extra sequences in, they should have significance for output structure :)
-        unit:assert-equals(
-            μ:apply($template, ('item 1', μ:mixed(('item ', ['b', '2'])), 'item 3')),
-            [
-              "ul",
-              ([
-                "li",
-                "item 1"
-              ],
-              [
-                "li",
-                ("item ",
-                [
-                  "b",
-                  "2"
-                ])
-              ],
-              [
-                "li",
-                "item 3"
-              ])
-            ]
-        )
-    )   
+  μ:apply($ex:list, (
+     'item 1', 
+     [(), map {'class': 'foo'}, 'item ', ['b', '2']], 
+     'item 3'
+  ))
 };
 
-declare %unit:test function test:mixing-namespaces()
+(:
+ : Mixed content function. 
+ :)
+declare function ex:list-template2() 
 {
-    let $mu := 
-        <workspace xmlns="http://www.w3.org/2007/app" xmlns:atom="http://www.w3.org/2005/Atom">{
-            μ:xml(
-                (['atom:entry'], ['atom:entry'], ['category']), 
-                μ:qname-resolver(μ:ns(), 'http://www.w3.org/2007/app')
-            )
-        }</workspace>
-    return
-        <todo/>
+  μ:apply($ex:list, (
+    'item 1', 
+    μ:mix(('item ', ['b', '2'])),
+    'item 3'
+  ))
 };
 
+(:
+ : Composing templates.
+ :)
+declare variable $ex:list-item :=
+  ['li', map {'class': 'calc'}, function($a,$b) { $a * $b }];
+  
+declare variable $ex:ol-list :=
+  ['ol', function($seq) {
+    for $pair in $seq
+    return μ:apply($ex:list-item, $pair)      
+  }];
+
+(:
+ : The top level takes 1 argument, the list item
+ : takes 2 arguments. 
+ :)
+declare function ex:list-template3() 
+{
+  μ:apply($ex:ol-list, ([1,2],[3,4],[5,6]))
+};
+
+(:
+ : Slightly different, pass variable arguments for sum. 
+ :)
+declare variable $ex:list-item2 :=
+  ['li', map {'class': 'calc'}, sum(?)];
+
+declare variable $ex:ol-list2 :=
+  ['ol', function($seq) {
+    for $numbers in $seq
+    return μ:apply($ex:list-item2, $numbers)      
+  }];
+
+(:
+ : Slightly more awkward. Fix this!
+ :)
+declare function ex:list-template4() 
+{
+  μ:apply($ex:ol-list, ([(1,2,10,100)],[(3)],[(5,6)]))
+};
+
+(:
+ : Load a CSV and display it as a table. 
+ :)
+declare function ex:table-from-csv($name)
+{
+  μ:parse-csv(μ:read-csv(concat(file:base-dir(), 'csv/', $name)))
+};
+
+declare function ex:xml-table-from-csv()
+{
+  μ:xml(ex:table-from-csv('countries.csv'))
+};

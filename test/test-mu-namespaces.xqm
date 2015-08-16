@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/μ' at '../mu.xqm'; 
+import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
 
 declare %unit:test function test:default-namespace() 
 {
