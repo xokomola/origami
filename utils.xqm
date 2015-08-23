@@ -11,3 +11,15 @@ as map(*)
         return map:entry($k, $map($k))
     ))
 };
+
+declare function u:walk($inner, $outer, $form)
+{
+    $outer(
+        fold-left(
+            $form,
+            (),
+            function($x,$y) { ($x, $inner($y)) }
+        )
+    )
+};
+

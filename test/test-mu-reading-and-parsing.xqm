@@ -463,6 +463,19 @@ declare %unit:test function test:read-csv()
     )
 };
 
+declare %unit:test function test:parse-csv()
+{
+    unit:assert-equals(
+       μ:parse-csv(("A,B,C&#10;10,20,30")),
+       (["A","B","C"],["10","20","30"])
+    ),
+    
+    unit:assert-equals(
+       μ:parse-csv(("A,B,C", "10,20,30")),
+       (["A","B","C"],["10","20","30"])
+    )
+};
+
 (: =========== JSON =========== :)
 
 (: TODO test various parsing options :)

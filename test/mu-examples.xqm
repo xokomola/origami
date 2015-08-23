@@ -20,6 +20,7 @@ declare variable $ex:list :=
 (: 
  : In mixed content an attributes map is not allowed.
  : Only values will be used as text nodes.
+ : TODO: attribute is added as text() node.
  :)
 declare function ex:list-template() 
 {
@@ -30,8 +31,21 @@ declare function ex:list-template()
   ))
 };
 
+declare %unit:test function ex:test-list-template()
+{
+    unit:assert-equals(
+        ex:list-template(),
+        ['ul', (
+          ['li', 'item 1'],
+          ['li', map {'class': 'foo'}, 'item ', ['b', '2']],
+          ['li', 'item 3']
+        )]
+    )
+};
+
 (:
  : Mixed content function. 
+ : TODO: does not work
  :)
 declare function ex:list-template2() 
 {
@@ -65,6 +79,7 @@ declare function ex:list-template3()
 
 (:
  : Slightly different, pass variable arguments for sum. 
+ : TODO: same problem with attributes.
  :)
 declare variable $ex:list-item2 :=
   ['li', map {'class': 'calc'}, sum(?)];
@@ -88,10 +103,19 @@ declare function ex:list-template4()
  :)
 declare function ex:table-from-csv($name)
 {
-  μ:parse-csv(μ:read-csv(concat(file:base-dir(), 'csv/', $name)))
+  μ:read-csv(concat(file:base-dir(), 'csv/', $name))
 };
 
 declare function ex:xml-table-from-csv()
 {
-  μ:xml(ex:table-from-csv('countries.csv'))
+  μ:xml(μ:csv-object(ex:table-from-csv('countries.csv')))
+};
+
+declare function ex:csv-objects()
+{
+  let $csv := μ:parse-csv(("A,B,C", "10,20,30", "1,2,3","1.1,1.2,1.3"))
+  let $csv2 := (['A', ['b', 'B'], [(), 'hello ', ['i', 'C']]], [10,20,30])
+  let $tpl := ['div', map { 'class': 'table' }, μ:csv-object($csv2)]
+  return
+    μ:xml($tpl)  
 };
