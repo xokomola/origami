@@ -4,9 +4,6 @@ module namespace μ = 'http://xokomola.com/xquery/origami/mu';
 
 import module namespace u = 'http://xokomola.com/xquery/origami/utils' at 'utils.xqm'; 
 
-declare namespace xsl = 'http://www.w3.org/1999/XSL/Transform';
-declare namespace xs = 'http://www.w3.org/2001/XMLSchema';
-
 declare %private variable $μ:ns := 'http://xokomola.com/xquery/origami/mu';
 
 (:~ 
@@ -215,22 +212,18 @@ declare %private function μ:csv-normal-form($csv)
  :
  : Note that this may return a fragment only.
  :)
-declare function μ:nodes($items as item()*)
-as item()*
-{
-    $items ! μ:node(.)
-};
-
-
 declare function μ:node($item as item())
 {
     μ:node($item, map {})
 };
 
 declare function μ:node($item as item(), $rules as map(*))
-as item()
+as item()?
 {
     typeswitch($item)
+    
+    case document-node()
+    return μ:node($item/*, $rules)
     
     case element()
     return
@@ -277,6 +270,15 @@ as item()
         
     default
     return ()
+};
+
+(:~
+ : Convenience function to convert a seq of items.
+ :)
+declare function μ:nodes($items as item()*)
+as item()*
+{
+    $items ! μ:node(.)
 };
 
 (:~
@@ -379,13 +381,13 @@ declare function μ:object-doc($object as array(*))
 declare function μ:xml($mu as item()*)
 as node()*
 {
-    μ:to-xml($mu, μ:qname-resolver())
+    μ:to-xml($mu, map {})
 };
 
-declare function μ:xml($mu as item()*, $name-resolver as function(*)) 
+declare function μ:xml($mu as item()*, $options as map(*)) 
 as node()*
 {
-    μ:to-xml($mu, $name-resolver)
+    μ:to-xml($mu, $options)
 };
 
 declare function μ:json($mu as item()*)
@@ -512,9 +514,11 @@ as item()*
 };
 
 (: TODO: namespace handling, especially to-attributes :)
-declare %private function μ:to-xml($mu as item()*, $name-resolver as function(*))
+declare %private function μ:to-xml($mu as item()*, $options as map(*))
 as node()*
 {
+    let $ns-map := μ:ns()
+    let $name-resolver := μ:qname-resolver($ns-map, $ns-map?xsl)
     for $item in $mu
     return
         typeswitch ($item)
@@ -525,11 +529,20 @@ as node()*
             then μ:to-xml((μ:attributes($item)?xml, μ:object-doc(?))[1]($item), $name-resolver)
             else μ:to-element($item, $name-resolver)
         
-        case map(*) return  μ:to-attributes($item, $name-resolver)
-        case function(*) return ()
-        case empty-sequence() return ()
-        case node() return $item
-        default return text { $item }
+        case map(*) 
+        return  μ:to-attributes($item, $name-resolver)
+        
+        case function(*) 
+        return ()
+        
+        case empty-sequence() 
+        return ()
+        
+        case node() 
+        return $item
+        
+        default 
+        return text { $item }
 };
 
 (: TODO: need more common map manipulation functions :)
@@ -555,6 +568,7 @@ as item()*
         }
 };
 
+(: NOTE: another reason why we should avoid names with :, conversion to json is easier? Maybe also makes JSON-LD easier :)
 declare %private function μ:to-attributes($mu as map(*)?, $name-resolver as function(*))
 as attribute()*
 {
@@ -715,7 +729,7 @@ as item()*
  : context arguments. Effectively this will return the
  : template node sequence unmodified.
  :) 
-declare function μ:template($template as item()*)
+declare function μ:template($template as item())
 as function(*)
 {
     μ:template($template, (), function() { () })
@@ -728,7 +742,7 @@ as function(*)
  : are no template rules the template will not accept context
  : data.
  :)
-declare function μ:template($template as item()*, $rules as array(*)*)
+declare function μ:template($template as item(), $rules as array(*)*)
 as function(*)
 {
     μ:template($template, $rules, function() { () })
@@ -744,7 +758,7 @@ as function(*)
 (: TODO: can't we simplify on always having an on array arg function as context corresp. to apply :)
 
 declare function μ:template(
-$template as item()*, $rules as array(*)*, $context as function(*))
+$template as item(), $rules as array(*)*, $context as function(*))
 as function(*)
 {
     let $compiled-rules := μ:compile-rules($rules)  
@@ -785,12 +799,12 @@ as map(*)?
         ()
 };
 
-declare function μ:compile-template($template as array(*), $rules as map(*)?)
+declare function μ:compile-template($template as item(), $rules as map(*)?)
 as array(*)?
 {
     if (empty($rules))
     then μ:node($template)
-    else μ:node(xslt:transform(μ:xml($template), μ:xml(μ:compile-transformer($rules))), $rules)
+    else μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules)), $rules)
 };
 
 (:~
@@ -835,62 +849,55 @@ as function(*)
     μ:template($template, $rules, $context)
 };
 
-(: TODO: maybe define $extract as a map of options :)
+(: TODO: maybe define $extract as a map of options other options might be output options and other aspects of the transformer, xslt version etc. :)
+(: TODO: do the to XML conversion in these functions :)
 declare function μ:compile-transformer($rules as map(*)?)
-as array(*)
+as element(*)
 {
-    μ:compile-transformer($rules, false())
+    μ:compile-transformer($rules, map { 'extract': false() })
 };
 
 (: TODO: if I do ns handling differently we could write without the xls: prefix :)
-(: TODO: it's a pity we cannot create namespace nodes :)
-declare function μ:compile-transformer($rules as map(*)?, $extract as xs:boolean)
-as array(*)
+declare function μ:compile-transformer($rules as map(*)?, $options as map(*))
+as element(*)
 {
-    ['xsl:stylesheet',
-        map { 'version': '1.0', 'xmlns:μ': $μ:ns },
-        ['xsl:output', map { 'method': 'xml' }],
-        if ($extract) 
-        then
-            ['xsl:template', map { 'match': 'text()' }]
-        else 
-            μ:identity-transform(),
-        for $selector in map:keys($rules)
-        return
-            ['xsl:template', map { 'match': $selector },
-                ['xsl:copy',
-                    ['xsl:copy-of', map { 'select': '@*' }],
-                    ['xsl:attribute', map { 'name': 'μ:node' }, $selector],
-                    ['xsl:copy-of', map { 'select': 'node()' }]
+    μ:xml(
+        ['stylesheet', map { 'version': '1.0' },
+            ['output', map { 'method': 'xml' }],
+            if ($options?extract) 
+            then
+                ['template', map { 'match': 'text()' }]
+            else 
+                μ:identity-transform(),
+            for $selector in map:keys($rules)
+            return
+                ['template', map { 'match': $selector },
+                    ['copy',
+                        ['copy-of', map { 'select': '@*' }],
+                        ['attribute', map { 'name': 'μ:node' }, $selector],
+                        ['apply-templates', map { 'select': 'node()' }]
+                    ]
                 ]
-            ]
-    ]
+        ]
+    )
 };
 
 (: TODO: how to handle multiple extractions from the same template? Should we? :)
-(: TODO: check if namespace handling is aligned with name resolvers :)
 declare function μ:compile-extractor($rules as map(*)?)
-as array(*)
+as element(*)
 {
-    μ:compile-transformer($rules, true())
+    μ:compile-transformer($rules, map { 'extract': true() })
 };
 
 declare function μ:identity-transform()
 as array(*)+
 {
-    ['xsl:template', 
-        map {
-            'priority': -10,
-            'match': '@*|*'
-        },
-        ['xsl:copy',
-            ['xsl:apply-templates', 
-                map { 'select': '*|@*|text()' }
-            ]
+    ['template', map { 'priority': -10, 'match': '@*|*' },
+        ['copy',
+            ['apply-templates', map { 'select': '*|@*|text()' }]
         ]
     ],
-    ['xsl:template',
-        map { 'match': 'processing-instruction()|comment()' }]
+    ['template', map { 'match': 'processing-instruction()|comment()' }]
 };
 
 declare function μ:transform($nodes as item()*, $args)
@@ -905,16 +912,669 @@ as item()*
             let $atts := μ:attributes($node)
             let $handler := $atts('μ:handler')
             let $content := μ:content($node)
+            let $atts := map:remove($atts,'μ:handler')
             return
-                if (not(empty($handler)))
-                then
-                    typeswitch ($handler)
-                    case array(*) return $handler
-                    case map(*) return $handler
-                    case function(*)
-                    return μ:transform($handler([$tag, map:remove($atts,'μ:handler'), $content], $args), $args)
-                    default return $handler
-                else [$tag, $atts, μ:transform($content, $args)]
+                typeswitch ($handler)
+                case empty-sequence() 
+                return 
+                    array { 
+                        $tag, 
+                        if (map:size($atts) gt 0) then $atts else (), 
+                        μ:transform($content, $args) 
+                    }
+                case array(*) return $handler
+                case map(*) return $handler
+                case function(*)
+                return 
+                    μ:transform(
+                        $handler(
+                            array { 
+                                $tag, 
+                                if (map:size($atts) gt 0) then $atts else (), 
+                                $content 
+                            }, 
+                            $args
+                        ), $args)
+                default return $handler
         default
         return $node
+};
+
+(:~
+ : Create a node transformer that replaces the child nodes of an
+ : element with `$content`.
+ :)
+declare function μ:insert($content as item()*)
+as function(*) 
+{
+    function($mu as array(*)) {
+        array:append(μ:tag($mu), $content)
+    }
+};
+
+(:~
+ : Replace the child nodes of `$element` with `$content`.
+ :)
+declare function μ:insert($context as item()*, $content as item()*) 
+as item()*
+{
+    μ:insert($content)($context)
+};
+
+declare function μ:replace($content as item()*)
+as function(*) {
+    function($context as item()*) {
+        $content
+    }
+};
+
+declare function μ:replace($context as item()*, $content as item()*) 
+as item()*
+{
+    μ:replace($content)($context)
+};
+
+declare function μ:wrap($mu as array(*)?)
+as function(*)
+{
+    function($context as item()*) {
+        array:append(μ:tag($mu), $context)
+    }
+};
+
+declare function μ:wrap($context as item()*, $mu as array(*)?)
+as item()*
+{
+    μ:wrap($mu)($context)
+};
+
+(: ========= :)
+
+(:~
+ : Create a node transformer that applies a node transformation rule to a
+ : sequence of input nodes.
+ :)
+declare function μ:do(
+$rule as array(*)) 
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as item()* {
+        μ:do-nodes($nodes, $rule)
+    }
+};
+
+(:~
+ : Apply a node transformation rule to a sequence of nodes.
+ :)
+declare function μ:do(
+$nodes as item()*, 
+$rule as array(*)) 
+as item()*
+{
+    μ:do-nodes($nodes, $rule)
+};
+
+(:~
+ : Create a node transformer that applies a node transformation rule to each 
+ : individual input node.
+ :)
+declare function μ:each(
+$rule as array(*)) 
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as item()* {
+        for $node in $nodes
+            return μ:do-nodes($node, $rule)
+    }
+};
+
+(:~
+ : Apply a node transformation rule to each individual input node.
+ :)
+declare function μ:each(
+$nodes as item()*, 
+$rule as array(*)) 
+as item()*
+{
+    for $node in $nodes
+        return μ:do-nodes($node, $rule)
+};
+
+declare %private function μ:do-nodes(
+$nodes as item()*, 
+$rule as array(*))
+as item()*
+{
+    array:fold-left(
+        $rule, 
+        $nodes,
+        function($nodes, $step) {
+            if ($step instance of function(*)) then
+                $step($nodes)
+            else
+                $step
+        }
+    )     
+};
+
+(: TODO: could be a bit clearer ($context is always ()) :)
+declare %private function μ:unwrap-nodes($nodes as item()*, $content as item()*, $context as array(*))
+as item()* 
+{
+    for $node in $nodes
+    return
+        typeswitch ($node)
+        case element()
+        return 
+            for $cnode in $node/node()
+            return μ:apply-nodes($node, $cnode, $context)
+        case node()
+        return $node
+        default
+        return text { $node }
+};
+
+declare %private function μ:apply-nodes($node as item()*, $content as item(), $context as array(*))
+as item()* 
+{
+    typeswitch ($content)
+    case array(*) | map(*)
+    return apply($content, $context)
+    case function(*)
+    return 
+        switch (function-arity($content))
+        case 0
+        return $content()
+        default
+        return apply($content, array:join(([$node],$context)))
+    case node()
+    return $content
+    default
+    return text { $content }
+};
+
+declare %private function μ:invoke-transformer($fn as function(*), $content as item()*, $context as item()*)
+{
+    if ($context instance of array(*) and array:size($context) gt 0) then
+        $fn(array:head($context), $content, array:tail($context))
+    else 
+        $fn($context, $content, [])    
+};
+
+declare %private function μ:context($context)
+{
+    if ($context instance of array(*) and array:size($context) gt 0) then
+        (array:head($context), array:tail($context))
+    else 
+        ($context, [])        
+};
+
+(:~
+ : Create a node transformer that removes (unwraps) the
+ : outer element of all nodes that are elements. Other nodes
+ : are passed through unmodified.
+ :
+ : This function is safe for use as a node selector.
+ :)
+declare function μ:unwrap()
+as function(item()*) as item()*
+{
+    function($context as item()*) {
+        μ:invoke-transformer(μ:unwrap-nodes#3, (), $context)
+    }    
+};
+
+(:~
+ : Unwraps all nodes that are elements.
+ :)
+declare function μ:unwrap($context as item()*)
+as item()*
+{
+    μ:unwrap()($context)
+};
+
+(:~
+ : Copy nodes without any transformation.
+ :)
+declare function μ:copy()
+as function(*)
+{
+    function($context as item()*) {
+        for $node in $context
+        return
+            typeswitch ($node)
+            case node()
+            return $node
+            default
+            return text { $node }
+    }
+};
+
+(:~
+ : Create a node transformer that inserts `$before` before
+ : the nodes passed in.
+ :)
+declare function μ:before($before as item()*)
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as item()* {
+        ($before, $nodes)
+    }
+};
+
+(:~
+ : Inserts the `$before` nodes, before `$nodes`.
+ :)
+declare function μ:before($nodes as item()*, $before as item()*)
+as item()*
+{
+    μ:before($before)($nodes)
+};
+
+(:~
+ : Create a node transformer that inserts `$after` after
+ : the nodes passed in.
+ :)
+declare function μ:after($after as item()*)
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as item()* {
+        ($nodes, $after)
+    }
+};
+
+(:~
+ : Inserts the `$after` nodes, after `$nodes`.
+ :)
+declare function μ:after($nodes as item()*, $after as item()*) 
+as item()*
+{
+    μ:after($after)($nodes)
+};
+
+(:~
+ : Create a node transformer that appends `$append` nodes
+ : to the child nodes of each element of `$nodes`.
+ :)
+declare function μ:append($append as item()*)
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                $node/(@*,node()), 
+                $append
+            }
+        }
+     (: HACK :)
+    )(true())
+};
+
+(:~
+ : Inserts `$append` nodes to the child nodes of each element in
+ : `$nodes`.
+ :)
+declare function μ:append($nodes as item()*, $append as item()*) 
+as item()*
+{
+    μ:append($append)($nodes)
+};
+
+(:~
+ : Create a node transformer that prepends `$prepend` nodes
+ : to the child nodes of each element of `$nodes`.
+ :)
+declare function μ:prepend($prepend as item()*)
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                ($node/@*, $prepend, $node/node())
+            }
+        }
+     (: HACK :)
+    )(true())
+};
+
+(:~
+ : Inserts `$prepend` nodes before the first child node of each element
+ : in `$nodes`.
+ :)
+declare function μ:prepend($nodes as item()*, $prepend as item()*) 
+as item()*
+{
+    μ:prepend($prepend)($nodes)
+};
+
+(:~
+ : Create a node transformer that returns a text node with
+ : the space normalized string value of a node.
+ :)
+declare function μ:text()
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as item()* {
+        if (exists($nodes)) then
+            for $node in $nodes
+                return 
+                    typeswitch ($node)
+                    case map(*)
+                    return
+                        $node
+                    case array(*)
+                    return 
+                        $node
+                    case function(*)
+                    return
+                        $node
+                    default
+                    return
+                        text { string($node) }
+        else
+            ()
+    }
+};
+
+(:~
+ : Outputs the text value of `$nodes`.
+ :)
+declare function μ:text($nodes as item()*)
+as item()*
+{
+    μ:text()($nodes)
+};
+
+(:~
+ : Create a node transformer that sets attributes using a map
+ : on each element in the nodes passed.
+ :
+ : Map keys must be valid as QNames or they will be ignored.
+ :)
+declare function μ:set-attr($attributes as item())
+as function(item()*) as item()*
+{
+    let $attributes := 
+        typeswitch ($attributes)
+        case map(*)
+            return 
+                map:for-each(
+                    $attributes, 
+                    function($name, $value) { 
+                        if ($name castable as xs:QName) then
+                            attribute { $name } { $value }
+                        else
+                            ()
+                    }
+                )
+        case element()
+            return $attributes/@*
+        default
+            return ()
+    return
+        μ:element-transformer(
+            function($node as element()) as element() {
+                element { node-name($node) } {
+                    $attributes,
+                    for $att in $node/@*
+                    where not(node-name($att) = $attributes/node-name())
+                    return $att,
+                    $node/node()
+                }
+            }
+        )($attributes)
+};
+
+(:~
+ : Set attributes using a map on each element in `$nodes`.
+ :)
+declare function μ:set-attr($nodes as item()*, $attributes as item()) 
+as item()*
+{
+    μ:set-attr($attributes)($nodes)
+};
+
+(:~
+ : Create a node transformer that adds one or more class names to
+ : each element in the nodes passed.
+ :)
+declare function μ:add-class($names as xs:string*)
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                $node/@*[not(name(.) = 'class')],
+                attribute class {
+                    string-join(
+                        distinct-values(
+                            tokenize(
+                                string-join(($node/@class,$names),' '),
+                                '\s+')), 
+                        ' ')
+                },
+                $node/node()
+            }
+        }
+    )($names)
+};
+
+(:~
+ : Add one or more `$names` to the class attribute of `$element`. 
+ : If it doesn't exist it is added.
+ :)
+declare function μ:add-class($nodes as item()*, $names as xs:string*) 
+as item()*
+{
+    μ:add-class($names)($nodes)
+};
+
+(:~
+ : Create a node transformer that removes one or more `$names` from the 
+ : class attribute. If the class attribute is empty after removing names it will 
+ : be removed from the element.
+ :)
+declare function μ:remove-class($names as xs:string*)
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            element { node-name($node) } {
+                $node/@*[not(name(.) =  'class')],
+                let $classes := distinct-values(
+                    tokenize(($node/@class,'')[1],'\s+')[not(. = $names)])
+                where exists($classes)
+                return
+                    attribute class { string-join($classes,' ') },
+                $node/node()
+            }
+        }   
+    )($names)
+};
+
+(:~
+ : Remove one or more `$names` from the class attribute of `$element`.
+ : If the class attribute is empty after removing names it will be removed
+ : from the element.
+ :)
+declare function μ:remove-class($nodes as item()*, $names as xs:string*) 
+as item()*
+{
+    μ:remove-class($names)($nodes)
+};
+
+(:~
+ : Create a node transformer that remove attributes.
+ :
+ : If a name cannot be used as an attribute name (xs:QName) then
+ : it will be silently ignored.
+ :
+ : TODO: better testing and clean up code.
+ :)
+declare function μ:remove-attr($attributes as item()*)
+as function(item()*) as item()*
+{
+    let $names := 
+        typeswitch ($attributes)
+        case xs:string*
+            return 
+                for $name in $attributes 
+                return
+                    if ($name eq '*' or starts-with($name, '*:')) then
+                        $name
+                    else if ($name castable as xs:QName) then
+                        xs:QName($name)
+                    else
+                        ()
+        case element()
+            return for $att in $attributes/@* return node-name($att)
+        case map(*)
+            return             
+                map:for-each(
+                    $attributes, 
+                    function($name,$value) { 
+                    if ($name castable as xs:QName) then
+                        xs:QName($name)
+                    else
+                        ()
+                })
+        default
+            return ()
+    return
+        μ:element-transformer(
+            function($node as element()) as element() {
+                element { node-name($node) } {
+                    for $att in $node/@*
+                        where not('*' = (for $name in $names return if ($name instance of xs:string) then $name else ())) and
+                              not(local-name($att) = (for $name in $names return if ($name instance of xs:string and starts-with($name,'*:')) then substring-after($name,'*:') else ())) and
+                              not(node-name($att) = (for $name in $names return if ($name instance of xs:QName) then $name else ()))
+                        return $att
+                }
+            }
+        )($attributes)
+};
+
+(:~
+ : Remove attributes from each element in `$nodes`.
+ :)
+declare function μ:remove-attr($nodes as item()*, $names as item()*) 
+as item()*
+{
+    μ:remove-attr($names)($nodes)
+};
+
+(:~ 
+ : Create a node-transformer that renames element nodes, passing non-element 
+ : nodes and element child nodes through unmodified.
+ :
+ : Renaming can be done using a:
+ :
+ : - `xs:string`: renames all elements
+ : - `map(*)`: looks up the element name in the map and uses the value as the 
+ :   new name
+ : - `function($node as element()) as item()`: passes the element node to the 
+ :   function using the return value as the new element name
+ :)
+declare function μ:rename($map as item()) 
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            typeswitch ($map)
+            case map(*)
+                return
+                    if ($map(node-name($node))) then    
+                        element { $map(node-name($node)) } {
+                            $node/(@*,node())
+                        }
+                    else if ($map(name($node))) then
+                        element { $map(name($node)) } {
+                            $node/(@*,node())
+                        }
+                    else
+                        $node
+             case function(*)
+                 return
+                    element { $map($node) } {
+                        $node/(@*,node())
+                    }             
+             case xs:string
+                 return
+                    element { $map } {
+                        $node/(@*,node())
+                    }
+             default
+                 return $node
+        }
+    )(true())
+};
+
+(:~
+ : Renames elements in `$nodes`.
+ :)
+declare function μ:rename($nodes as item()*, $map as item())
+as item()*
+{
+    μ:rename($map)($nodes)
+};
+
+(:~
+ : Returns a node transformer that transforms nodes using
+ : an XSLT stylesheet.
+ :)
+declare function μ:xslt($stylesheet as item()) 
+as function(node()*) as node()*
+{
+    μ:xslt($stylesheet, map {})
+};
+
+(:~
+ : Create a node transformer that transforms nodes using
+ : an XSLT stylesheet with parameters.
+ :)
+declare function μ:xslt($stylesheet as item(), $params as item()) 
+as function(item()*) as item()*
+{
+    μ:element-transformer(
+        function($node as element()) as element() {
+            xslt:transform($node, $stylesheet, $params)/*
+        }
+    )($params)
+};
+
+(:~
+ : Transform `$nodes` using XSLT stylesheet.
+ :)
+declare function μ:xslt($nodes as item()*, $stylesheet as item(), $params as item())
+as item()*
+{
+    μ:xslt($stylesheet, $params)($nodes)
+};
+
+declare %private function μ:element-spec($spec as item())
+{
+    typeswitch ($spec)
+    case node() | array(*) | map(*) | function(*)
+    return $spec
+    default
+    return ()
+};
+
+declare %private function μ:element-transformer(
+$transform as function(element(), item()*) as item()*) 
+as function(*) 
+{
+    function($args as item()*) as function(*) {
+        function($nodes as item()*, $ctx) as item()* {
+            if (exists($args)) then
+                for $node in $nodes
+                    return
+                        if ($node instance of element()) then
+                            $transform($node, $ctx)
+                        else
+                            $node
+            else
+                $nodes
+        }
+    }
 };

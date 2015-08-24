@@ -12,24 +12,17 @@ declare %unit:test function test:template-identity-function()
 {
     unit:assert-equals(
         μ:template(<p><x y="10"/></p>)(),
-        <p><x y="10"/></p>,
+        ['p', ['x', map { 'y': '10' }]],
         'Identity transform'),
-        
-    unit:assert-equals(
-        μ:template((<p><x y="10"/></p>,<p><y x="20"/></p>))(),
-        (<p><x y="10"/></p>,<p><y x="20"/></p>),
-        'Identity transform multiple root elements'),
-        
-    (:
+      
     unit:assert-equals(
         μ:template(
-            (<p><x y="10"/></p>,<p><y x="20"/></p>), 
-            ['*', λ:copy()]
+            <p><x y="10"/></p>, 
+            ['*', μ:copy()]
         )(),
-        (<p><x y="10"/></p>,<p><y x="20"/></p>),
-        'Identity transform using copy node transformer'),
-    :)
-    
+        ['p', ['x', map { 'y': '10' }]],
+        'Identity transform using copy node transformer')
+        
     (: because p already copies this will never hit 'x' rule :)
     (:
     unit:assert-equals(
@@ -45,6 +38,7 @@ declare %unit:test function test:template-identity-function()
         'Identity transform using multiple rules'),
     :)
     
+    (:
     unit:assert-equals(
         μ:template(
             (<p><x y="10"/></p>,<p><y x="20"/></p>), 
@@ -52,7 +46,7 @@ declare %unit:test function test:template-identity-function()
         )(),
         (<p><x y="10"/></p>,<p><y x="20"/></p>),
         'Identity transform using custom node transformer')
-
+    :)
 };
 
 (:~
