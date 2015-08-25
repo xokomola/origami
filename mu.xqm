@@ -6,6 +6,7 @@ import module namespace u = 'http://xokomola.com/xquery/origami/utils' at 'utils
 
 declare %private variable $μ:ns := 'http://xokomola.com/xquery/origami/mu';
 
+(: TODO: combine template and snippet :)
 (:~ 
  : Origami μ-documents
  :)
@@ -407,64 +408,6 @@ as xs:string
 
 (: General :)
 
-declare function μ:apply($mu as item()*)
-as item()*
-{
-    μ:apply($mu, [])
-};
-
-declare function μ:apply($mu as item()*, $args as item()*) 
-as item()*
-{
-    (: if there's one argument given wrap it in an array (for fn:apply) :)
-    let $args := if ($args instance of array(*)) then $args else [ $args ]
-    for $item in $mu
-    return
-        μ:to-apply($item, $args)
-};
-
-(: TODO: bug in attribute map handling, currently creates text nodes not attributes :)
-declare %private function μ:to-apply($mu as item(), $args as array(*)) 
-as item()*
-{
-    typeswitch ($mu)
-    
-    case array(*) 
-    return
-        let $name := array:head($mu)
-        return
-            if (empty($name)) 
-            then
-                for $item in array:tail($mu)?* return μ:to-apply($item, $args)    
-            else
-                array:fold-left($mu, [], 
-                    function($a,$b) {
-                        if (empty($b)) 
-                        then $a
-                        else
-                            array:append($a, for $item in $b return μ:to-apply($item, $args))
-                    }
-                )
-                
-    case map(*) 
-    return
-        map:for-each($mu, 
-            function($k,$v) {
-                typeswitch ($v)
-                case function(*)
-                return map:entry($k, apply($v, $args))
-                default
-                return $v
-            }
-        )
-        
-    case function(*) 
-    return for $item in apply($mu, $args) return μ:to-apply($item, $args)
-    
-    default 
-    return $mu
-};
-
 (: TODO: prefix attribute names with @?, plus general improvement :)
 declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
 as item()*
@@ -724,29 +667,12 @@ as item()*
 };
 
 (:~
- : Create a template using a node sequence. This template
- : does not have template rules and does not accept any 
- : context arguments. Effectively this will return the
- : template node sequence unmodified.
- :) 
-declare function μ:template($template as item())
-as function(*)
-{
-    μ:template($template, (), function() { () })
-};
-
-(:~
  : Create a template using a node sequence and a sequence of
  : template rules. If there are template rules then the
  : template accepts a single map item as context data. If there
  : are no template rules the template will not accept context
  : data.
  :)
-declare function μ:template($template as item(), $rules as array(*)*)
-as function(*)
-{
-    μ:template($template, $rules, function() { () })
-};
 
 (:~
  : Create a template using a node sequence, a sequence of template
@@ -757,68 +683,13 @@ as function(*)
  :)
 (: TODO: can't we simplify on always having an on array arg function as context corresp. to apply :)
 
-declare function μ:template(
-$template as item(), $rules as array(*)*, $context as function(*))
+declare function μ:template($template as item(), $rules as array(*)+)
 as function(*)
 {
     let $compiled-rules := μ:compile-rules($rules)  
     let $compiled-template := μ:compile-template($template, $compiled-rules)
     return
-        let $transformer := μ:transform($compiled-template, ?)
-        return
-            switch (function-arity($context))                
-            case 0 return function() { $transformer(()) }
-            case 1 return function($a) { $transformer($context($a)) }
-            case 2 return function($a,$b) { $transformer($context($a,$b)) }
-            case 3 return function($a,$b,$c) { $transformer($context($a,$b,$c)) }
-            case 4 return function($a,$b,$c,$d) { $transformer($context($a,$b,$c,$d)) }
-            case 5 return function($a,$b,$c,$d,$e) { $transformer($context($a,$b,$c,$d,$e)) }
-            case 6 return function($a,$b,$c,$d,$e,$f) { $transformer($context($a,$b,$c,$d,$e,$f)) }
-            default return 
-                error(μ:ContextArityError, 
-                    'μ:template does not support context function arity &gt; 6')
-};
-
-(: TODO: smarter treatment of rule tail. :)
-(: ['p', ()]   delete p elements :)
-(: ['p', <foobar/>] replace p with foobar :)
-(: ['p', fn1#2, fn2#2, fn3#2] compose a node transformer/pipeline :)
-declare function μ:compile-rules($rules as array(*)*)
-as map(*)?
-{
-    if (count($rules) gt 0)
-    then
-        map:merge((
-            for $rule in $rules
-            let $selector := array:head($rule)
-            let $handler := $rule(2)
-            return
-                map:entry($selector, $handler)
-        ))
-    else
-        ()
-};
-
-declare function μ:compile-template($template as item(), $rules as map(*)?)
-as array(*)?
-{
-    if (empty($rules))
-    then μ:node($template)
-    else μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules)), $rules)
-};
-
-(:~
- : Create a template snippet using a node sequence. This template
- : does not have template rules and does not accept any 
- : context arguments. Effectively this will return the
- : template node sequence unmodified.
- :
- : TODO: consider how this can get something like μ:select (eg. get a bunch of nodes into a map)?
- :) 
-declare function μ:snippet($template as node()*)
-as function(*)
-{
-    μ:snippet($template, ())
+        function($args) { μ:apply($compiled-template, $args) }
 };
 
 (:~
@@ -828,33 +699,39 @@ as function(*)
  : are no template rules the template will not accept context
  : data.
  :)
-declare function μ:snippet($template as node()*, $rules as array(*)*)
+declare function μ:snippet($template as item(), $rules as array(*)+)
 as function(*)
 {
-    μ:snippet($template, $rules, function() { () })
+    let $compiled-rules := μ:compile-rules($rules)  
+    let $compiled-template := μ:compile-snippet($template, $compiled-rules)
+    return
+        function($args) { μ:apply($compiled-template, $args) }
 };
 
-(:~
- : Create a template snippet using a node sequence, a sequence of template
- : rules and a context function. The context function determines the
- : signature of the arguments accepted by the template. The context
- : function takes the arguments and prepares the context map for the
- : use by the template rules.
- :)
- (: TODO: , μ:compile-extractor#2 :)
-declare function μ:snippet(
-$template as node()*, $rules as array(*)*, $context as function(*))
-as function(*)
+
+(: TODO: ['p', fn1#2, fn2#2, fn3#2] compose a node transformer/pipeline :)
+declare function μ:compile-rules($rules as array(*)+)
+as map(*)
 {
-    μ:template($template, $rules, $context)
+    map:merge((
+        for $rule in $rules
+        let $selector := array:head($rule)
+        let $handler := $rule(2)
+        return
+            map:entry($selector, $handler)
+    ))
 };
 
-(: TODO: maybe define $extract as a map of options other options might be output options and other aspects of the transformer, xslt version etc. :)
-(: TODO: do the to XML conversion in these functions :)
-declare function μ:compile-transformer($rules as map(*)?)
-as element(*)
+declare function μ:compile-template($template as item(), $rules as map(*))
+as array(*)?
 {
-    μ:compile-transformer($rules, map { 'extract': false() })
+    μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules, map { 'extract': false() })), $rules)
+};
+
+declare function μ:compile-snippet($template as item(), $rules as map(*))
+as array(*)*
+{
+    μ:content(μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules, map { 'extract': true() })), $rules))
 };
 
 (: TODO: if I do ns handling differently we could write without the xls: prefix :)
@@ -865,8 +742,10 @@ as element(*)
         ['stylesheet', map { 'version': '1.0' },
             ['output', map { 'method': 'xml' }],
             if ($options?extract) 
-            then
+            then (
+                ['template', map { 'match': '/' }, ['μ:seq', ['apply-templates']]],
                 ['template', map { 'match': 'text()' }]
+            )
             else 
                 μ:identity-transform(),
             for $selector in map:keys($rules)
@@ -882,13 +761,6 @@ as element(*)
     )
 };
 
-(: TODO: how to handle multiple extractions from the same template? Should we? :)
-declare function μ:compile-extractor($rules as map(*)?)
-as element(*)
-{
-    μ:compile-transformer($rules, map { 'extract': true() })
-};
-
 declare function μ:identity-transform()
 as array(*)+
 {
@@ -900,7 +772,7 @@ as array(*)+
     ['template', map { 'match': 'processing-instruction()|comment()' }]
 };
 
-declare function μ:transform($nodes as item()*, $args)
+declare function μ:apply($nodes as item()*, $args as item()*)
 as item()*
 {  
     for $node in $nodes
@@ -910,23 +782,29 @@ as item()*
         return
             let $tag := μ:tag($node)
             let $atts := μ:attributes($node)
+            let $has-handler := map:contains($atts, 'μ:handler')
             let $handler := $atts('μ:handler')
             let $content := μ:content($node)
-            let $atts := map:remove($atts,'μ:handler')
+            let $atts := u:filter-keys($atts,'μ:handler')
             return
                 typeswitch ($handler)
                 case empty-sequence() 
-                return 
-                    array { 
-                        $tag, 
-                        if (map:size($atts) gt 0) then $atts else (), 
-                        μ:transform($content, $args) 
-                    }
+                return
+                    (: This can mean that the handler is (), or that there is no handler :)
+                    if ($has-handler)
+                    then
+                        ()
+                    else
+                        array { 
+                            $tag, 
+                            if (map:size($atts) gt 0) then $atts else (), 
+                            μ:apply($content, $args) 
+                        }
                 case array(*) return $handler
                 case map(*) return $handler
                 case function(*)
                 return 
-                    μ:transform(
+                    μ:apply(
                         $handler(
                             array { 
                                 $tag, 
@@ -1057,42 +935,6 @@ as item()*
     )     
 };
 
-(: TODO: could be a bit clearer ($context is always ()) :)
-declare %private function μ:unwrap-nodes($nodes as item()*, $content as item()*, $context as array(*))
-as item()* 
-{
-    for $node in $nodes
-    return
-        typeswitch ($node)
-        case element()
-        return 
-            for $cnode in $node/node()
-            return μ:apply-nodes($node, $cnode, $context)
-        case node()
-        return $node
-        default
-        return text { $node }
-};
-
-declare %private function μ:apply-nodes($node as item()*, $content as item(), $context as array(*))
-as item()* 
-{
-    typeswitch ($content)
-    case array(*) | map(*)
-    return apply($content, $context)
-    case function(*)
-    return 
-        switch (function-arity($content))
-        case 0
-        return $content()
-        default
-        return apply($content, array:join(([$node],$context)))
-    case node()
-    return $content
-    default
-    return text { $content }
-};
-
 declare %private function μ:invoke-transformer($fn as function(*), $content as item()*, $context as item()*)
 {
     if ($context instance of array(*) and array:size($context) gt 0) then
@@ -1116,6 +958,7 @@ declare %private function μ:context($context)
  :
  : This function is safe for use as a node selector.
  :)
+(:
 declare function μ:unwrap()
 as function(item()*) as item()*
 {
@@ -1132,6 +975,7 @@ as item()*
 {
     μ:unwrap()($context)
 };
+:)
 
 (:~
  : Copy nodes without any transformation.
@@ -1139,14 +983,8 @@ as item()*
 declare function μ:copy()
 as function(*)
 {
-    function($context as item()*) {
-        for $node in $context
-        return
-            typeswitch ($node)
-            case node()
-            return $node
-            default
-            return text { $node }
+    function($node as array(*), $args as array(*)?) {
+        $node
     }
 };
 
