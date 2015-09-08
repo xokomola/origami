@@ -904,7 +904,6 @@ declare function μ:seq($x as item()*)
 
 (:~
  : Generic walker function that traverses the μ-node (depth-first).
- : TODO: pre/postwalk do not work!
  :)
 declare function μ:postwalk($fn as function(*), $form as item())
 {
@@ -919,6 +918,9 @@ declare function μ:postwalk($fn as function(*), $form as item())
     return $form
 };
 
+(:~
+ : Generic walker function that traverses the μ-node (breadth-first).
+ :)
 declare function μ:prewalk($fn as function(*), $form as array(*))
 {
     let $walked := $fn($form)
@@ -935,23 +937,6 @@ declare function μ:prewalk($fn as function(*), $form as array(*))
             }
         default
         return $walked
-};
-
-declare function μ:prewalk_($fn as function(*), $form as array(*))
-{
-    array { 
-        let $walked := $fn($form)
-        return
-            if ($walked instance of array(*))
-            then
-                for $item in $walked?*
-                return 
-                    if ($item instance of array(*))
-                    then μ:prewalk($fn, $item)
-                    else $fn($item)
-            else
-                $walked        
-    }
 };
 
 (:~
