@@ -1,0 +1,61 @@
+body
+{
+  width: 800px;
+}
+
+div#header
+{
+  height: 100px;
+  width: 100%;
+  background-color: #ccc;
+}
+
+div#footer
+{
+  height: 100px;
+  width: 100%;
+  background-color: #ccc;
+}
+
+div#main
+{
+  width: 100%;
+  height: 400px;
+}
+
+div.column
+{
+  float: left;
+  height: 100%;
+}
+
+div#main div.column:nth-child(1),
+div#main div.column:nth-child(3)
+{
+  width: 20%;
+}
+
+div#main div.column:nth-child(2)
+{
+  width: 60%;
+}
+
+div#left
+{
+  background-color: #fcc;
+}
+
+div#middle
+{
+  background-color: #cfc;
+}
+
+div#right
+{
+  background-color: #ccf;
+}
+
+div#navs
+{
+  height: 400px;
+}

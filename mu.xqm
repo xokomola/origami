@@ -4,7 +4,7 @@ module namespace μ = 'http://xokomola.com/xquery/origami/mu';
 
 import module namespace u = 'http://xokomola.com/xquery/origami/utils' at 'utils.xqm'; 
 
-declare %private variable $μ:ns := 'http://xokomola.com/xquery/origami/mu';
+declare %private variable $μ:ns := μ:ns();
 
 (: TODO: combine template and snippet :)
 (:~ 
@@ -201,276 +201,156 @@ declare %private function μ:csv-normal-form($csv)
         array { $csv($i) }
 };
 
+declare function μ:table-object($table) 
+{
+    μ:object($table, μ:table-object-doc#1)    
+};
+
+(:~
+ : Returns a CSV object document builder.
+ : It converts arrays of arrays or a sequence of arrays to a table.
+ :)
+declare function μ:table-object-doc($table)
+{
+    array {'table',
+        for $row in μ:seq($table)
+        return
+            array {'tr',
+                for $cell in μ:seq($row) 
+                return
+                    array { 'td', $cell }
+            }
+    }
+};
+
 (: Parsing into μ nodes :)
 
 (:~
- : The main function for converting sequence of items that are not yet
- : μ nodes into the proper format.
- : Arrays and maps will be written into explicit nodes.
- : In most cases however constructing μ nodes is done manually as this
- : is just a data-structure.
- : This function is most useful for converting XML nodes to μ nodes.
- :
- : Note that this may return a fragment only.
+ : Convert XML nodes to a μ-document. 
  :)
-declare function μ:node($item as item())
+declare function μ:doc($items as item()*)
+as item()*
 {
-    μ:node($item, map {})
+    $items ! μ:doc-node(., map {})
 };
 
-declare function μ:node($item as item(), $rules as map(*))
+(:~
+ : Convert XML nodes to a μ-document and attaching transformation functions
+ : to some of the element nodes.
+ :)
+declare function μ:doc($items as item()*, $rules as map(*))
+as item()*
+{
+    $items ! μ:doc-node(., $rules)
+};
+
+declare %private function μ:doc-node($item as item())
+{
+    μ:doc-node($item, map {})
+};
+
+declare %private function μ:doc-node($item as item(), $rules as map(*))
 as item()?
 {
     typeswitch($item)
     
     case document-node()
-    return μ:node($item/*, $rules)
+    return μ:doc-node($item/*, $rules)
+    
+    case processing-instruction()
+    return ()
+    
+    case comment()
+    return ()
     
     case element()
     return
         array { 
             name($item), 
-            if ($item/@*) 
+            if ($item/@* or map:contains($rules, name($item))) 
             then 
                 map:merge((
-                    for $a in $item/@* except $item/@μ:node
+                    for $a in $item/@* except $item/@μ:path
                     return map:entry(name($a), data($a)),
-                    if ($item/@μ:node and map:contains($rules, string($item/@μ:node)))
-                    then map:entry('μ:handler', $rules(string($item/@μ:node)))
-                    else ()
+                    let $path := 
+                        if ($item[@μ:path])
+                        then string($item/@μ:path) 
+                        else name($item)
+                    return
+                        if (map:contains($rules, $path))
+                        then map:entry('μ:fn', $rules($path))
+                        else ()
                 ))
             else (),
-            $item/node() ! μ:node(., $rules)
+            $item/node() ! μ:doc-node(., $rules)
         }
 
+    case array(*)
+    return
+        let $tag := μ:tag($item)
+        let $atts := (μ:attributes($item),map{})[1]
+        let $content := μ:content($item)
+        let $doc-fn := $atts('μ:doc-fn')
+        return
+            if (μ:tag($item) = 'μ:object')
+            then
+                if (exists($doc-fn)) then $doc-fn($content) else ()
+            else 
+                array { $tag, $atts, $content ! μ:doc-node(., $rules) }
+        
     case text() 
     return string($item)
     
-    case xs:anyAtomicType
+    default
     return $item
-    
-    case array(*)
-    return
-        if (μ:tag($item) eq 'μ:object')
-        then
-            $item
-        else
-            array {
-                'μ:array',
-                $item?* ! μ:node(., $rules)
-            }
-            
-    case map(*)
-    return
-        array {
-            'μ:map',
-            for $k in map:keys($item)
-            return
-                [$k, $item($k) ! μ:node(., $rules)]
-        }
-        
-    default
-    return ()
 };
 
 (:~
- : Convenience function to convert a seq of items.
+ : Create a μ-node from an XDM data structure and a transformer function that
+ : will be used to transform this data structure to a valid μ-node data structure.
+ : The XDM nodes will be exempted from the normal μ-node structure.
+ : Use cases are embedding of csv/json data structures.
  :)
-declare function μ:nodes($items as item()*)
-as item()*
+declare function μ:object($xdm, $doc-fn as function(*))
+as array(*)
 {
-    $items ! μ:node(.)
+    array { 'μ:object', map { 'μ:doc-fn': $doc-fn }, $xdm }
 };
+
+(: "Serializing" :)
 
 (:~
- : Get the nested objects inside the datastructure.
+ : Converts μ-nodes to XML nodes with the default name resolver.
  :)
-declare function μ:objects($mu as item()?)
-{
-    let $inner := function($el) {
-        if (μ:tag($el) = 'μ:object')
-        then $el
-        else
-            for $item in μ:content($el)
-            where $item instance of array(*)
-            return μ:objects($item)
-    }
-    let $outer := function($seq) { $seq }
-    return
-        u:walk($inner, $outer, $mu)
-};
-
-declare %private function μ:typed-object($type as xs:string, $content as item()*, $attributes as map(xs:string, item()))
-as array(*)?
-{
-    let $attributes := map:merge(($attributes, map:entry('μ:type', $type)))
-    where count($content) gt 0
-    return
-        ['μ:object', $attributes, $content]
-};
-
-declare function μ:json-object($json-xdm as item()?)
-as array(*)?
-{
-    μ:json-object($json-xdm, map {})
-};
-
-declare function μ:json-object($json-xdm as item()?, $attributes as map(xs:string, item()))
-as array(*)?
-{
-    μ:typed-object('json', $json-xdm, $attributes)
-};
-
-declare function μ:csv-object($csv-xdm as array(*)*)
-as array(*)?
-{
-    μ:csv-object($csv-xdm, map {})
-};
-
-declare function μ:csv-object($csv-xdm as array(*)*, $attributes as map(xs:string, item()))
-as array(*)?
-{
-    μ:typed-object('csv', $csv-xdm, $attributes)
-};
-
-declare function μ:text-object($text as xs:string*)
-as array(*)?
-{
-    μ:text-object($text, map {})
-};
-
-declare function μ:text-object($text as xs:string*, $attributes as map(xs:string, item()))
-as array(*)?
-{
-    
-    μ:typed-object('text', $text, $attributes)
-};
-
-(: Object to XML transformers: provides default rendering of basic objects. :)
-(: TODO: merge this with μ:doc :) 
-declare function μ:object-doc($object as array(*))
-{
-    switch (μ:attributes($object)?('μ:type'))
-    
-    case 'text'
-    return
-        for $line in μ:content($object)
-        return
-            ['p', $line]
-            
-    case 'csv'
-    return
-        ['table',
-            for $row in μ:content($object)
-            return
-                ['tr',
-                    for $cell in $row?*
-                    return
-                        ['td', $cell]
-                ]
-        ]
-        
-    case 'json'
-    return 'JSON'
-    
-    default
-    return $object
-};
-
-(: Serializing :)
-
 declare function μ:xml($mu as item()*)
 as node()*
 {
-    μ:to-xml($mu, map {})
+    μ:to-xml($mu, μ:qname-resolver(μ:ns()), map {})
 };
 
+(:~
+ : Converts μ-nodes to XML nodes using a map of options. Currently it will
+ : only use the options 'ns' whose value must be a namespace map and 'default-ns'
+ : whose value must be a valide namespace URI.
+ :)
 declare function μ:xml($mu as item()*, $options as map(*)) 
 as node()*
 {
-    μ:to-xml($mu, $options)
-};
-
-declare function μ:json($mu as item()*)
-as xs:string
-{
-    μ:json($mu, function($name) { $name })
-};
-
-declare function μ:json($mu as item()*, $name-resolver as function(*)) 
-as xs:string
-{
-    serialize(
-        μ:to-json(if (count($mu) gt 1) then array { $mu } else $mu, $name-resolver), 
-        map { 'method': 'json' }
-    )
-};
-
-(: General :)
-
-(: TODO: prefix attribute names with @?, plus general improvement :)
-declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
-as item()*
-{
-    for $item in $mu
-    return
-        typeswitch ($item)
-        
-        case array(*)
-        return
-            let $tag := μ:tag($item)
-            let $atts := μ:attributes($item)
-            let $children := μ:content($item)
-            return
-                switch ($tag)
-                
-                case 'μ:json'
-                return μ:to-json(($atts,$children), $name-resolver)
-                
-                case 'μ:array'
-                return array { μ:to-json($children, $name-resolver) }
-                
-                case 'μ:obj'
-                return map:merge(
-                    for $child in $children
-                    return μ:to-json($children, $name-resolver)
-                )
-                
-                default
-                return map:entry($tag, μ:to-json(($atts, $children), $name-resolver))
-                
-        case map(*)
-        return 
-            map:merge(
-                map:for-each($item, 
-                    function($a,$b) { 
-                        map:entry(concat('@',$a), μ:to-json($b, $name-resolver)) }))
-                        
-        case function(*) return ()
-        
-        (: FIXME: I think this should be using to-json as well :)
-        case node() 
-        return μ:nodes($item)
-        
-        default 
-        return $item
+    μ:to-xml($mu, μ:qname-resolver(μ:ns($options?ns), $options?default-ns), $options)
 };
 
 (: TODO: namespace handling, especially to-attributes :)
-declare %private function μ:to-xml($mu as item()*, $options as map(*))
+(: TODO: default namespaces was set to XSLT μ:qname-resolver($ns-map, $ns-map?xsl) 
+         but this isn't the right approach :)
+declare %private function μ:to-xml($mu as item()*, $name-resolver as function(xs:string) as xs:QName, $options as map(*))
 as node()*
 {
-    let $ns-map := μ:ns()
-    let $name-resolver := μ:qname-resolver($ns-map, $ns-map?xsl)
     for $item in $mu
     return
         typeswitch ($item)
         
         case array(*) 
-        return 
-            if (μ:tag($item) = 'μ:object')
-            then μ:to-xml((μ:attributes($item)?xml, μ:object-doc(?))[1]($item), $name-resolver)
-            else μ:to-element($item, $name-resolver)
+        return μ:to-element($item, $name-resolver, $options)
         
         case map(*) 
         return  μ:to-attributes($item, $name-resolver)
@@ -490,25 +370,56 @@ as node()*
 
 (: TODO: need more common map manipulation functions :)
 (: TODO: change ns handling to using a map to construct them at the top (sane namespaces) :)
-declare %private function μ:to-element($mu as array(*), $name-resolver as function(*))
+(: TODO: in mu we should not get xmlns attributes so change μ:doc to take them off :)
+declare %private function μ:to-element($mu as array(*), $name-resolver as function(*), $options)
 as item()*
 {
     let $tag := μ:tag($mu)
-    let $atts := μ:attributes($mu)
-    let $ns-atts := map:merge((map:for-each($atts, function($k, $v) { if (starts-with($k, 'xmlns:')) then map:entry($k, $v) else () })))
-    let $atts := map:merge((map:for-each($atts, function($k, $v) { if (starts-with($k, 'xmlns:')) then () else map:entry($k, $v) })))
-    let $content := μ:content($mu)
-    where $tag
-    return
-        element { $name-resolver($tag) } {
-            namespace μ { $μ:ns },
-            μ:to-attributes($atts, $name-resolver),
-            fold-left($content, (),
-                function($n, $i) {
-                    ($n, μ:to-xml($i, $name-resolver))
+    let $atts := 
+        map:merge((
+            map:for-each(
+                (μ:attributes($mu),map{})[1], 
+                function($k, $v) { 
+                    if (starts-with($k, 'xmlns:')) 
+                    then () 
+                    else map:entry($k, $v) 
                 }
             )
-        }
+        ))
+    let $content := μ:content($mu)
+    let $fn := $atts('μ:fn')
+    where $tag
+    return
+        (: TODO: args and att function checking :)
+        typeswitch ($fn)
+        case array(*)
+        return $fn
+        case map(*)
+        return $fn
+        case function(*)
+        (: need to call to-xml with fn removed from fn :)
+        return μ:to-xml(apply($atts('μ:fn'), [[$tag, map:remove($atts,'μ:fn'), $content]]), $name-resolver, $options)
+        default
+        return     
+            element { $name-resolver($tag) } {
+                (: TODO: this shouldn't be in here but was here for compile template, move it there :)
+                namespace μ { 'http://xokomola.com/xquery/origami/mu' },
+                if ($options?ns instance of map(*))
+                then
+                    for $prefix in map:keys($options?ns)
+                    let $uri := $options?ns($prefix)
+                    where $prefix != '' and $uri != ''
+                    return
+                        namespace { $prefix } { $uri }
+                else
+                    (),
+                μ:to-attributes($atts, $name-resolver),
+                fold-left($content, (),
+                    function($n, $i) {
+                        ($n, μ:to-xml($i, $name-resolver, $options))
+                    }
+                )
+            }
 };
 
 (: NOTE: another reason why we should avoid names with :, conversion to json is easier? Maybe also makes JSON-LD easier :)
@@ -517,60 +428,183 @@ as attribute()*
 {
     map:for-each($mu, 
         function($k,$v) {
-            (: should not add default ns to attributes if name has no prefix :)
-            attribute { if (contains($k,':')) then $name-resolver($k) else $k } { 
-                data(
-                    typeswitch ($v)
-                    case array(*) return $v
-                    case map(*) return $v
-                    case function(*) return ()
-                    default return $v
-                )
-            }
+            if (not(starts-with($k,'μ:')))
+            then
+                (: should not add default ns to attributes if name has no prefix :)
+                attribute { if (contains($k,':')) then $name-resolver($k) else $k } { 
+                    data(
+                        typeswitch ($v)
+                        case array(*) return $v
+                        case map(*) return $v
+                        case function(*) return ()
+                        default return $v
+                    )
+                }
+            else
+                ()
         })
 };
 
+(:~
+ : Converts μ-nodes to JSON with the default name resolver.
+ :)
+declare function μ:json($mu as item()*)
+as xs:string
+{
+    μ:json($mu, function($name) { $name })
+};
+
+(:~
+ : Converts μ-nodes to JSON using a name-resolver.
+ :)
+(: TODO: probably should be symmetrical with μ:xml (options) :)
+declare function μ:json($mu as item()*, $name-resolver as function(*)) 
+as xs:string
+{
+    serialize(
+        μ:to-json(if (count($mu) gt 1) then array { $mu } else $mu, $name-resolver), 
+        map { 'method': 'json' }
+    )
+};
+
+(: TODO: prefix attribute names with @?, plus general improvement :)
+declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
+as item()*
+{
+    for $item in $mu
+    return
+        typeswitch ($item)
+        
+        case array(*)
+        return
+            let $tag := μ:tag($item)
+            let $atts := μ:attributes($item)
+            let $children := μ:content($item)
+            return
+                map:entry($tag, μ:to-json(($atts, $children), $name-resolver))
+                
+        case map(*)
+        return 
+            map:merge(
+                map:for-each($item, 
+                    function($a,$b) { 
+                        map:entry(concat('@',$a), μ:to-json($b, $name-resolver)) }))
+                        
+        case function(*) return ()
+        
+        (: FIXME: I think this should be using to-json as well :)
+        case node() 
+        return μ:doc($item)
+        
+        default 
+        return $item
+};
+
+(: Namespace support :)
+
+(:~
+ : Returns a name resolver function with the HTML namespace as default.
+ :)
 declare function μ:html-resolver()
 as function(xs:string) as xs:QName
 {
     μ:qname(?, μ:ns(), 'http://www.w3.org/1999/xhtml')
 };
 
+(:~
+ : Returns a name resolver function from the default namespace map (nsmap.xml).
+ :)
 declare function μ:qname-resolver()
 as function(xs:string) as xs:QName
 {
-    μ:qname(?, μ:ns(), ())
+    μ:qname(?, $μ:ns, ())
 };
 
+(:~
+ : Returns a name resolver function from the namespace map passed as it's argument.
+ :)
 declare function μ:qname-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
     μ:qname(?, $ns-map, ())
 };
 
-declare function μ:qname-resolver($ns-map as map(*), $default-ns as xs:string)
+(:~
+ : Returns a name resolver function from the namespace map passed as it's first
+ : argument and using the second argument as the default namespace.
+ :)
+declare function μ:qname-resolver($ns-map as map(*), $default-ns as xs:string?)
 as function(xs:string) as xs:QName
 {
     μ:qname(?, $ns-map, $default-ns)
 };
 
 (:~
- : As XQuery doesn't allow access to namespace nodes (as XSLT does)
- : construct them indirectly via QName#2.
+ : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1] 
+ : namespace usage. The resulting map will contain a prefix/URI entry for each
+ : used prefix but it will not re-binding a prefix to a different URI at 
+ : descendant nodes. Unused prefixes are dropped.
+ : The result can be used when serializing back to XML but results may be not
+ : what you expect if you pass insane XML fragments.
+ :
+ : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
  :)
+declare function μ:ns-map-from-nodes($nodes as node()*)
+as map(*)
+{
+    map:merge((
+        for $node in reverse($nodes/descendant-or-self::*)
+        let $qname := node-name($node)
+        return (
+            for $att in $node/@*
+            let $qname := node-name($att)
+            return
+                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
+            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
+        )
+    ))
+};  
 
+(:~
+ : Get a namespace map from XML nodes. Will throw an exception with insane
+ : namespace usage. Unused prefixes will not be dropped. However, unused prefixes
+ : cannot be added to an XML fragment due to a limitation in current XPath [1].
+ : In Origami XML may be built from dynamic parts which means that when a prefix
+ : isn't used in the $nodes it may still be used when serializing to XML.
+ :
+ : [1] http://thread.gmane.org/gmane.text.xml.xsl.general.mulberrytech/54436
+ :)
+declare function μ:sane-ns-map-from-nodes($nodes as node()*)
+{
+    'TODO'
+};
+
+(:~
+ : Returns a QName in "no namespace".
+ : Throws a dynamic error FOCA0002 with a prefixed name.
+ :)
 declare function μ:qname($name as xs:string)
 as xs:QName
 {
     QName((), $name)
 };
 
+(:~
+ : Returns a QName from a string taking the namespace URI from the
+ : namespace map passed as it's second argument.
+ : Throws a dynamic error FOCA0002 with a name which is not in correct lexical form.
+ : Returns a QName in a made-up namespace URI if the prefix is not defined in the 
+ : namespace map.
+ :)
 declare function μ:qname($name as xs:string, $ns-map as map(*))
 as xs:QName
 {
     μ:qname($name, $ns-map, ())
 };
 
+(:~
+ : Same as μ:qname#2 but uses a third argument to specify a default namespace URI.
+ :)
 declare function μ:qname($name as xs:string, $ns-map as map(*), $default-ns as xs:string?)
 as xs:QName
 {
@@ -578,7 +612,7 @@ as xs:QName
     then
         let $prefix := substring-before($name,':')
         let $local := substring-after($name, ':')
-        let $ns := $ns-map($prefix)
+        let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
         return
             if ($ns = $default-ns) 
             then QName($ns, $local)
@@ -589,37 +623,41 @@ as xs:QName
         else QName((), $name)
 };
 
+(:~
+ : Builds a namespace map from the default namespace map provided in the
+ : XML file nsmap.xml.
+ :)
 declare function μ:ns()
 as map(*)
 {
-    μ:ns(map {})
+    μ:ns(())
 };
 
-declare function μ:ns($ns-map as map(*))
+(:~
+ : Builds a namespace map from the default namespace map provided in the
+ : XML file nsmap.xml and adding extra namespace mappings from a map provided
+ : as the argument. The latter mappings will override existing mappings in the
+ : default namespace map.
+ :)
+declare function μ:ns($ns-map as map(*)?)
 as map(*)
 {
     map:merge((
-        $ns-map,
+        ($ns-map, map {})[1],
         for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
         return
             map:entry(string($ns/@prefix), string($ns/@uri))
     ))
 };
 
-declare function μ:mix($mu as array(*)?) 
-as array(*)?
-{
-    if (empty($mu)) 
-    then ()
-    else [(), $mu]
-};
+(: μ-node information :)
 
 declare function μ:head($mu as array(*)?)
 as item()*
 {
-    if (empty($mu)) 
-    then ()
-    else array:head($mu)
+    if (exists($mu)) 
+    then array:head($mu)
+    else ()
 };
 
 declare function μ:tail($mu as array(*)?)
@@ -652,9 +690,9 @@ as item()*
 declare function μ:attributes($mu as array(*)?)
 as map(*)?
 {
-    if (array:size($mu) gt 1 and $mu(2) instance of map(*)) 
-    then $mu(2) 
-    else map {}
+    if (array:size($mu) gt 1 and $mu?2 instance of map(*)) 
+    then $mu?2 
+    else ()
 };
 
 (:~
@@ -665,6 +703,8 @@ as item()*
 {
     count(μ:content($mu))
 };
+
+(: Origami templating :)
 
 (:~
  : Create a template using a node sequence and a sequence of
@@ -683,13 +723,10 @@ as item()*
  :)
 (: TODO: can't we simplify on always having an on array arg function as context corresp. to apply :)
 
-declare function μ:template($template as item(), $rules as array(*)+)
-as function(*)
+declare function μ:template($template as item(), $rules as array(*)*)
+as item()*
 {
-    let $compiled-rules := μ:compile-rules($rules)  
-    let $compiled-template := μ:compile-template($template, $compiled-rules)
-    return
-        function($args) { μ:apply($compiled-template, $args) }
+    μ:compile-template($template, μ:compile-rules($rules))
 };
 
 (:~
@@ -699,13 +736,11 @@ as function(*)
  : are no template rules the template will not accept context
  : data.
  :)
-declare function μ:snippet($template as item(), $rules as array(*)+)
-as function(*)
+(: TODO: consider naming this fragment :)
+declare function μ:snippet($template as item(), $rules as array(*)*)
+as item()*
 {
-    let $compiled-rules := μ:compile-rules($rules)  
-    let $compiled-template := μ:compile-snippet($template, $compiled-rules)
-    return
-        function($args) { μ:apply($compiled-template, $args) }
+    μ:compile-snippet($template, μ:compile-rules($rules))
 };
 
 
@@ -725,40 +760,76 @@ as map(*)
 declare function μ:compile-template($template as item(), $rules as map(*))
 as array(*)?
 {
-    μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules, map { 'extract': false() })), $rules)
+    let $template := μ:xml($template)
+    return
+        μ:doc(
+            xslt:transform(
+                $template, 
+                μ:compile-transformer(
+                    $rules, 
+                    map { 
+                        'extract': false(),
+                        'ns': μ:ns-map-from-nodes($template)
+                    }
+                )
+            ), 
+            $rules
+        )
 };
 
+(: TODO: consider naming this fragment :)
+(: TODO: implement same changes as compile-transformer :)
 declare function μ:compile-snippet($template as item(), $rules as map(*))
 as array(*)*
 {
-    μ:content(μ:node(xslt:transform(μ:xml($template), μ:compile-transformer($rules, map { 'extract': true() })), $rules))
+    μ:content(
+        μ:doc(
+            xslt:transform(
+                μ:xml($template), 
+                μ:compile-transformer($rules, map { 'extract': true() })
+            ),
+            $rules
+        )
+    )
+};
+
+declare function μ:compile-transformer($rules as map(*)?)
+as element(*)
+{
+    μ:compile-transformer($rules, map {})
 };
 
 (: TODO: if I do ns handling differently we could write without the xls: prefix :)
 declare function μ:compile-transformer($rules as map(*)?, $options as map(*))
 as element(*)
 {
-    μ:xml(
-        ['stylesheet', map { 'version': '1.0' },
-            ['output', map { 'method': 'xml' }],
-            if ($options?extract) 
-            then (
-                ['template', map { 'match': '/' }, ['μ:seq', ['apply-templates']]],
-                ['template', map { 'match': 'text()' }]
-            )
-            else 
-                μ:identity-transform(),
-            for $selector in map:keys($rules)
-            return
-                ['template', map { 'match': $selector },
-                    ['copy',
-                        ['copy-of', map { 'select': '@*' }],
-                        ['attribute', map { 'name': 'μ:node' }, $selector],
-                        ['apply-templates', map { 'select': 'node()' }]
+    let $ns := $options?ns
+    return
+        μ:xml(
+            ['stylesheet', 
+                map:merge((
+                    map:entry('version', '1.0')
+                )),
+                ['output', map { 'method': 'xml' }],
+                if ($options?extract) 
+                then (
+                    ['template', map { 'match': '/' }, ['μ:seq', ['apply-templates']]],
+                    ['template', map { 'match': 'text()' }]
+                )
+                else 
+                    μ:identity-transform(),
+                for $selector in map:keys(($rules, map {})[1])
+                return
+                    ['template', map { 'match': $selector },
+                        ['copy',
+                            ['copy-of', map { 'select': '@*' }],
+                            ['attribute', map { 'name': 'μ:path' }, $selector],
+                            ['apply-templates', map { 'select': 'node()' }]
+                        ]
                     ]
-                ]
-        ]
-    )
+            ],
+            map { 'ns': $ns, 'default-ns': 'http://www.w3.org/1999/XSL/Transform' }
+        )
 };
 
 declare function μ:identity-transform()
@@ -781,11 +852,11 @@ as item()*
         case array(*)
         return
             let $tag := μ:tag($node)
-            let $atts := μ:attributes($node)
-            let $has-handler := map:contains($atts, 'μ:handler')
-            let $handler := $atts('μ:handler')
+            let $atts := (μ:attributes($node), map {})[1]
+            let $has-handler := map:contains($atts, 'μ:fn')
+            let $handler := $atts('μ:fn')
             let $content := μ:content($node)
-            let $atts := u:filter-keys($atts,'μ:handler')
+            let $atts := map:remove($atts,'μ:fn')
             return
                 typeswitch ($handler)
                 case empty-sequence() 
@@ -803,19 +874,84 @@ as item()*
                 case array(*) return $handler
                 case map(*) return $handler
                 case function(*)
-                return 
-                    μ:apply(
-                        $handler(
-                            array { 
-                                $tag, 
-                                if (map:size($atts) gt 0) then $atts else (), 
-                                $content 
-                            }, 
-                            $args
-                        ), $args)
+                return
+                    if (exists($args))
+                    then μ:apply(apply($handler, [[$tag, $atts, $content], $args]), $args)
+                    else μ:apply(apply($handler, [[$tag, $atts, $content]]), $args)
+                    
                 default return $handler
+                
+        case function(*)
+        return apply($node, [$args]) 
+        
         default
         return $node
+};
+
+(: μ-node transformers :)
+
+declare function μ:identity($x) { $x };
+
+(:~
+ : Returns a sequence even if the argument is an array.
+ :)
+declare function μ:seq($x as item()*) 
+{ 
+    if ($x instance of array(*))
+    then $x?*
+    else $x
+};
+
+(:~
+ : Generic walker function that traverses the μ-node (depth-first).
+ : TODO: pre/postwalk do not work!
+ :)
+declare function μ:postwalk($fn as function(*), $form as item())
+{
+    typeswitch ($form)
+    case array(*)
+    return
+        $fn(array { 
+            for $item in $form?*
+            return μ:postwalk($fn, $item)
+        })
+    default
+    return $form
+};
+
+declare function μ:prewalk($fn as function(*), $form as array(*))
+{
+    let $walked := $fn($form)
+    return
+        typeswitch ($walked)
+        case array(*)
+        return
+            array { 
+                for $item in $walked?*
+                return 
+                    if ($item instance of array(*))
+                    then μ:prewalk($fn, $item)
+                    else $item
+            }
+        default
+        return $walked
+};
+
+declare function μ:prewalk_($fn as function(*), $form as array(*))
+{
+    array { 
+        let $walked := $fn($form)
+        return
+            if ($walked instance of array(*))
+            then
+                for $item in $walked?*
+                return 
+                    if ($item instance of array(*))
+                    then μ:prewalk($fn, $item)
+                    else $fn($item)
+            else
+                $walked        
+    }
 };
 
 (:~

@@ -5,67 +5,151 @@ xquery version "3.1";
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
 
-(:
- : A datastructure with functions can be used
- : as a template with the μ:apply function.
- :)
-declare variable $ex:list :=
-  ['ul', function($seq) {
-    for $item in $seq
-    return array:append(['li'], $item)
-  }];
+(: Example 1 :)
 
-(: 
- : In mixed content an attributes map is not allowed.
- : Only values will be used as text nodes.
- : TODO: attribute is added as text() node.
- :)
-declare function ex:list-template() 
+declare function ex:list-template-traditional() 
 {
-  μ:apply($ex:list, (
-     'item 1', 
-     [(), map {'class': 'foo'}, 'item ', ['b', '2']], 
-     'item 3'
-  ))
+    let $groceries := ('Apples', 'Bananas', 'Pears')
+    let $template :=   
+        function($items) {
+            <ul class="groceries">{ 
+                for $item in $items
+                return 
+                    <li>{ $item }</li>
+            }</ul>
+        }
+    return $template($groceries)
 };
 
-declare %unit:test function ex:test-list-template()
+declare %unit:test function ex:test-list-template-traditional()
 {
     unit:assert-equals(
-        ex:list-template(),
-        ['ul', (
-          ['li', 'item 1'],
-          ['li', map {'class': 'foo'}, 'item ', ['b', '2']],
-          ['li', 'item 3']
-        )]
+        ex:list-template-traditional(),
+        <ul class="groceries">
+            <li>Apples</li>
+            <li>Bananas</li>
+            <li>Pears</li>
+        </ul>
     )
 };
 
-(:
- : Mixed content function. 
- : TODO: does not work
- :)
-declare function ex:list-template2() 
+(: Example 2 :)
+
+declare function ex:list-template-pure() 
 {
-  μ:apply($ex:list, (
-    'item 1', 
-    μ:mix(('item ', ['b', '2'])),
-    'item 3'
-  ))
+    let $groceries := ('Apples', 'Bananas', 'Pears')
+    let $template :=   
+        function($items) {
+            ['ul', map { 'class': 'groceries' }, 
+                for $item in $items
+                return 
+                    ['li', $item]
+            ]
+        }
+    return o:xml($template($groceries))
+};
+
+declare %unit:test function ex:test-list-template-pure()
+{
+    unit:assert-equals(
+        ex:list-template-pure(),
+        <ul class="groceries">
+            <li>Apples</li>
+            <li>Bananas</li>
+            <li>Pears</li>
+        </ul>
+    )
+};
+
+(: Example 3 :)
+
+declare function ex:list-template-apply() 
+{
+    let $groceries := ('Apples', 'Bananas', 'Pears')
+    let $template :=   
+        ['ul', map { 'class': 'groceries' },  
+            function($items) {
+                for $item in $items
+                return 
+                    ['li', $item]
+            }
+        ]
+    return o:xml(o:apply($template, $groceries))
+};
+
+declare %unit:test function ex:test-list-template-apply()
+{
+    unit:assert-equals(
+        ex:list-template-apply(),
+        <ul class="groceries">
+            <li>Apples</li>
+            <li>Bananas</li>
+            <li>Pears</li>
+        </ul>
+    )
+};
+
+(: Example 4 :)
+
+declare function ex:list-template-dsl()
+{
+    let $groceries := ('Apples', 'Bananas', 'Pears')
+    let $list := 
+        ex:template(
+            <ul>
+            <li ex:for-each=".">item 1</li>
+            <li ex:remove=".">item 2</li>
+            <li ex:remove=".">item 3</li>
+            </ul>
+        )
+    return o:apply($list, $groceries)
+};
+
+declare function ex:for-each($nodes, $items) {
+    for $item in $items
+    return
+        (: currently o:replace isn't working :)
+        (: o:replace($nodes, $item) :)
+        ['li', $item]
+};
+
+declare function ex:template($xml) {
+    o:template(
+        $xml,
+        (
+            ['li[@ex:for-each]', ex:for-each#2],
+            ['li[@ex:remove]', ()]
+        )
+    )
+};
+
+(: TODO: mu namespace shouldn't be here, see comment in code :)
+declare %unit:test function ex:test-list-template-dsl()
+{
+    unit:assert-equals(
+        o:xml(ex:list-template-dsl()),
+        <ul xmlns:μ="http://xokomola.com/xquery/origami/mu">
+            <li>Apples</li>
+            <li>Bananas</li>
+            <li>Pears</li>
+        </ul>
+    )  
 };
 
 (:
  : Composing templates.
+ :
+ : Free functions do not receive the node as automatic first arg.
  :)
 declare variable $ex:list-item :=
-  ['li', map {'class': 'calc'}, function($a,$b) { $a * $b }];
+  ['li', map {'class': 'calc'}, function($pair) { sum($pair) }];
   
 declare variable $ex:ol-list :=
   ['ol', function($seq) {
     for $pair in $seq
-    return μ:apply($ex:list-item, $pair)      
+    return o:apply($ex:list-item, $pair)      
   }];
 
 (:
@@ -74,48 +158,17 @@ declare variable $ex:ol-list :=
  :)
 declare function ex:list-template3() 
 {
-  μ:apply($ex:ol-list, ([1,2],[3,4],[5,6]))
+    o:apply($ex:ol-list, ([1,2],[3,4],[5,6]))
 };
 
-(:
- : Slightly different, pass variable arguments for sum. 
- : TODO: same problem with attributes.
- :)
-declare variable $ex:list-item2 :=
-  ['li', map {'class': 'calc'}, sum(?)];
-
-declare variable $ex:ol-list2 :=
-  ['ol', function($seq) {
-    for $numbers in $seq
-    return μ:apply($ex:list-item2, $numbers)      
-  }];
-
-(:
- : Slightly more awkward. Fix this!
- :)
-declare function ex:list-template4() 
+declare %unit:test function ex:test-list-template3()
 {
-  μ:apply($ex:ol-list, ([(1,2,10,100)],[(3)],[(5,6)]))
-};
-
-(:
- : Load a CSV and display it as a table. 
- :)
-declare function ex:table-from-csv($name)
-{
-  μ:read-csv(concat(file:base-dir(), 'csv/', $name))
-};
-
-declare function ex:xml-table-from-csv()
-{
-  μ:xml(μ:csv-object(ex:table-from-csv('countries.csv')))
-};
-
-declare function ex:csv-objects()
-{
-  let $csv := μ:parse-csv(("A,B,C", "10,20,30", "1,2,3","1.1,1.2,1.3"))
-  let $csv2 := (['A', ['b', 'B'], [(), 'hello ', ['i', 'C']]], [10,20,30])
-  let $tpl := ['div', map { 'class': 'table' }, μ:csv-object($csv2)]
-  return
-    μ:xml($tpl)  
+    unit:assert-equals(
+        o:xml(ex:list-template3()),
+        <ol xmlns:μ="http://xokomola.com/xquery/origami/mu">
+            <li class="calc">3</li>
+            <li class="calc">7</li>
+            <li class="calc">11</li>
+        </ol>
+    )
 };

@@ -1,12 +1,9 @@
 <nsmap>
-    <ns prefix="μ" uri="http://xokomola.com/xquery/origami/μ"/>
-    <ns prefix="mu" uri="http://xokomola.com/xquery/origami/μ"/>
-    <ns prefix="ω" uri="http://xokomola.com/xquery/origami/ω"/>
-    <ns prefix="om" uri="http://xokomola.com/xquery/origami/ω"/>
-    <ns prefix="λ" uri="http://xokomola.com/xquery/origami/λ"/>
-    <ns prefix="xf" uri="http://xokomola.com/xquery/origami/λ"/>
-    <ns prefix="α" uri="http://xokomola.com/xquery/origami-data/α"/>
-    <ns prefix="ld" uri="http://xokomola.com/xquery/origami-data/α"/>
+    <ns prefix="μ" uri="http://xokomola.com/xquery/origami/mu"/>
+    <ns prefix="mu" uri="http://xokomola.com/xquery/origami/mu"/>
+    <ns prefix="js" uri="http://www.w3.org/2013/XSL/json"/>
+    <ns prefix="json" uri="http://www.w3.org/2013/XSL/json"/>
+    <ns prefix="csv" uri="http://example.org/linked-csv"/>
     <ns prefix="html" uri="http://www.w3.org/1999/xhtml"/>
     <ns prefix="h" uri="http://www.w3.org/1999/xhtml"/>
     <ns prefix="atom" uri="http://www.w3.org/2005/Atom"/>

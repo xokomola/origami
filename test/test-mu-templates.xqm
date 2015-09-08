@@ -8,10 +8,10 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace μ = 'http://xokomola.com/xquery/origami/mu'
     at '../mu.xqm';
 
-declare %unit:test function test:template-identity-function() 
+declare %unit:test %unit:ignore function test:template-identity-function() 
 {
     unit:assert-equals(
-        μ:template(<p><x y="10"/></p>)(),
+        μ:template(<p><x y="10"/></p>, ())(),
         ['p', ['x', map { 'y': '10' }]],
         'Identity transform'),
       
@@ -53,47 +53,30 @@ declare %unit:test function test:template-identity-function()
  : A context function will typecheck context arguments and return
  : the context that will be available in the template rules ($c).
  :)
-declare %unit:test function test:template-context-function() 
+declare %unit:test %unit:ignore
+function test:template-context-function() 
 {
     unit:assert-equals(
         μ:template(
             <p><x y="10"/></p>, 
-            ['p', function($n,$c) { <foo>{ $c }</foo> }],
-            function($a as xs:integer,$b as xs:integer) { $a * $b })(2,6),
+            ['p', function($n,$c) { <foo>{ $c }</foo> }]
+        )(12),
         <foo>12</foo>,
-        'Arity 2 context function that calculates a context value')
+        "One argument template")
 };
 
 (:~
  : A context function will check context data and throw an error when
  : the arguments are not compatible with the context function signature.
  :)
-declare %unit:test("expected", "err:XPTY0004") 
+declare %unit:test("expected", "err:XPTY0004") %unit:ignore
 function test:template-context-function-argtype-error() 
 {
     unit:assert-equals(
         μ:template(
             <p><x y="10"/></p>, 
-            ['p', function($n,$c) { <foo>{ $c }</foo> }],
-            function($a as xs:integer,$b as xs:integer) { $a * $b })('4',6),
+            ['p', function($n,$c as xs:integer) { <foo>{ $c }</foo> }]
+        )('12'),
         <foo>12</foo>,
-        'Should raise: Cannot promote xs:string to xs:integer: "4".')
+        "Typed argument")
 };
-
-(:~
- : A template only supports a context function with up to 6 arguments.
- : If you need more consider using a different data type such as a map
- : array or node sequence.
- :)
-declare %unit:test("expected", "err:XPDY0002") 
-function test:template-context-function-too-many-arguments() 
-{
-    unit:assert-equals(
-        μ:template(
-            <p><x y="10"/></p>, 
-            ['p', function($n,$c) { <foo>{ $c }</foo> }],
-            function($a,$b,$c,$d,$e,$f,$g) { $a * $b })(2,6),
-        <foo>12</foo>,
-        'More than 6 arguments are not accepted')
-};
-
