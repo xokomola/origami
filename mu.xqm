@@ -318,8 +318,7 @@ as item()*
             map:for-each(
                 (μ:attributes($mu),map{})[1], 
                 function($k, $v) { 
-                    if (starts-with($k, 'xmlns:')) 
-                    then () 
+                    if (starts-with($k, 'xmlns:')) then () 
                     else map:entry($k, $v) 
                 }
             )
@@ -330,15 +329,12 @@ as item()*
     return
         (: TODO: args and att function checking :)
         typeswitch ($fn)
-        case array(*)
-        return $fn
-        case map(*)
-        return $fn
-        case function(*)
-        (: need to call to-xml with fn removed from fn :)
-        return μ:to-xml(apply($atts('μ:fn'), [[$tag, map:remove($atts,'μ:fn'), $content]]), $name-resolver, $options)
-        default
-        return     
+        case array(*) return $fn
+        case map(*) return $fn
+        case function(*) return
+            (: need to call to-xml with fn removed from fn :)
+            μ:to-xml(apply($atts('μ:fn'), [[$tag, map:remove($atts,'μ:fn'), $content]]), $name-resolver, $options)
+        default return     
             element { $name-resolver($tag) } {
                 (: TODO: this shouldn't be in here but was here for compile template, move it there :)
                 namespace μ { 'http://xokomola.com/xquery/origami/mu' },
@@ -366,8 +362,7 @@ as attribute()*
 {
     map:for-each($mu, 
         function($k,$v) {
-            if (starts-with($k,'μ:'))
-            then ()
+            if (starts-with($k,'μ:')) then ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
                 attribute { if (contains($k,':')) then $name-resolver($k) else $k } { 
@@ -412,16 +407,14 @@ as item()*
     $mu ! (
         typeswitch (.)
         
-        case array(*)
-        return
+        case array(*) return
             let $tag := μ:tag(.)
             let $atts := μ:attributes(.)
             let $children := μ:content(.)
             return
                 map:entry($tag, μ:to-json(($atts, $children), $name-resolver))
                 
-        case map(*)
-        return 
+        case map(*) return 
             map:merge(
                 map:for-each(., 
                     function($a,$b) { 
@@ -772,16 +765,11 @@ as array(*)+
 declare %private function μ:data($node as item(), $args as array(*)?)
 {
     typeswitch ((μ:attributes($node), map {})[1]('μ:data'))
-    case empty-sequence()
-    return $args
-    case $map as map(*)
-    return $map
-    case $array as array(*)
-    return $array
-    case $fn as function(*)
-    return apply($fn, $args)
-    default $data
-    return $data
+    case empty-sequence() return $args
+    case $map as map(*) return $map
+    case $array as array(*) return $array
+    case $fn as function(*) return apply($fn, $args)
+    default $data return $data
 };
 
 declare function μ:apply-attributes($atts as map(*)?, $data as array(*)?)
@@ -793,10 +781,8 @@ declare function μ:apply-attributes($atts as map(*)?, $data as array(*)?)
             map:entry(
                 $key,
                 typeswitch($atts($key))
-                case $fn as function(*)
-                return apply($fn,$data)
-                default $value
-                return $value
+                case $fn as function(*) return apply($fn,$data)
+                default $value return $value
             )
     ))
 };
@@ -822,12 +808,9 @@ as item()*
             let $atts := μ:apply-attributes($atts, $data)
             return
                 typeswitch ($handler)
-                case empty-sequence() 
-                return
+                case empty-sequence() return
                     (: This can mean that the handler is (), or that there is no handler :)
-                    if ($has-handler)
-                    then
-                        ()
+                    if ($has-handler) then ()
                     else
                         array { 
                             $tag, 
@@ -836,17 +819,13 @@ as item()*
                         }
                 case array(*) return $handler
                 case map(*) return $handler
-                case function(*)
-                return
+                case function(*) return
                     (: TODO: probably array { ... } is better here :)
                     if (exists($data))
                     then μ:apply(apply($handler, [[$tag, $atts, $content], $data]), $data)
                     else μ:apply(apply($handler, [[$tag, $atts, $content]]), $data)
-                    
                 default return $handler
-                
         case function(*) return μ:apply(apply(., $args), $args) 
-        
         default return .
     )
 };
@@ -869,14 +848,12 @@ declare function μ:seq($x as item()*)
 declare function μ:postwalk($fn as function(*), $form as item())
 {
     typeswitch ($form)
-    case array(*)
-    return
+    case array(*) return
         $fn(array { 
             for $item in $form?*
             return μ:postwalk($fn, $item)
         })
-    default
-    return $form
+    default return $form
 };
 
 (:~
@@ -887,8 +864,7 @@ declare function μ:prewalk($fn as function(*), $form as array(*))
     let $walked := $fn($form)
     return
         typeswitch ($walked)
-        case array(*)
-        return
+        case array(*) return
             array { 
                 for $item in $walked?*
                 return 
@@ -896,8 +872,7 @@ declare function μ:prewalk($fn as function(*), $form as array(*))
                     then μ:prewalk($fn, $item)
                     else $item
             }
-        default
-        return $walked
+        default return $walked
 };
 
 (:~
@@ -965,10 +940,8 @@ as function(item()*) as item()*
     function($content as item()*) {
         $content ! (
             typeswitch(.)
-            case array(*)
-            return μ:content(.)
-            default
-            return .
+            case array(*) return μ:content(.)
+            default return .
         )
     }    
 };
@@ -1153,9 +1126,7 @@ as function(item()*) as item()*
             map:merge((
                 map:for-each((μ:attributes($node), map {})[1], 
                     function($k,$v) {
-                        if ($k = $remove-atts)
-                        then ()
-                        else map:entry($k,$v)
+                        if ($k = $remove-atts) then () else map:entry($k,$v)
                     }
                 )
             ))
@@ -1271,9 +1242,7 @@ as function(item()*) as item()*
 {
     function($node as array(*)) {
         let $new-name :=
-            if ($name instance of map(*))
-            then $name(μ:tag($node))  
-            else $name
+            if ($name instance of map(*)) then $name(μ:tag($node)) else $name
         return
             if ($new-name)
             then 
