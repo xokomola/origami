@@ -177,13 +177,7 @@ declare %unit:test("expected", "err:FOUT1190") function test:read-text-encoding-
 (: =========== XML =========== :)
 
 declare %unit:test function test:read-xml()
-{
-    unit:assert-equals(
-        μ:read-xml(()),
-        (),
-        "Empty $uri argument"
-    ),
-    
+{    
     unit:assert-equals(
         μ:read-xml(test:xml('test001.xml')),
         document { <μ:foo xmlns:μ="http://xokomola.com/xquery/origami/mu"><bar/></μ:foo> },
@@ -192,13 +186,7 @@ declare %unit:test function test:read-xml()
 };
 
 declare %unit:test function test:read-xml-fetch()
-{
-    unit:assert-equals(
-        μ:read-xml((), map { 'foo': 'bar' }),
-        (),
-        "Empty $uri arg"
-    ),
-    
+{    
     unit:assert-equals(
         μ:read-xml(test:xml('test001.xml'), map { 'foo': 'bar' }),
         document { <μ:foo xmlns:μ="http://xokomola.com/xquery/origami/mu"><bar/></μ:foo> },
@@ -482,18 +470,6 @@ declare %unit:test function test:parse-csv()
 
 declare %unit:test function test:read-json() 
 {
-    unit:assert-equals(
-        μ:read-json(()),
-        (),
-        "Empty $uri argument"
-    ),
-
-    unit:assert-equals(
-        μ:read-json((), map { 'foo': 'bar'}),
-        (),
-        "Empty $uri argument and unknown map options"
-    ),
-
     unit:assert-equals(
         μ:read-json(test:json('test001.json')),
         "foo",

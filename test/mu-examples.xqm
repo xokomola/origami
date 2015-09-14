@@ -31,7 +31,8 @@ declare %unit:test function ex:test-list-template-traditional()
             <li>Apples</li>
             <li>Bananas</li>
             <li>Pears</li>
-        </ul>
+        </ul>,
+        'Traditional template'
     )
 };
 
@@ -59,7 +60,8 @@ declare %unit:test function ex:test-list-template-pure()
             <li>Apples</li>
             <li>Bananas</li>
             <li>Pears</li>
-        </ul>
+        </ul>,
+        'Pure code template'
     )
 };
 
@@ -67,7 +69,8 @@ declare %unit:test function ex:test-list-template-pure()
 
 declare function ex:list-template-apply() 
 {
-    let $groceries := ('Apples', 'Bananas', 'Pears')
+    (: TODO: to pass this you must wrap it like this! Not ideal. :)
+    let $groceries := [('Apples', 'Bananas', 'Pears')]
     let $template :=   
         ['ul', map { 'class': 'groceries' },  
             function($items) {
@@ -87,7 +90,8 @@ declare %unit:test function ex:test-list-template-apply()
             <li>Apples</li>
             <li>Bananas</li>
             <li>Pears</li>
-        </ul>
+        </ul>,
+        'Apply template'
     )
 };
 
@@ -95,13 +99,14 @@ declare %unit:test function ex:test-list-template-apply()
 
 declare function ex:list-template-dsl()
 {
-    let $groceries := ('Apples', 'Bananas', 'Pears')
+    (: TODO: It's hard to explain why here one array is enough :)
+    let $groceries := [('Apples', 'Bananas', 'Pears')]
     let $list := 
         ex:template(
             <ul>
-            <li ex:for-each=".">item 1</li>
-            <li ex:remove=".">item 2</li>
-            <li ex:remove=".">item 3</li>
+                <li ex:for-each=".">item 1</li>
+                <li ex:remove=".">item 2</li>
+                <li ex:remove=".">item 3</li>
             </ul>
         )
     return o:apply($list, $groceries)
@@ -110,9 +115,7 @@ declare function ex:list-template-dsl()
 declare function ex:for-each($nodes, $items) {
     for $item in $items
     return
-        (: currently o:replace isn't working :)
-        (: o:replace($nodes, $item) :)
-        ['li', $item]
+        $nodes => o:remove-attr('ex:for-each') => o:insert($item)
 };
 
 declare function ex:template($xml) {
@@ -130,11 +133,12 @@ declare %unit:test function ex:test-list-template-dsl()
 {
     unit:assert-equals(
         o:xml(ex:list-template-dsl()),
-        <ul xmlns:μ="http://xokomola.com/xquery/origami/mu">
+        <ul>
             <li>Apples</li>
             <li>Bananas</li>
             <li>Pears</li>
-        </ul>
+        </ul>,
+        'Template DSL'
     )  
 };
 
@@ -158,18 +162,20 @@ declare variable $ex:ol-list :=
  :)
 declare function ex:list-template3() 
 {
-    o:apply($ex:ol-list, ([1,2],[3,4],[5,6]))
+    (: TODO: and this is even harder to explain :)
+    o:apply($ex:ol-list, [[1,2],[3,4],[5,6]])
 };
 
 declare %unit:test function ex:test-list-template3()
 {
     unit:assert-equals(
         o:xml(ex:list-template3()),
-        <ol xmlns:μ="http://xokomola.com/xquery/origami/mu">
+        <ol>
             <li class="calc">3</li>
             <li class="calc">7</li>
             <li class="calc">11</li>
-        </ol>
+        </ol>,
+        'Compose a template'
     )
 };
 
@@ -214,7 +220,8 @@ declare %unit:test function ex:test-postwalk-layout-example()
           <rect width="50" height="20"/>
           <rect width="60" height="20"/>
         </rect>
-      </rect>
+      </rect>,
+      'Generate SVG'
     )  
 };
 
@@ -299,6 +306,7 @@ declare %unit:test function ex:test-bar-chart()
             <rect fill="steelblue" width="420" height="19"/>
             <text fill="white" font="10px sans-serif" dy=".35em" text-anchor="end" x="416" y="10">42</text>
           </g>
-        </svg>
+        </svg>,
+        'Generate bar chart'
     )
 };

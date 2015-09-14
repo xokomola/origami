@@ -227,3 +227,29 @@ declare %unit:test function test:rename()
         ['p']
     )
 };
+
+declare variable $test:xslt :=
+    map {
+        'stylesheet-node':
+            <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+            version="1.0">
+                <xsl:param name="x"/>
+                <xsl:template match="/">
+                    <result>
+                        <xsl:apply-templates/>
+                    </result>
+                </xsl:template>
+                <xsl:template match="p">
+                    <para x="{{$x}}"><xsl:value-of select="."/></para>
+                </xsl:template>
+            </xsl:stylesheet>,
+        'stylesheet-params': map { 'x': 10 }
+    };
+    
+declare %unit:test function test:xslt()
+{
+    unit:assert-equals(
+        (['p',  'foobar']) => μ:xslt($test:xslt),
+        ['result', ['para', map { 'x': '10' }, 'foobar' ]]
+    )
+};

@@ -7,7 +7,7 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
 
-declare %unit:test %unit:ignore function test:apply-attributes() 
+declare %unit:test function test:apply-attributes() 
 {
         unit:assert-equals(
             μ:apply(['x', map { 'a': function($x,$y) { $x + $y }}], [2,4]),
@@ -16,26 +16,36 @@ declare %unit:test %unit:ignore function test:apply-attributes()
 };
 
 
-declare %unit:test %unit:ignore function test:xml-templating()
+declare %unit:test function test:xml-templating()
 {
     (:~
      : This is the simplest way to build a list.
      :)
     unit:assert-equals(
-        μ:xml(['ul', 
+        μ:xml(
+            ['ul', 
                 for $i in 1 to 3
-                return ['li', concat('item ', $i)] ]),
-        <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
+                return ['li', concat('item ', $i)] 
+            ]
+        ),
+        <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>,
+        'Traditional way to build a list'
     ),
 
     unit:assert-equals(
         μ:xml(
-            μ:apply(['ul', 
-                function($x) { 
-                    for $i in 1 to $x 
-                    return ['li', concat('item ', $i)] 
-                }], 3)),
-        <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
+            μ:apply(
+                ['ul', 
+                    function($x) { 
+                        for $i in 1 to $x 
+                        return ['li', concat('item ', $i)] 
+                    }
+                ],
+                3
+            )
+        ),
+        <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>,
+        'Build a list using apply'
     ),
    
     (:~
@@ -50,33 +60,42 @@ declare %unit:test %unit:ignore function test:xml-templating()
                     function($x) { 
                         for $i in 1 to $x 
                         return element li { concat('item ', $i) } 
-                    }], 3)),
+                    }
+                ],
+                3
+            )
+        ),
         <ul>
             <li>item 1</li>
             <li>item 2</li>
             <li>item 3</li>
         </ul>
     ),
-  
+    
     (:~
      : Produce a table. Multiple arguments have to be specified as a sequence
      : or an array (the outer sequence will be changed into an array so it
      : can be used with fn:apply.
      :)
     unit:assert-equals(
-        μ:xml(μ:apply(
-            ['table', 
-                function($r,$c) { 
-                    for $i in 1 to $r 
-                    return 
-                        ['tr', 
-                            function($n,$r,$c) {
-                                for $j in 1 to $c
-                                return
-                                    ['td', concat('item ',$i,',',$j)]
-                            }
-                        ]
-                }], (3,2))),
+        μ:xml(
+            μ:apply(
+                ['table', 
+                    function($r,$c) { 
+                        for $i in 1 to $r 
+                        return 
+                            ['tr', 
+                                function($r,$c) {
+                                    for $j in 1 to $c
+                                    return
+                                        ['td', concat('item ',$i,',',$j)]
+                                }
+                            ]
+                    }
+                ], 
+                (3,2)
+            )
+        ),
         <table>
             <tr>
               <td>item 1,1</td>

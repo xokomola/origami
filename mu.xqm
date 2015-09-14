@@ -13,7 +13,7 @@ declare %private variable $μ:ns := μ:ns();
 
 (: Reading from external entities :)
 
-declare function μ:read-xml($uri as xs:string?)
+declare function μ:read-xml($uri as xs:string)
 as document-node()?
 {
     doc($uri)
@@ -29,12 +29,10 @@ as document-node()?
  :
  : For options see: http://docs.basex.org/wiki/Options#Parsing
  :)
-declare function μ:read-xml($uri as xs:string?, $options as map(xs:string, item()))
+declare function μ:read-xml($uri as xs:string, $options as map(xs:string, item()))
 as document-node()?
 {
-    if (empty($uri))
-    then ()
-    else fetch:xml($uri, u:select-keys($options, $μ:xml-options))
+    fetch:xml($uri, u:select-keys($options, $μ:xml-options))
 };
 
 declare variable $μ:xml-options :=
@@ -46,13 +44,13 @@ declare variable $μ:xml-options :=
  :
  : For options see: http://docs.basex.org/wiki/Parsers#TagSoup_Options
  :)
-declare function  μ:read-html($uri as xs:string?)
+declare function  μ:read-html($uri as xs:string)
 as document-node()?
 {
     μ:read-html($uri, map { 'lines': false() })   
 };
 
-declare function μ:read-html($uri as xs:string?, $options as map(xs:string, item()))
+declare function μ:read-html($uri as xs:string, $options as map(xs:string, item()))
 as document-node()?
 {
     μ:parse-html(μ:read-text($uri, map:merge(($options, map { 'lines': false() }))), $options)
@@ -92,35 +90,30 @@ declare %private variable $μ:html-options :=
  : - lines: true() or false()
  : - encoding
  :)
-declare function μ:read-text($uri as xs:string?)
+declare function μ:read-text($uri as xs:string)
 as xs:string*
 {
     μ:read-text($uri, map { })
 };
 
-declare function μ:read-text($uri as xs:string?, $options as map(xs:string, item()))
+declare function μ:read-text($uri as xs:string, $options as map(xs:string, item()))
 as xs:string*
 {
-    (: TODO: remove this when fixed in a released version :)
-    (: @see https://github.com/BaseXdb/basex/issues/1181 error when $uri = () :)
-    if (empty($uri)) 
-    then ()
-    else
-        let $parse-into-lines := ($options?lines, true())[1]
-        let $encoding := $options?encoding
-        return
-            if ($parse-into-lines)
-            then if ($encoding) then unparsed-text-lines($uri, $encoding) else unparsed-text-lines($uri) 
-            else if ($encoding) then unparsed-text($uri, $encoding) else unparsed-text($uri)
+    let $parse-into-lines := ($options?lines, true())[1]
+    let $encoding := $options?encoding
+    return
+        if ($parse-into-lines)
+        then if ($encoding) then unparsed-text-lines($uri, $encoding) else unparsed-text-lines($uri) 
+        else if ($encoding) then unparsed-text($uri, $encoding) else unparsed-text($uri)
 };
 
-declare function μ:read-json($uri as xs:string?)
+declare function μ:read-json($uri as xs:string)
 as item()?
 {
     μ:read-json($uri, map {})
 };
 
-declare function μ:read-json($uri as xs:string?, $options as map(xs:string, item()))
+declare function μ:read-json($uri as xs:string, $options as map(xs:string, item()))
 as item()?
 {
     json-doc($uri, u:select-keys($options, $μ:xml-options))
@@ -161,16 +154,22 @@ declare %private variable $μ:json-options :=
  :
  : TODO: check which options are only meant for serialization.
  :)
-declare function μ:read-csv($uri as xs:string?)
+declare function μ:read-csv($uri as xs:string)
 as array(*)*
 {
     μ:read-csv($uri, map {})
 };
 
-declare function μ:read-csv($uri as xs:string?, $options as map(xs:string, item()))
+declare function μ:read-csv($uri as xs:string, $options as map(xs:string, item()))
 as array(*)*
 {
-    μ:parse-csv(μ:read-text($uri, map:merge(($options, map { 'lines': false() }))), $options)
+    μ:parse-csv(
+        μ:read-text(
+            $uri, 
+            map:merge(($options, map { 'lines': false() }))
+        ), 
+        $options
+    )
 };
 
 declare function μ:parse-csv($text as xs:string*)
@@ -182,9 +181,12 @@ as array(*)*
 declare function μ:parse-csv($text as xs:string*, $options as map(xs:string, item()))
 as array(*)*
 {
-    let $parse-options := map:merge((u:select-keys($options, $μ:csv-options), map { 'format': 'map' }))
-    return
-        μ:csv-normal-form(csv:parse(string-join($text,'&#10;'), $parse-options))
+    μ:csv-normal-form(
+        csv:parse(
+            string-join($text,'&#10;'), 
+            map:merge((u:select-keys($options, $μ:csv-options), map { 'format': 'map' }))
+        )
+    )
 };
 
 (: ignore format option (only supported normalized form), header is dealt with in μ:csv-object :)
@@ -197,9 +199,7 @@ declare %private variable $μ:csv-options :=
  :)
 declare %private function μ:csv-normal-form($csv)
 {
-    for $i in map:keys($csv)
-    return
-        array { $csv($i) }
+    map:keys($csv) ! array { $csv(.) }
 };
 
 (: Parsing into μ nodes :)
@@ -232,16 +232,9 @@ declare %private function μ:doc-node($item as item(), $rules as map(*))
 as item()?
 {
     typeswitch($item)
-    
-    case document-node()
-    return μ:doc-node($item/*, $rules)
-    
-    case processing-instruction()
-    return ()
-    
-    case comment()
-    return ()
-    
+    case document-node() return μ:doc-node($item/*, $rules)
+    case processing-instruction() return ()
+    case comment() return ()
     case element()
     return
         array { 
@@ -263,20 +256,15 @@ as item()?
             else (),
             $item/node() ! μ:doc-node(., $rules)
         }
-
     case array(*)
     return
         let $tag := μ:tag($item)
-        let $atts := (μ:attributes($item),map{})[1]
+        let $atts := μ:attributes($item)
         let $content := μ:content($item)
         return
             array { $tag, $atts, $content ! μ:doc-node(., $rules) }
-
-    case text() 
-    return string($item)
-    
-    default
-    return $item
+    case text() return string($item)
+    default return $item
 };
 
 (: "Serializing" :)
@@ -307,27 +295,15 @@ as node()*
 declare %private function μ:to-xml($mu as item()*, $name-resolver as function(xs:string) as xs:QName, $options as map(*))
 as node()*
 {
-    for $item in $mu
-    return
-        typeswitch ($item)
-        
-        case array(*) 
-        return μ:to-element($item, $name-resolver, $options)
-        
-        case map(*) 
-        return  μ:to-attributes($item, $name-resolver)
-        
-        case function(*) 
-        return ()
-        
-        case empty-sequence() 
-        return ()
-        
-        case node() 
-        return $item
-        
-        default 
-        return text { $item }
+    $mu ! (   
+        typeswitch (.)
+        case array(*) return μ:to-element(., $name-resolver, $options)
+        case map(*) return  μ:to-attributes(., $name-resolver)
+        case function(*) return ()
+        case empty-sequence() return ()
+        case node()  return .
+        default return text { . }
+    )
 };
 
 (: TODO: need more common map manipulation functions :)
@@ -390,8 +366,9 @@ as attribute()*
 {
     map:for-each($mu, 
         function($k,$v) {
-            if (not(starts-with($k,'μ:')))
-            then
+            if (starts-with($k,'μ:'))
+            then ()
+            else
                 (: should not add default ns to attributes if name has no prefix :)
                 attribute { if (contains($k,':')) then $name-resolver($k) else $k } { 
                     data(
@@ -402,9 +379,8 @@ as attribute()*
                         default return $v
                     )
                 }
-            else
-                ()
-        })
+        }
+    )
 };
 
 (:~
@@ -433,33 +409,29 @@ as xs:string
 declare %private function μ:to-json($mu as item()*, $name-resolver as function(*))
 as item()*
 {
-    for $item in $mu
-    return
-        typeswitch ($item)
+    $mu ! (
+        typeswitch (.)
         
         case array(*)
         return
-            let $tag := μ:tag($item)
-            let $atts := μ:attributes($item)
-            let $children := μ:content($item)
+            let $tag := μ:tag(.)
+            let $atts := μ:attributes(.)
+            let $children := μ:content(.)
             return
                 map:entry($tag, μ:to-json(($atts, $children), $name-resolver))
                 
         case map(*)
         return 
             map:merge(
-                map:for-each($item, 
+                map:for-each(., 
                     function($a,$b) { 
                         map:entry(concat('@',$a), μ:to-json($b, $name-resolver)) }))
                         
         case function(*) return ()
-        
         (: FIXME: I think this should be using to-json as well :)
-        case node() 
-        return μ:doc($item)
-        
-        default 
-        return $item
+        case node() return μ:doc(.)
+        default return .
+    )
 };
 
 (: Namespace support :)
@@ -617,9 +589,7 @@ as map(*)
 declare function μ:head($mu as array(*)?)
 as item()*
 {
-    if (exists($mu)) 
-    then array:head($mu)
-    else ()
+    if (exists($mu)) then array:head($mu) else ()
 };
 
 declare function μ:tail($mu as array(*)?)
@@ -631,9 +601,7 @@ as item()*
 declare function μ:tag($mu as array(*)?)
 as xs:string?
 {
-    if (empty($mu)) 
-    then ()
-    else array:head($mu)
+    if (empty($mu)) then () else array:head($mu)
 };
 
 declare function μ:content($mu as array(*)?)
@@ -643,18 +611,15 @@ as item()*
         let $c := array:tail($mu)
         return
             if (array:size($c) > 0 and array:head($c) instance of map(*)) 
-            then array:tail($c)?*
-            else $c?*
-    else
-        ()
+            then array:tail($c)?* else $c?*
+    else ()
 };
 
 declare function μ:attributes($mu as array(*)?)
 as map(*)?
 {
     if (array:size($mu) gt 1 and $mu?2 instance of map(*)) 
-    then $mu?2 
-    else ()
+    then $mu?2 else ()
 };
 
 (:~
@@ -707,7 +672,7 @@ as item()*
 
 
 (: TODO: ['p', fn1#2, fn2#2, fn3#2] compose a node transformer/pipeline :)
-declare function μ:compile-rules($rules as array(*)+)
+declare function μ:compile-rules($rules as array(*)*)
 as map(*)
 {
     map:merge((
@@ -765,33 +730,31 @@ as element(*)
 declare function μ:compile-transformer($rules as map(*)?, $options as map(*))
 as element(*)
 {
-    let $ns := $options?ns
-    return
-        μ:xml(
-            ['stylesheet', 
-                map:merge((
-                    map:entry('version', '1.0')
-                )),
-                ['output', map { 'method': 'xml' }],
-                if ($options?extract) 
-                then (
-                    ['template', map { 'match': '/' }, ['μ:seq', ['apply-templates']]],
-                    ['template', map { 'match': 'text()' }]
-                )
-                else 
-                    μ:identity-transform(),
-                for $selector in map:keys(($rules, map {})[1])
-                return
-                    ['template', map { 'match': $selector },
-                        ['copy',
-                            ['copy-of', map { 'select': '@*' }],
-                            ['attribute', map { 'name': 'μ:path' }, $selector],
-                            ['apply-templates', map { 'select': 'node()' }]
-                        ]
+    μ:xml(
+        ['stylesheet', 
+            map:merge((
+                map:entry('version', '1.0')
+            )),
+            ['output', map { 'method': 'xml' }],
+            if ($options?extract) 
+            then (
+                ['template', map { 'match': '/' }, ['μ:seq', ['apply-templates']]],
+                ['template', map { 'match': 'text()' }]
+            )
+            else 
+                μ:identity-transform(),
+            for $selector in map:keys(($rules, map {})[1])
+            return
+                ['template', map { 'match': $selector },
+                    ['copy',
+                        ['copy-of', map { 'select': '@*' }],
+                        ['attribute', map { 'name': 'μ:path' }, $selector],
+                        ['apply-templates', map { 'select': 'node()' }]
                     ]
-            ],
-            map { 'ns': $ns, 'default-ns': 'http://www.w3.org/1999/XSL/Transform' }
-        )
+                ]
+        ],
+        map { 'ns': $options?ns, 'default-ns': 'http://www.w3.org/1999/XSL/Transform' }
+    )
 };
 
 declare function μ:identity-transform()
@@ -805,36 +768,34 @@ as array(*)+
     ['template', map { 'match': 'processing-instruction()|comment()' }]
 };
 
-declare function μ:data($node as item(), $args)
+(: TODO: empty $args is not allowed for apply :)
+declare %private function μ:data($node as item(), $args as array(*)?)
 {
-    let $data := (μ:attributes($node), map {})[1]('μ:data')
-    return
-        typeswitch($data)
-        case empty-sequence()
-        return $args
-        case map(*)
-        return $data
-        case array(*)
-        return $data
-        case function(*)
-        return apply($data, [$args])
-        default
-        return $data
+    typeswitch ((μ:attributes($node), map {})[1]('μ:data'))
+    case empty-sequence()
+    return $args
+    case $map as map(*)
+    return $map
+    case $array as array(*)
+    return $array
+    case $fn as function(*)
+    return apply($fn, $args)
+    default $data
+    return $data
 };
 
-declare function μ:apply-attributes($atts as map(*)?, $data as item()*)
+declare function μ:apply-attributes($atts as map(*)?, $data as array(*)?)
 {
     map:merge((
         for $key in map:keys($atts)
-        let $value := $atts($key)
         where not(starts-with($key, 'μ:'))
         return
             map:entry(
                 $key,
-                typeswitch($value)
-                case function(*)
-                return apply($value, [$data])
-                default
+                typeswitch($atts($key))
+                case $fn as function(*)
+                return apply($fn,$data)
+                default $value
                 return $value
             )
     ))
@@ -845,20 +806,19 @@ declare function μ:apply($nodes as item()*)
     μ:apply($nodes, ())
 };
 
-declare function μ:apply($nodes as item()*, $args as item()*)
+declare function μ:apply($nodes as item()*, $args as array(*)?)
 as item()*
 {  
-    for $node in $nodes
-    return
-        typeswitch($node)
+    $nodes ! (
+        typeswitch(.)
         case array(*)
         return
-            let $tag := μ:tag($node)
-            let $atts := (μ:attributes($node), map {})[1]
+            let $tag := μ:tag(.)
+            let $atts := (μ:attributes(.), map {})[1]
             let $has-handler := map:contains($atts, 'μ:fn')
             let $handler := $atts('μ:fn')
-            let $content := μ:content($node)
-            let $data := μ:data($node, $args)
+            let $content := μ:content(.)
+            let $data := μ:data(., $args)
             let $atts := μ:apply-attributes($atts, $data)
             return
                 typeswitch ($handler)
@@ -885,11 +845,10 @@ as item()*
                     
                 default return $handler
                 
-        case function(*)
-        return apply($node, [$args]) 
+        case function(*) return μ:apply(apply(., $args), $args) 
         
-        default
-        return $node
+        default return .
+    )
 };
 
 (: μ-node transformers :)
@@ -901,9 +860,7 @@ declare function μ:identity($x) { $x };
  :)
 declare function μ:seq($x as item()*) 
 { 
-    if ($x instance of array(*))
-    then $x?*
-    else $x
+    if ($x instance of array(*)) then $x?* else $x
 };
 
 (:~
@@ -1006,13 +963,13 @@ declare function μ:unwrap()
 as function(item()*) as item()*
 {
     function($content as item()*) {
-        for $node in $content
-        return
-            typeswitch($node)
+        $content ! (
+            typeswitch(.)
             case array(*)
-            return μ:content($node)
+            return μ:content(.)
             default
-            return $node
+            return .
+        )
     }    
 };
 
@@ -1135,20 +1092,14 @@ as item()*
 declare function μ:text()
 as function(item()*) as item()*
 {
-    function($nodes as item()*) as xs:string* {
-    
-        for $node in $nodes
-        return
-            typeswitch ($node)
-            case map(*)
-            return ()
-            case array(*)
-            return μ:text(μ:content($node))
-            case function(*)
-            return ()
-            default
-            return
-                string($node)
+    function($nodes as item()*) as xs:string* {    
+        $nodes ! (
+            typeswitch (.)
+            case map(*) return ()
+            case array(*) return μ:text(μ:content(.))
+            case function(*) return ()
+            default return string(.)
+        )
     }
 };
 
@@ -1350,88 +1301,25 @@ as item()*
  : an XSLT stylesheet.
  : TODO: maybe template and snippet should also use this function.
  :)
-declare function μ:xslt($stylesheet as item()) 
-as function(node()*) as node()*
+declare function μ:xslt($options as map(*)) 
+as function(item()?) as array(*)?
 {
-    μ:xslt($stylesheet, map {})
+    function($nodes as item()?) as array(*)? {
+        μ:doc(
+            xslt:transform(
+                μ:xml($nodes), 
+                $options('stylesheet-node'), 
+                $options('stylesheet-params')
+            )
+        )        
+    }
 };
-
-(:~
- : Create a node transformer that transforms nodes using
- : an XSLT stylesheet with parameters.
- :)
-declare function μ:xslt($stylesheet as item(), $params as item()) 
-as function(item()*) as item()*
-{
-    'todo'
-};
-
-(: TODO: maybe, maybe also offer an eval based xquery transformer :)
 
 (:~
  : Transform `$nodes` using XSLT stylesheet.
  :)
-declare function μ:xslt($nodes as item()*, $stylesheet as item(), $params as item())
-as item()*
+declare function μ:xslt($nodes as item()?, $options as map(*))
+as array(*)?
 {
-    μ:xslt($stylesheet, $params)($nodes)
-};
-
-(:~
- : Create a node transformer that applies a node transformation rule to a
- : sequence of input nodes.
- :)
-declare function μ:do($rule as array(*)) 
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as item()* {
-        μ:do-nodes($nodes, $rule)
-    }
-};
-
-(:~
- : Apply a node transformation rule to a sequence of nodes.
- :)
-declare function μ:do($nodes as item()*, $rule as array(*)) 
-as item()*
-{
-    μ:do-nodes($nodes, $rule)
-};
-
-(:~
- : Create a node transformer that applies a node transformation rule to each 
- : individual input node.
- :)
-declare function μ:each($rule as array(*)) 
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as item()* {
-        for $node in $nodes
-            return μ:do-nodes($node, $rule)
-    }
-};
-
-(:~
- : Apply a node transformation rule to each individual input node.
- :)
-declare function μ:each($nodes as item()*, $rule as array(*)) 
-as item()*
-{
-    for $node in $nodes
-        return μ:do-nodes($node, $rule)
-};
-
-declare %private function μ:do-nodes($nodes as item()*, $rule as array(*))
-as item()*
-{
-    array:fold-left(
-        $rule, 
-        $nodes,
-        function($nodes, $step) {
-            if ($step instance of function(*)) then
-                $step($nodes)
-            else
-                $step
-        }
-    )     
+    μ:xslt($options)($nodes)
 };
