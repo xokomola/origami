@@ -9,14 +9,14 @@ import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.x
 
 declare %unit:test function test:apply-attributes() 
 {
-        unit:assert-equals(
-            μ:apply(['x', map { 'a': function($x,$y) { $x + $y }}], [2,4]),
-            ['x', map { 'a': 6 }]
-        )
+    unit:assert-equals(
+        μ:apply(['x', map { 'a': function($n,$x,$y) { $x + $y }}], [2,4]),
+        ['x', map { 'a': 6 }]
+    )
 };
 
 
-declare %unit:test function test:xml-templating()
+declare %unit:test function test:xml-templating-1()
 {
     (:~
      : This is the simplest way to build a list.
@@ -30,24 +30,30 @@ declare %unit:test function test:xml-templating()
         ),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>,
         'Traditional way to build a list'
-    ),
+    )
+};
 
+declare %unit:test function test:xml-templating-2()
+{  
     unit:assert-equals(
         μ:xml(
             μ:apply(
                 ['ul', 
-                    function($x) { 
+                    function($n,$x) { 
                         for $i in 1 to $x 
                         return ['li', concat('item ', $i)] 
                     }
                 ],
-                3
+                [3]
             )
         ),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>,
         'Build a list using apply'
-    ),
-   
+    )
+};
+
+declare %unit:test function test:xml-templating-3()
+{   
     (:~
      : The function may produce XML nodes. This is identical
      : to the above but uses a literal element constructor
@@ -57,12 +63,12 @@ declare %unit:test function test:xml-templating()
         μ:xml(
             μ:apply(
                 ['ul', 
-                    function($x) { 
+                    function($n,$x) { 
                         for $i in 1 to $x 
                         return element li { concat('item ', $i) } 
                     }
                 ],
-                3
+                [3]
             )
         ),
         <ul>
@@ -70,8 +76,11 @@ declare %unit:test function test:xml-templating()
             <li>item 2</li>
             <li>item 3</li>
         </ul>
-    ),
-    
+    )
+};
+  
+declare %unit:test function test:xml-templating-4()
+{    
     (:~
      : Produce a table. Multiple arguments have to be specified as a sequence
      : or an array (the outer sequence will be changed into an array so it
@@ -81,11 +90,11 @@ declare %unit:test function test:xml-templating()
         μ:xml(
             μ:apply(
                 ['table', 
-                    function($r,$c) { 
+                    function($n,$r,$c) { 
                         for $i in 1 to $r 
                         return 
                             ['tr', 
-                                function($r,$c) {
+                                function($n,$r,$c) {
                                     for $j in 1 to $c
                                     return
                                         ['td', concat('item ',$i,',',$j)]
@@ -93,7 +102,7 @@ declare %unit:test function test:xml-templating()
                             ]
                     }
                 ], 
-                (3,2)
+                [3,2]
             )
         ),
         <table>
@@ -120,21 +129,10 @@ declare %unit:test function test:xml-templating-obfuscated()
         μ:xml(
             μ:apply(
                 ['ul', 
-                    function($x) { 
+                    function($n,$x) { 
                         for $i in 1 to $x 
-                        return μ:apply(function($x) { ['li', concat('item ', $x)] }, $i) 
-                    }], 3)),
-        <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
-    ),
-
-    (: Still not very useful, but demonstrates how the above is simplified a bit :)
-    unit:assert-equals(
-        μ:xml(
-            μ:apply(['ul', 
-                function($x) { 
-                    for $i in 1 to $x 
-                    return function($x) { ['li', concat('item ', $x)] }($i) 
-                }], 3)),
+                        return μ:apply(function($n,$x) { ['li', concat('item ', $x)] }, [$i]) 
+                    }], [3])),
         <ul><li>item 1</li><li>item 2</li><li>item 3</li></ul>
     )
 };
@@ -149,11 +147,11 @@ declare %unit:test("expected", "err:FOAP0001") function test:xml-templating-arit
         μ:xml(
             μ:apply(
                 ['table', 
-                    function($r,$c) { 
+                    function($n,$r,$c) { 
                         for $i in 1 to $r 
                         return 
                             ['tr', 
-                                function($r,$c) {
+                                function($n,$r,$c) {
                                     for $j in 1 to $c
                                     return
                                         ['td', concat('item ',$i,',',$j)]
