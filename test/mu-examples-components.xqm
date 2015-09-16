@@ -11,6 +11,9 @@ xquery version "3.1";
  : are parts in the mu data structures.
  : render#1 could be implemented maybe via the walk pattern.
  : Not sure what it's relationship with apply#
+ : Another insight is that embedding functions on attributes could make the template
+ : structure react to message e.g. send on on-click to an element causes an effect and
+ : could result in a different "DOM" or mu-doc. Reactive documents in a render loop.
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
