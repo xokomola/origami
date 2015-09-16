@@ -1328,3 +1328,20 @@ as array(*)?
 {
     μ:xslt($options)($nodes)
 };
+
+declare function μ:render($template)
+{  
+    $template ! (
+        typeswitch (.)
+        case map(*) return .
+        case array(*) return
+            let $tag := μ:head(.)
+            let $tail := μ:tail(.)
+            return
+                if ($tag instance of function(*))
+                then μ:render(apply($tag, array { $tail }))
+                else array { $tag, μ:render($tail) }
+        case function(*) return μ:render(apply(.,[]))
+        default return .
+    )
+};
