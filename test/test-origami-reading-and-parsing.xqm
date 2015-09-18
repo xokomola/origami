@@ -6,7 +6,7 @@ xquery version "3.1";
 
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' at '../origami.xqm'; 
 
 declare function test:dir($p) { concat(file:base-dir(), string-join($p,'/')) };
 declare function test:text($f) { test:dir(('text',$f)) };
@@ -21,13 +21,13 @@ declare function test:json($f) { test:dir(('json',$f)) };
 declare %unit:test %unit:ignore function test:read-text-empty-uri() 
 {
     unit:assert-equals(
-        μ:read-text(()),
+        o:read-text(()),
         (),
         "Empty $uri argument"
     ),
     
     unit:assert-equals(
-        μ:read-text((), map { 'foo': 'bar'}),
+        o:read-text((), map { 'foo': 'bar'}),
         (),
         "Empty $uri argument and unknown map options"
     )
@@ -36,7 +36,7 @@ declare %unit:test %unit:ignore function test:read-text-empty-uri()
 declare %unit:test function test:read-text-trailing-new-line() 
 {
     unit:assert-equals(
-        μ:read-text(test:text('test010.txt')),
+        o:read-text(test:text('test010.txt')),
         ("foo","bar"),
         "Second line ends with newline but is removed"
     )
@@ -45,7 +45,7 @@ declare %unit:test function test:read-text-trailing-new-line()
 declare %unit:test function test:read-text-unknown-options() 
 {
     unit:assert-equals(
-        μ:read-text(test:text('test001.txt'), map { 'foo': 'bar' }),
+        o:read-text(test:text('test001.txt'), map { 'foo': 'bar' }),
         ("foo","bar"),
         "Unknown options are silently ignored"
     )
@@ -60,36 +60,36 @@ declare %unit:test function test:read-text-line-endings()
     (: Tip: by parsing into lines (the default) these differences are automatically taken care of :)
     
     unit:assert-equals(
-        μ:read-text(test:text('test001.txt')),
+        o:read-text(test:text('test001.txt')),
         ("foo","bar"),
         "Read test001.txt into separate lines (unix line-endings)"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test002.txt')),
+        o:read-text(test:text('test002.txt')),
         ("foo","bar"),
         "Read test002.txt into separate lines (windows line-endings)"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test003.txt')),
+        o:read-text(test:text('test003.txt')),
         ("foo","bar"),
         "Read test003.txt into separate lines (mac line-endings)"
     ),
     unit:assert-equals(
-        μ:read-text(test:text('test001.txt'), map { 'lines': false()}),
+        o:read-text(test:text('test001.txt'), map { 'lines': false()}),
         ("foo&#10;bar"),
         "Read test001.txt as one string item (unix line-endings)"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test002.txt'), map { 'lines': false()}),
+        o:read-text(test:text('test002.txt'), map { 'lines': false()}),
         ("foo&#13;&#10;bar"),
         "Read test002.txt as one string item (windows line-endings)"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test003.txt'), map { 'lines': false()}),
+        o:read-text(test:text('test003.txt'), map { 'lines': false()}),
         ("foo&#13;bar"),
         "Read test003.txt as one string item (mac line-endings)"
     )
@@ -98,55 +98,55 @@ declare %unit:test function test:read-text-line-endings()
 declare %unit:test function test:read-text-encoding() 
 {
     unit:assert-equals(
-        μ:read-text(test:text('test004.txt')),
+        o:read-text(test:text('test004.txt')),
         ("折り紙"),
         "Read test004.txt without specified encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test004.txt'), map { 'encoding': 'utf-8'}),
+        o:read-text(test:text('test004.txt'), map { 'encoding': 'utf-8'}),
         ("折り紙"),
         "Read test004.txt with utf-8 encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test005.txt')),
+        o:read-text(test:text('test005.txt')),
         ("折り紙"),
         "Read test005.txt without specified encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test005.txt'), map { 'encoding': 'utf-16'}),
+        o:read-text(test:text('test005.txt'), map { 'encoding': 'utf-16'}),
         ("折り紙"),
         "Read test005.txt with utf-16 encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test006.txt')),
+        o:read-text(test:text('test006.txt')),
         ("折り紙"),
         "Read test006.txt without specified encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test006.txt'), map { 'encoding': 'utf-16'}),
+        o:read-text(test:text('test006.txt'), map { 'encoding': 'utf-16'}),
         ("折り紙"),
         "Read test006.txt with utf-16"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test007.txt')),
+        o:read-text(test:text('test007.txt')),
         ("ωριγαμι"),
         "Read test007.txt without specified encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test008.txt'), map { 'encoding': 'windows-1253'}),
+        o:read-text(test:text('test008.txt'), map { 'encoding': 'windows-1253'}),
         ("ωριγαμι"),
         "Read test008.txt with windows-1253 encoding"
     ),
     
     unit:assert-equals(
-        μ:read-text(test:text('test009.txt'), map { 'encoding': 'iso-8859-7'}),
+        o:read-text(test:text('test009.txt'), map { 'encoding': 'iso-8859-7'}),
         ("ωριγαμι"),
         "Read test009.txt with iso-8859-7 encoding"
     )
@@ -156,7 +156,7 @@ declare %unit:test function test:read-text-encoding-garbled()
 {
     (: Greek can also be decoded with iso-8859-1 but this will result in the wrong characters :)
     unit:assert-equals(
-        μ:read-text(test:text('test009.txt'), map { 'encoding': 'iso-8859-1'}),
+        o:read-text(test:text('test009.txt'), map { 'encoding': 'iso-8859-1'}),
         ("ùñéãáìé"),
         "Read iso-8859-7 (test009.txt) with iso-8859-1 encoding"
     )    
@@ -167,7 +167,7 @@ declare %unit:test("expected", "err:FOUT1190") function test:read-text-encoding-
     (: utf-8 text cannot be decoded with utf-16, btw without explicit encoding read-text will handle 
        detection of Unicode encoding automatically :)
     unit:assert-equals(
-        μ:read-text(test:text('test004.txt'), map { 'encoding': 'utf-16'}),
+        o:read-text(test:text('test004.txt'), map { 'encoding': 'utf-16'}),
         ("doenstmatter"),
         "Read utf-8 (test004.txt) with utf-16 encoding"
     )    
@@ -179,8 +179,8 @@ declare %unit:test("expected", "err:FOUT1190") function test:read-text-encoding-
 declare %unit:test function test:read-xml()
 {    
     unit:assert-equals(
-        μ:read-xml(test:xml('test001.xml')),
-        document { <μ:foo xmlns:μ="http://xokomola.com/xquery/origami/mu"><bar/></μ:foo> },
+        o:read-xml(test:xml('test001.xml')),
+        document { <o:foo><bar/></o:foo> },
         "Read test001.xml"
     )    
 };
@@ -188,8 +188,8 @@ declare %unit:test function test:read-xml()
 declare %unit:test function test:read-xml-fetch()
 {    
     unit:assert-equals(
-        μ:read-xml(test:xml('test001.xml'), map { 'foo': 'bar' }),
-        document { <μ:foo xmlns:μ="http://xokomola.com/xquery/origami/mu"><bar/></μ:foo> },
+        o:read-xml(test:xml('test001.xml'), map { 'foo': 'bar' }),
+        document { <o:foo><bar/></o:foo> },
         "Read test001.xml"
     )    
 };
@@ -202,13 +202,13 @@ declare %unit:test function test:read-xml-fetch()
 declare %unit:test %unit:ignore function test:read-html-empty-uri()
 {
     unit:assert-equals(
-        μ:read-html(()),
+        o:read-html(()),
         (),
         "Empty $uri argument"
     ),
     
     unit:assert-equals(
-        μ:read-html((), map { 'foo': 'bar'}),
+        o:read-html((), map { 'foo': 'bar'}),
         (),
         "Empty $uri argument and unknown map options"
     )
@@ -222,7 +222,7 @@ declare %unit:test function test:read-html()
     (: Note that reading external files may have extra whitespace text nodes so all
        HTML tests with external files have this extra whitespace removed. :)
     unit:assert-equals(
-        μ:read-html(test:html('test001.html')),
+        o:read-html(test:html('test001.html')),
         document {
             <html lang="en">
               <head>
@@ -238,7 +238,7 @@ declare %unit:test function test:read-html()
     ),
     
     unit:assert-equals(
-        μ:read-html(test:html('test002.html'), map { 'encoding': 'iso-8859-1' }),
+        o:read-html(test:html('test002.html'), map { 'encoding': 'iso-8859-1' }),
         document {
             <html lang="en">
               <head>
@@ -254,7 +254,7 @@ declare %unit:test function test:read-html()
     
     (: and if we get it wrong then things may work but will be garbled :)
     unit:assert-equals(
-        μ:read-html(test:html('test002.html'), map {'encoding': 'iso-8859-7'}),
+        o:read-html(test:html('test002.html'), map {'encoding': 'iso-8859-7'}),
         document {
             <html lang="en">
               <head>
@@ -269,7 +269,7 @@ declare %unit:test function test:read-html()
     ),
     
     unit:assert-equals(
-        μ:read-html(test:html('test003.html'), map {'encoding': 'iso-8859-7'}),
+        o:read-html(test:html('test003.html'), map {'encoding': 'iso-8859-7'}),
         document {
             <html lang="en">
               <head>
@@ -289,7 +289,7 @@ declare %unit:test("expected", "err:FOUT1200") function test:read-html-decoding-
 {
     (: note that TagSoup handles the encoding without being explicit :)
     unit:assert-equals(
-        μ:read-html(test:html('test002.html')),
+        o:read-html(test:html('test002.html')),
         document {
             <html lang="en">
               <head>
@@ -309,7 +309,7 @@ declare %unit:test("expected", "err:FOUT1200") function test:read-html-decoding-
 declare %unit:test function test:parse-html()
 {
     unit:assert-equals(
-        μ:parse-html("foo"),
+        o:parse-html("foo"),
         document {
             <html>
                 <body>foo</body>
@@ -318,7 +318,7 @@ declare %unit:test function test:parse-html()
         "Insert html and body element"
     ),
     unit:assert-equals(
-        μ:parse-html("<html>foo</html>"),
+        o:parse-html("<html>foo</html>"),
         document {
             <html>
                 <body>foo</body>
@@ -328,7 +328,7 @@ declare %unit:test function test:parse-html()
     ),
 
     unit:assert-equals(
-        μ:parse-html(("<html>", "foo", "</html>")),
+        o:parse-html(("<html>", "foo", "</html>")),
         document {
             <html>
                 <body>foo</body>
@@ -340,7 +340,7 @@ declare %unit:test function test:parse-html()
     (: nobogons :)
     
     unit:assert-equals(
-        μ:parse-html("foo<foo>bar</foo>"),
+        o:parse-html("foo<foo>bar</foo>"),
         document {
             <html>
               <body>foo<foo>bar</foo></body>
@@ -350,7 +350,7 @@ declare %unit:test function test:parse-html()
     ),
  
     unit:assert-equals(
-        μ:parse-html("foo<foo>bar</foo>", map { 'nobogons': true() }),
+        o:parse-html("foo<foo>bar</foo>", map { 'nobogons': true() }),
         document {
             <html>
               <body>foobar</body>
@@ -360,7 +360,7 @@ declare %unit:test function test:parse-html()
     ),
     
     unit:assert-equals(
-        μ:parse-html("foo<foo>bar</foo>", map { 'nobogons': false() }),
+        o:parse-html("foo<foo>bar</foo>", map { 'nobogons': false() }),
         document {
             <html>
               <body>foo<foo>bar</foo></body>
@@ -372,7 +372,7 @@ declare %unit:test function test:parse-html()
     (: nons :)
     
     unit:assert-equals(
-        μ:parse-html("<html>foo</html>"),
+        o:parse-html("<html>foo</html>"),
         document {
             <html>
               <body>foo</body>
@@ -382,7 +382,7 @@ declare %unit:test function test:parse-html()
     ),
 
     unit:assert-equals(
-        μ:parse-html("<html>foo</html>", map { 'nons': true() }),
+        o:parse-html("<html>foo</html>", map { 'nons': true() }),
         document {
             <html>
               <body>foo</body>
@@ -392,7 +392,7 @@ declare %unit:test function test:parse-html()
     ),
 
     unit:assert-equals(
-        μ:parse-html("<html>foo</html>", map { 'nons': false() }),
+        o:parse-html("<html>foo</html>", map { 'nons': false() }),
         document {
             <html xmlns="http://www.w3.org/1999/xhtml">
               <body>foo</body>
@@ -409,13 +409,13 @@ declare %unit:test function test:parse-html()
 declare %unit:test %unit:ignore function test:read-csv-empty-uri() 
 {
     unit:assert-equals(
-        μ:read-csv(()),
+        o:read-csv(()),
         (),
         "Empty $uri argument"
     ),
     
     unit:assert-equals(
-        μ:read-csv((), map { 'foo': 'bar'}),
+        o:read-csv((), map { 'foo': 'bar'}),
         (),
         "Empty $uri argument and unknown map options"
     )
@@ -424,7 +424,7 @@ declare %unit:test %unit:ignore function test:read-csv-empty-uri()
 declare %unit:test function test:read-csv() 
 {
     unit:assert-equals(
-        μ:read-csv(test:csv('test001.csv')),
+        o:read-csv(test:csv('test001.csv')),
         (
             ['A','B','C'],
             ['10','20','30']
@@ -433,7 +433,7 @@ declare %unit:test function test:read-csv()
     ),
     
     unit:assert-equals(
-        μ:read-csv(test:csv('test002.csv'), map { 'separator': 'tab' }),
+        o:read-csv(test:csv('test002.csv'), map { 'separator': 'tab' }),
         (
             ['A','B','C'],
             ['10','20','30']
@@ -442,7 +442,7 @@ declare %unit:test function test:read-csv()
     ),
     
     unit:assert-equals(
-        μ:read-csv(test:csv('test003.csv'), map { 'separator': 'semicolon' }),
+        o:read-csv(test:csv('test003.csv'), map { 'separator': 'semicolon' }),
         (
             ['A','B','C'],
             ['10','20','30']
@@ -454,12 +454,12 @@ declare %unit:test function test:read-csv()
 declare %unit:test function test:parse-csv()
 {
     unit:assert-equals(
-       μ:parse-csv(("A,B,C&#10;10,20,30")),
+       o:parse-csv(("A,B,C&#10;10,20,30")),
        (["A","B","C"],["10","20","30"])
     ),
     
     unit:assert-equals(
-       μ:parse-csv(("A,B,C", "10,20,30")),
+       o:parse-csv(("A,B,C", "10,20,30")),
        (["A","B","C"],["10","20","30"])
     )
 };
@@ -471,25 +471,25 @@ declare %unit:test function test:parse-csv()
 declare %unit:test function test:read-json() 
 {
     unit:assert-equals(
-        μ:read-json(test:json('test001.json')),
+        o:read-json(test:json('test001.json')),
         "foo",
         "Simple JSON string (test001.json)"
     ),
     
     unit:assert-equals(
-        μ:read-json(test:json('test002.json')),
+        o:read-json(test:json('test002.json')),
         (),
         "Simple JSON null (test002.json)"
     ),
     
     unit:assert-equals(
-        μ:read-json(test:json('test003.json')),
+        o:read-json(test:json('test003.json')),
         map { 'a': 10, 'b': '20' },
         "Simple JSON map (test003.json)"
     ),
 
     unit:assert-equals(
-        μ:read-json(test:json('test004.json')),
+        o:read-json(test:json('test004.json')),
         ['a',10,(),'20'],
         "Simple JSON array (test004.json)"
     )
@@ -498,19 +498,19 @@ declare %unit:test function test:read-json()
 declare %unit:test function test:parse-json() 
 {
     unit:assert-equals(
-        μ:parse-json("&quot;foo&quot;"),
+        o:parse-json("&quot;foo&quot;"),
         "foo",
         "Simple JSON string"
     ),
     
     unit:assert-equals(
-        μ:parse-json("null"),
+        o:parse-json("null"),
         (),
         "Simple JSON null"
     ),
     
     unit:assert-equals(
-        μ:parse-json("[&quot;a&quot;,10,null,&quot;20&quot;]"),
+        o:parse-json("[&quot;a&quot;,10,null,&quot;20&quot;]"),
         ['a',10,(),'20'],
         "Simple JSON array"
     )
@@ -519,7 +519,7 @@ declare %unit:test function test:parse-json()
 declare %unit:test("expected", "err:FOJS0001") function test:parse-invalid-json() 
 {
     unit:assert-equals(
-        μ:parse-json("[&quot;foo&quot;"),
+        o:parse-json("[&quot;foo&quot;"),
         "foo",
         "Invalid JSON array"
     )

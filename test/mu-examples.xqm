@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace o = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' at '../origami.xqm'; 
 
 (: Example 1 :)
 
@@ -73,11 +73,11 @@ declare function ex:list-template-apply()
     let $groceries := [('Apples', 'Bananas', 'Pears')]
     let $template :=   
         ['ul', map { 'class': 'groceries' },  
-            function($items) {
+            [function($items) {
                 for $item in $items
                 return 
                     ['li', $item]
-            }
+            }]
         ]
     return o:xml(o:apply($template, $groceries))
 };

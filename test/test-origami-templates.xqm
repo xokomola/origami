@@ -1,9 +1,12 @@
 xquery version "3.1";
 
 (:~
- : Origami tests: μ:template
+ : Origami tests: o:template
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
+
+import module namespace o = 'http://xokomola.com/xquery/origami'
+    at '../origami.xqm';
 
 import module namespace μ = 'http://xokomola.com/xquery/origami/mu'
     at '../mu.xqm';
@@ -11,13 +14,13 @@ import module namespace μ = 'http://xokomola.com/xquery/origami/mu'
 declare %unit:test function test:template-identity-function() 
 {
     unit:assert-equals(
-        μ:apply(μ:template(<p><x y="10"/></p>, ())),
+        o:apply(o:template(<p><x y="10"/></p>, ())),
         ['p', ['x', map { 'y': '10' }]],
         'Identity transform'
     ),
       
     unit:assert-equals(
-        μ:apply(μ:template(
+        o:apply(o:template(
             <p><x y="10"/></p>, 
             ['*', μ:copy()]
         )),
@@ -27,7 +30,7 @@ declare %unit:test function test:template-identity-function()
         
     (: because p already copies this will never hit 'x' rule :)
     unit:assert-equals(
-        μ:apply(μ:template(
+        o:apply(o:template(
             <doc><p><x y="10"/></p><y x="20"/></doc>, 
             (
                 ['p', μ:copy()],
@@ -40,7 +43,7 @@ declare %unit:test function test:template-identity-function()
     ),
     
     unit:assert-equals(
-        μ:apply(μ:template(
+        o:apply(o:template(
             ['doc', ['p', ['x', map { 'y': '10' }]],['p', ['y', map { 'x': '20' }]]], 
             ['*', function($n) { $n }]
         )),
@@ -56,7 +59,7 @@ declare %unit:test function test:template-identity-function()
 declare %unit:test function test:template-context-function() 
 {
     unit:assert-equals(
-        μ:apply(μ:template(
+        o:apply(o:template(
             <p><x y="10"/></p>, 
             ['p', function($n,$c) { ['foo', $c] }]
         ), 12),
@@ -65,7 +68,7 @@ declare %unit:test function test:template-context-function()
     ),
     
     unit:assert-equals(
-        μ:apply(μ:template(
+        o:apply(o:template(
             <p><x y="10"/></p>, 
             ['p', function($n,$c) { <foo>{ $c }</foo> }]
         ), 12),

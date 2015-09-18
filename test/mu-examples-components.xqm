@@ -14,6 +14,7 @@ xquery version "3.1";
  : Another insight is that embedding functions on attributes could make the template
  : structure react to message e.g. send on on-click to an element causes an effect and
  : could result in a different "DOM" or mu-doc. Reactive documents in a render loop.
+ : The DOM analogy begs for having a DOM selection mechanism for mu.
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
@@ -61,8 +62,7 @@ declare function ex:contact-list()
         ['ul', function() {
                 for $c in $ex:state?contacts?*
                 return [ex:contact#1, $c]
-            }
-        ],
+        }],
         [ex:new-contact#0]
     ]
 };
@@ -75,6 +75,6 @@ declare function ex:new-contact()
             'placeholder': 'Contact Name',
             'value': '',
             'on-change': '' }],
-        ['button', map { 'on-click': function($name) { ex:add-contact($name) }}, 'Add']
+        ['button', map { 'on-click': [ex:add-contact#1 ex:data('name')] }, 'Add']
     ]
 };
