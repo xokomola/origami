@@ -6,6 +6,7 @@ declare variable $μ:d := xs:QName('μ:data');
 
 declare %private variable $μ:ns := μ:ns();
 declare %private variable $μ:handler-att := '@';
+declare %private variable $μ:data-att := '!';
 
 (:~
  : Origami μ-documents
@@ -116,7 +117,7 @@ declare %private function μ:to-element($element as array(*), $name-resolver as 
 as item()*
 {
     let $tag := μ:tag($element)
-    let $atts := μ:attr($element)
+    let $atts := μ:attrs($element)
     let $content := μ:content($element)
     where $tag
     return
@@ -148,7 +149,7 @@ as attribute()*
 {
     map:for-each($atts,
         function($k,$v) {
-            if ($k = $μ:handler-att) 
+            if ($k = ($μ:handler-att, $μ:data-att)) 
             then ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
@@ -394,15 +395,19 @@ as item()*
 declare function μ:attributes($element as array(*)?)
 as map(*)?
 {
-    if (array:size($element) > 1 and $element?2 instance of map(*))
+    if ($element instance of array(*) and array:size($element) > 1 and $element?2 instance of map(*))
     then $element?2
     else ()
 };
 
 (:~
- : Always returns a map even if element has no attributes
+ : Always returns a map even if element has no attributes.
+ :
+ : Note that for access to attributes in handlers using the lookup operator (?)
+ : you can use both μ:attrs($e)?foo as well as μ:attributes($e)?foo because
+ : ()?foo will work just like map{}?foo.
  :)
-declare function μ:attr($element as array(*))
+declare function μ:attrs($element as array(*)?)
 as map(*)
 {
     (μ:attributes($element), map {})[1]
@@ -422,47 +427,50 @@ declare function μ:apply($nodes as item()*)
     μ:apply($nodes, ())
 };
 
-declare function μ:apply($nodes as item()*, $args as array(*)?)
-as item()*
-{
-    $nodes ! μ:apply(., (), $args)
-};
-
-declare function μ:apply($nodes as item()*, $current-element as array(*)?, $args as array(*)?)
+declare function μ:apply($nodes as item()*, $args as item()*)
 as item()*
 {
     $nodes ! (
-        typeswitch(.)
-        case array(*) return
+        if (μ:is-element(.))
+        then μ:apply-element(. => μ:set-data($args))
+        else
             if (μ:is-handler(.))
-            then μ:apply(μ:apply-handler(., $current-element, $args), $args)
-            else μ:apply-element(., $args)
-        (: This should not happen, a lone map in content position :)
-        case map(*) return .
-        case function(*) return
-            μ:apply(apply(., $args), $current-element, $args)
-        default return .
+            then μ:apply-handler(., ())
+            else .
     )
 };
 
-declare function μ:apply-element($element as array(*), $args as array(*)?)
+declare function μ:apply($nodes as item()*, $current-element as array(*)?, $args as item()*)
+as item()*
 {
+    $nodes ! (
+        if (μ:is-element(.))
+        then μ:apply-element(. => μ:set-data(if (empty($args)) then μ:data($current-element) else $args))
+        else
+            if (μ:is-handler(.))
+            then μ:apply-handler(., $current-element)
+            else .
+    )
+};
+
+declare function μ:apply-element($element as array(*))
+{
+    let $args := μ:data($element)
     let $tag := μ:tag($element)
     let $handler := μ:element-handler($element)
     let $atts := μ:apply-attributes($element, $args)
     return
         if (μ:is-handler($handler))
-        then μ:apply(μ:apply-handler($handler, array { $tag, $atts, μ:content($element)}, $args))
-        (: NOTE: children will see pre-handler element :)
+        then μ:apply-handler($handler, array { $tag, $atts, μ:content($element)})
         else array { $tag, $atts, μ:apply(μ:content($element), $element, $args) }
 };
 
-declare function μ:apply-attributes($element as array(*), $args as array(*)?)
+declare function μ:apply-attributes($element as array(*), $args as item()*)
 {
     let $atts :=
         map:merge((
             map:for-each(
-                μ:attr($element),
+                μ:attrs($element),
                 function($att-name, $att-value) {
                     if ($att-name = $μ:handler-att)
                     then ()
@@ -470,7 +478,7 @@ declare function μ:apply-attributes($element as array(*), $args as array(*)?)
                         map:entry(
                             $att-name,
                             if (μ:is-handler($att-value))
-                            then μ:apply-handler($att-value, $element, $args)
+                            then μ:apply-handler($att-value, $element)
                             else $att-value
                         )
                 }
@@ -482,11 +490,24 @@ declare function μ:apply-attributes($element as array(*), $args as array(*)?)
 
 declare function μ:is-handler($node as item()*)
 {
+    $node instance of function(*)
+        and not($node instance of array(*))
+        and not($node instance of map(*))
+        
+    or 
+    
     $node instance of array(*)
         and array:size($node) > 0
         and array:head($node) instance of function(*)
         and not(array:head($node) instance of array(*))
         and not(array:head($node) instance of map(*))
+};
+
+declare function μ:is-element($node as item()*)
+{
+    $node instance of array(*)
+        and array:size($node) > 0
+        and array:head($node) instance of xs:string
 };
 
 declare function μ:element-handler($element as array(*))
@@ -498,40 +519,31 @@ declare function μ:element-handler($element as array(*))
 
 declare function μ:apply-handler($handler as array(*))
 {
-    μ:apply-handler($handler, (), ())
-};
-
-declare function μ:apply-handler($handler as array(*), $element as array(*)?)
-{
-    μ:apply-handler($handler, $element, ())
+    μ:apply-handler($handler, ())
 };
 
 (: NOTE: is-handler was used before calling this :)
-declare function μ:apply-handler($handler as array(*), $element as array(*)?, $args as item()*)
+declare function μ:apply-handler($handler as item(), $element as array(*)?)
 {
-    apply(array:head($handler), μ:handler-args($handler, $element, $args))
+    typeswitch ($handler)
+    case array(*)
+    return apply(array:head($handler), μ:handler-args($handler, $element))
+    case map(*)
+    return $handler
+    case function(*)
+    return apply($handler, [$element])
+    default
+    return $handler
 };
 
-(:~ Build argument array for the handler :)
-(: TODO: check if we can do more arg list destructurings :)
-(: TODO: how about using defaults for handlers? e.g. element handler receives element by default :)
-declare function μ:handler-args($handler as array(*), $element as array(*)?, $args as item()*)
+declare function μ:handler-args($handler as array(*), $element as array(*)?)
 as array(*)
 {
-    array:fold-left(
-        array:tail($handler),
-        [],
-        function($arglist, $arg) {
-            array:append(
-                $arglist,
-                if ($arg instance of xs:QName) 
-                then 
-                    if ($arg = $μ:e) then $element 
-                    else if ($arg = $μ:d) then $args else $arg
-                else $arg
-            )
-        }
-    )
+    let $args := array:tail($handler)
+    return
+        if (array:size($args) = 0) 
+        then [$element]
+        else array:join(([$element], $args))
 };
 
 (: μ-node transformers :)
@@ -586,12 +598,12 @@ declare function μ:prewalk($fn as function(*), $form as array(*))
 declare function μ:has-handler($element as array(*))
 as xs:boolean
 {
-    map:contains(μ:attr($element), $μ:handler-att)
+    map:contains(μ:attrs($element), $μ:handler-att)
 };
 
 declare function μ:handler($element as array(*))
 {
-    μ:attr($element)($μ:handler-att)
+    μ:attrs($element)($μ:handler-att)
 };
 
 declare function μ:set-handler($handler as array(*)?)
@@ -600,7 +612,30 @@ as function(*)
     function($element as array(*)) {
         array {
             μ:tag($element),
-            map:merge((μ:attr($element), map { $μ:handler-att: $handler })),
+            map:merge((μ:attrs($element), map { $μ:handler-att: $handler })),
+            μ:content($element)
+        }
+    }
+};
+
+declare function μ:data($element as array(*)?)
+{
+    μ:attrs($element)($μ:data-att)
+};
+
+declare function μ:set-data($element as array(*), $data as item()*)
+as function(*)
+{
+    μ:set-data($data)($element)
+};
+
+declare function μ:set-data($data as item()*)
+as function(*)
+{
+    function($element as array(*)) {
+        array {
+            μ:tag($element),
+            map:merge((μ:attrs($element), map { $μ:data-att: $data })),
             μ:content($element)
         }
     }
@@ -864,7 +899,7 @@ as function(item()*) as item()*
     function($element as array(*)) {
         let $atts :=
             map:merge((
-                map:for-each(μ:attr($element),
+                map:for-each(μ:attrs($element),
                     function($k,$v) {
                         if ($k = $remove-atts) then () else map:entry($k,$v)
                     }
@@ -896,7 +931,7 @@ declare function μ:add-class($names as xs:string*)
 as function(item()*) as item()*
 {
     function($element as array(*)) {
-        let $atts := μ:attr($element)
+        let $atts := μ:attrs($element)
         return
             array {
                 μ:tag($element),
@@ -934,7 +969,7 @@ declare function μ:remove-class($names as xs:string*)
 as function(item()*) as item()*
 {
    function($element as array(*)) {
-        let $atts := μ:attr($element)
+        let $atts := μ:attrs($element)
         let $classes := tokenize($atts?class,'\s+')
         let $new-classes :=
             for $class in $classes

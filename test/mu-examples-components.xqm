@@ -75,6 +75,6 @@ declare function ex:new-contact()
             'placeholder': 'Contact Name',
             'value': '',
             'on-change': '' }],
-        ['button', map { 'on-click': [ex:add-contact#1 ex:data('name')] }, 'Add']
+        ['button', map { 'on-click': [ex:add-contact#1, ex:data('name')] }, 'Add']
     ]
 };
