@@ -145,15 +145,16 @@ declare %unit:test function test:nested-apply-table()
             μ:apply(
                 ['table',
                     function($e) {
-                        for $i in trace(1 to μ:data($e)[1], 'rows: ')
+                        for $i in 1 to μ:data($e)[1]
                         return
-                            ['tr', 
-                                function($e) {
-                                    for $j in 1 to trace(μ:data($e)[2], 'cols: ')
-                                    return
-                                        ['td', concat('item ',$i,',',$j)]
-                                }
-                            ]
+                            μ:apply(
+                                ['tr', 
+                                    function($e) {
+                                        for $j in 1 to trace(μ:data($e), 'cols: ')
+                                        return
+                                            ['td', concat('item ',$i,',',$j)]
+                                    }
+                                ] => μ:set-data(μ:data($e)[2])                            )
                     }
                 ], 
                 (3,2)

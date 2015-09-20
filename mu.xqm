@@ -424,7 +424,14 @@ as item()*
 
 declare function μ:apply($nodes as item()*)
 {
-    μ:apply($nodes, ())
+    $nodes ! (
+        if (μ:is-element(.))
+        then μ:apply-element(.)
+        else
+            if (μ:is-handler(.))
+            then μ:apply-handler(., ())
+            else .
+    )
 };
 
 declare function μ:apply($nodes as item()*, $args as item()*)
