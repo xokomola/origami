@@ -137,6 +137,11 @@ declare variable $test:table :=
 (:
  : Shows how a nested apply is used to push processing forward into
  : the content produced by a handler.
+ :
+ : TODO: this needs refactoring as it is impossible to explain the
+ : difference between apply and apply-children. I need it because
+ : of arity problems. There should be a different solution. Or maybe
+ : it's a matter of better naming.
  :)
 declare %unit:test function test:nested-apply-table()
 {    
@@ -150,7 +155,7 @@ declare %unit:test function test:nested-apply-table()
                             μ:apply(
                                 ['tr', 
                                     function($e) {
-                                        for $j in 1 to trace(μ:data($e), 'cols: ')
+                                        for $j in 1 to μ:data($e)
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
@@ -162,5 +167,83 @@ declare %unit:test function test:nested-apply-table()
         ),
         $test:table,
         'Use nested default handlers to produce a table'
-    )
+    ),
+    
+    unit:assert-equals(
+        μ:xml(
+            μ:apply(
+                ['table',
+                    function($e) {
+                        for $i in 1 to μ:data($e)[1]
+                        return
+                            $e => μ:apply-children(
+                                ['tr', 
+                                    function($e) {
+                                        for $j in 1 to μ:data($e)[2]
+                                        return
+                                            ['td', concat('item ',$i,',',$j)]
+                                    }
+                                ]
+                            )
+                    }
+                ], 
+                (3,2)
+            )
+        ),
+        $test:table,
+        'Use nested default handlers to produce a table (apply-children)'
+    ),
+
+    unit:assert-equals(
+        μ:xml(
+            μ:apply(
+                ['table',
+                    function($e) {
+                        for $i in 1 to μ:data($e)[1]
+                        return
+                            μ:apply(
+                                ['tr', 
+                                    function($e) {
+                                        for $j in 1 to μ:data($e)
+                                        return
+                                            ['td', concat('item ',$i,',',$j)]
+                                    }
+                                ],
+                                μ:data($e)[2]
+                            )
+                    }
+                ], 
+                (3,2)
+            )
+        ),
+        $test:table,
+        'Third way, looks good and does not have the issues of the second'
+    ),
+    
+    unit:assert-equals(
+        μ:xml(
+            μ:apply(
+                ['table',
+                    function($e) {
+                        for $i in 1 to μ:data($e)[1]
+                        return
+                            μ:apply(
+                                ['tr', 
+                                    function($e) {
+                                        for $j in 1 to μ:data($e)[2]
+                                        return
+                                            ['td', concat('item ',$i,',',$j)]
+                                    }
+                                ],
+                                μ:data($e)
+                            )
+                    }
+                ], 
+                (3,2)
+            )
+        ),
+        $test:table,
+        'Third way, looks good and does not have the issues of the second'
+    )  
+
 };

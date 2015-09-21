@@ -447,7 +447,13 @@ as item()*
     )
 };
 
-declare function μ:apply($nodes as item()*, $current-element as array(*)?, $args as item()*)
+declare function μ:apply-children($current-element as array(*)?, $nodes as item()*)
+as item()*
+{
+    μ:apply-children($current-element, $nodes, ())
+};
+
+declare function μ:apply-children($current-element as array(*)?, $nodes as item()*, $args as item()*)
 as item()*
 {
     $nodes ! (
@@ -469,7 +475,7 @@ declare function μ:apply-element($element as array(*))
     return
         if (μ:is-handler($handler))
         then μ:apply-handler($handler, array { $tag, $atts, μ:content($element)})
-        else array { $tag, $atts, μ:apply(μ:content($element), $element, $args) }
+        else array { $tag, $atts, μ:apply-children($element, μ:content($element), $args) }
 };
 
 declare function μ:apply-attributes($element as array(*), $args as item()*)
@@ -529,7 +535,6 @@ declare function μ:apply-handler($handler as array(*))
     μ:apply-handler($handler, ())
 };
 
-(: NOTE: is-handler was used before calling this :)
 declare function μ:apply-handler($handler as item(), $element as array(*)?)
 {
     typeswitch ($handler)
