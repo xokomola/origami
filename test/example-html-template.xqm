@@ -6,11 +6,11 @@ xquery version "3.1";
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
 import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' at '../origami.xqm'; 
 
-(:
-declare variable $ex:html := function($name) 
+declare function ex:html($name) 
 { 
-    μ:read-html(file:base-dir() || $name) 
+    o:read-html(file:base-dir() || $name) 
 };
 
 declare variable $ex:list1 :=
@@ -40,37 +40,49 @@ declare variable $ex:main := μ:template(
 );
 :)
 
-declare variable $ex:main := μ:template(
-    $ex:html('base.html'), (
-      ['title', μ:content('TITLE') ],
-      ['div[@id="header"]', μ:content('HEADER') ],
-      ['div[@id="main"]', μ:content('MAIN') ],
-      ['div[@id="footer"]', μ:content('FOOTER') ]   
-    )
-);
+declare variable $ex:main := 
+    o:template(ex:html('base.html'), (
+        ['title', μ:insert('TITLE') ],
+        ['div[@id="header"]', μ:insert('HEADER') ],
+        ['div[@id="main"]', μ:insert('MAIN') ],
+        ['div[@id="footer"]', μ:insert('FOOTER') ]   
+    ));
 
-declare variable $ex:three-col := μ:template(
-    $ex:html('3col.html'),
-    ['div[@id="main"]'],
-    function ($left, $middle, $right) {
-      ['div[@id="left"]', μ:content($left) ],
-      ['div[@id="middle"]', μ:content($middle) ],
-      ['div[@id="right"]', μ:content($right) ]
-    }
-);
+(: Snippets should be able to combine both o:snippet/o:template e.g o:template#3 would do extract and transform :)
+declare variable $ex:three-col := 
+    o:template(
+        o:snippets(ex:html('3col.html'), [ 'div[@id="main"]', μ:copy() ]),
+        (
+            [ 'div[@id="left"]', μ:insert('LEFT') ],
+            [ 'div[@id="middle"]', μ:insert('MIDDLE') ],
+            [ 'div[@id="right"]', μ:insert('RIGHT') ]
+        )
+    );
 
-declare variable $ex:nav-model := function($list as element(list))
-{
-   ['span[@class="count"]', 
-     μ:content(μ:text(count($list/item))) ],
-   ['div[text()][1]', 
-     μ:replace(for $item in $list/item return <div>{ string($item) }</div>) ],
-   ['div[text()]', () ]
-};
+(: it requires an extra apply to invoke the inner handlers but that's not the same as above :)
+(: it's harder to explain this though, i think, otoh it has some resemblence to XSLT :)
+(: TODO: other idea snippet and handler can be node transformers if we make a #1 version for them :)
+declare variable $ex:three-col2 := 
+    o:apply(o:snippets(ex:html('3col.html'), 
+        [ 'div[@id="main"]', o:template((
+            [ 'div[@id="left"]', μ:insert('LEFT') ],
+            [ 'div[@id="middle"]', μ:insert('MIDDLE') ],
+            [ 'div[@id="right"]', μ:insert('RIGHT') ]
+        ))]
+    ));
 
-declare variable $ex:nav1 := μ:template($ex:html('navs.html'), ['div[@id="nav1"]'], $ex:nav-model);
-declare variable $ex:nav2 := μ:template($ex:html('navs.html'), ['div[@id="nav2"]'], $ex:nav-model);
-declare variable $ex:nav3 := μ:template($ex:html('navs.html'), ['div[@id="nav3"]'], $ex:nav-model);
+declare variable $ex:nav-model := 
+    function($list as element(list)) {
+        ['span[@class="count"]', 
+            μ:insert(μ:text(count($list/item))) ],
+        ['div[text()][1]', 
+            μ:replace(for $item in $list/item return <div>{ string($item) }</div>) ],
+        ['div[text()]', () ]
+    };
+
+declare variable $ex:nav1 := o:template(ex:html('navs.html'), (: ['div[@id="nav1"]'],:) $ex:nav-model);
+declare variable $ex:nav2 := o:template(ex:html('navs.html'), (:['div[@id="nav2"]'],:) $ex:nav-model);
+declare variable $ex:nav3 := o:template(ex:html('navs.html'), (:['div[@id="nav3"]'],:) $ex:nav-model);
 
 declare variable $ex:viewa := function() {
   $ex:main(
@@ -122,4 +134,3 @@ declare variable $ex:context :=
             $ex:nav2($ex:list2), 
             $ex:nav3($ex:list1))
     };
-:)

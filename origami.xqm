@@ -219,6 +219,12 @@ declare %private function o:csv-normal-form($csv)
  :)
 (: TODO: can't we simplify on always having an on array arg function as context corresp. to apply :)
 
+declare function o:template($rules as array(*)*)
+as item()*
+{
+    o:compile-template(?, o:compile-rules($rules))
+};
+
 declare function o:template($template as item(), $rules as array(*)*)
 as item()*
 {
@@ -232,8 +238,14 @@ as item()*
  : are no template rules the template will not accept context
  : data.
  :)
-(: TODO: consider naming this fragment :)
-declare function o:snippet($template as item(), $rules as array(*)*)
+(: TODO: consider naming this fragment or extract :)
+declare function o:snippets($rules as array(*)*)
+as item()*
+{
+    o:compile-snippet(?, o:compile-rules($rules))
+};
+
+declare function o:snippets($template as item(), $rules as array(*)*)
 as item()*
 {
     o:compile-snippet($template, o:compile-rules($rules))
@@ -246,7 +258,7 @@ as map(*)
 {
     map:merge((
         for $rule in $rules
-        let $selector := array:head($rule)
+        let $selector := translate(array:head($rule), "&quot;","'")
         let $handler := $rule(2)
         return
             map:entry($selector, $handler)
@@ -265,7 +277,7 @@ as array(*)?
                     $rules, 
                     map { 
                         'extract': false(),
-                        'ns': μ:ns-map-from-nodes($template)
+                        'ns': map:merge(($o:ns, μ:ns-map-from-nodes($template)))
                     }
                 )
             ), 
@@ -274,19 +286,26 @@ as array(*)?
 };
 
 (: TODO: consider naming this fragment :)
-(: TODO: implement same changes as compile-transformer :)
+(: TODO: remove code duplication :)
+
 declare function o:compile-snippet($template as item(), $rules as map(*))
 as array(*)*
 {
-    μ:content(
+    let $template := μ:xml($template)
+    return
         μ:doc(
             xslt:transform(
-                μ:xml($template), 
-                o:compile-transformer($rules, map { 'extract': true() })
-            ),
+                $template, 
+                o:compile-transformer(
+                    $rules, 
+                    map { 
+                        'extract': true(),
+                        'ns': map:merge(($o:ns, μ:ns-map-from-nodes($template)))
+                    }
+                )
+            ), 
             $rules
         )
-    )
 };
 
 declare function o:compile-transformer($rules as map(*)?)
@@ -313,12 +332,15 @@ as element(*)
             else 
                 o:identity-transform(),
             for $selector in map:keys(($rules, map {})[1])
+            let $xpath := translate($selector, "&quot;","'")
             return
-                ['template', map { 'match': $selector },
+                ['template', map { 'match': $xpath },
                     ['copy',
                         ['copy-of', map { 'select': '@*' }],
-                        ['attribute', map { 'name': 'o:path' }, $selector],
-                        ['apply-templates', map { 'select': 'node()' }]
+                        ['attribute', map { 'name': 'o:path' }, $xpath],
+                        if ($options?extract)
+                        then ['copy-of', map { 'select': 'node()' }]
+                        else ['apply-templates', map { 'select': 'node()' }]
                     ]
                 ]
         ],

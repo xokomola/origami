@@ -1,5 +1,7 @@
 xquery version "3.1";
 module namespace μ = 'http://xokomola.com/xquery/origami/mu';
+(: TODO: for origami path attributes, change this! :)
+declare namespace o = 'http://xokomola.com/xquery/origami';
 
 declare variable $μ:e := xs:QName('μ:element');
 declare variable $μ:d := xs:QName('μ:data');
@@ -14,6 +16,7 @@ declare %private variable $μ:data-att := '!';
 (:~
  : Convert XML nodes to a μ-document.
  :)
+(: TODO: whitespace handling :)
 declare function μ:doc($items as item()*)
 as item()*
 {
@@ -43,25 +46,28 @@ as item()?
     case processing-instruction() return ()
     case comment() return ()
     case element() return
-        array {
-            name($item),
-            if ($item/@* or map:contains($rules, name($item)))
-            then
-                map:merge((
-                    for $a in $item/@* except $item/@μ:path
-                    return map:entry(name($a), data($a)),
-                    let $path :=
-                        if ($item[@μ:path])
-                        then string($item/@μ:path)
-                        else name($item)
-                    return
-                        if (map:contains($rules, $path))
-                        then map:entry($μ:handler-att, $rules($path))
-                        else ()
-                ))
-            else (),
-            $item/node() ! μ:doc-node(., $rules)
-        }
+        if  (name($item) = 'o:seq')
+        then $item/node() ! μ:doc-node(., $rules)
+        else
+            array {
+                name($item),
+                if ($item/@* or map:contains($rules, name($item)))
+                then
+                    map:merge((
+                        for $a in $item/@* except $item/@o:path
+                        return map:entry(name($a), data($a)),
+                        let $path :=
+                            if ($item[@o:path])
+                            then string($item/@o:path)
+                            else name($item)
+                        return
+                            if (map:contains($rules, $path))
+                            then map:entry($μ:handler-att, $rules($path))
+                            else ()
+                    ))
+                else (),
+                $item/node() ! μ:doc-node(., $rules)
+            }
     case array(*) return
         let $tag := μ:tag($item)
         let $atts := μ:attributes($item)
@@ -123,7 +129,8 @@ as item()*
     return
         element { $name-resolver($tag) } {
             (: TODO: this shouldn't be in here but was here for compile template, move it there :)
-            namespace μ { 'http://xokomola.com/xquery/origami/mu' },
+            (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
+            namespace o { 'http://xokomola.com/xquery/origami' },
             if ($options?ns instance of map(*))
             then
                 for $prefix in map:keys($options?ns)
@@ -204,7 +211,7 @@ as item()*
             map:merge(
                 map:for-each(.,
                     function($a,$b) {
-                        map:entry(concat('@',$a), μ:to-json($b, $name-resolver)) }))
+                        map:entry(concat(μ:handler-att, $a), μ:to-json($b, $name-resolver)) }))
         case function(*) return ()
         (: FIXME: I think this should be using to-json as well :)
         case node() return μ:doc(.)
@@ -485,7 +492,7 @@ declare function μ:apply-attributes($element as array(*), $args as item()*)
             map:for-each(
                 μ:attrs($element),
                 function($att-name, $att-value) {
-                    if ($att-name = $μ:handler-att)
+                    if ($att-name = ($μ:handler-att, $μ:data-att))
                     then ()
                     else
                         map:entry(
