@@ -39,7 +39,7 @@ declare %private function μ:doc-node($item as item())
 };
 
 declare %private function μ:doc-node($item as item(), $rules as map(*))
-as item()?
+as item()*
 {
     typeswitch($item)
     case document-node() return μ:doc-node($item/*, $rules)
@@ -877,6 +877,31 @@ declare function μ:text($nodes as item()*)
 as item()*
 {
     μ:text()($nodes)
+};
+
+declare function μ:ntext()
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as xs:string* {
+        normalize-space(string-join(
+            $nodes ! (
+                typeswitch (.)
+                case map(*) return ()
+                case array(*) return μ:ntext(μ:content(.))
+                case function(*) return ()
+                default return string(.)
+            )
+        ,''))
+    }
+};
+
+(:~
+ : Outputs the text value of `$nodes`.
+ :)
+declare function μ:ntext($nodes as item()*)
+as item()*
+{
+    μ:ntext()($nodes)
 };
 
 (:~
