@@ -32,6 +32,8 @@ declare function ex:html($uri)
    )))
    
  :)
+ 
+(:
 declare function ex:scraper($uri)
 {
     o:xml(o:apply(ex:stories(ex:html($uri))))
@@ -53,3 +55,4 @@ declare function ex:stories($html)
         }]
     ))) 
 };
+:)
