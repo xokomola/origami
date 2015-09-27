@@ -5,8 +5,8 @@ xquery version "3.1";
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
-import module namespace o = 'http://xokomola.com/xquery/origami' at '../origami.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+    at '../origami.xqm'; 
 
 declare function ex:html($name) 
 { 
@@ -29,33 +29,33 @@ declare variable $ex:list2 :=
     </list>;
 
 (:
-declare variable $ex:main := μ:template(
+declare variable $ex:main := o:template(
     $ex:html('base.html'),
     function($data as map(*)) {
-      ['*[@id="title"]', μ:content($data('title')) ],
-      ['*[@id="header"]', μ:content($data('header')) ],
-      ['*[@id="main"]', μ:content($data('main')) ],
-      ['*[@id="footer"]', μ:content($data('footer')) ]   
+      ['*[@id="title"]', o:content($data('title')) ],
+      ['*[@id="header"]', o:content($data('header')) ],
+      ['*[@id="main"]', o:content($data('main')) ],
+      ['*[@id="footer"]', o:content($data('footer')) ]   
     }
 );
 :)
 
 declare variable $ex:main := 
     o:template(ex:html('base.html'), (
-        ['title', μ:insert('TITLE') ],
-        ['div[@id="header"]', μ:insert('HEADER') ],
-        ['div[@id="main"]', μ:insert('MAIN') ],
-        ['div[@id="footer"]', μ:insert('FOOTER') ]   
+        ['title', o:insert('TITLE') ],
+        ['div[@id="header"]', o:insert('HEADER') ],
+        ['div[@id="main"]', o:insert('MAIN') ],
+        ['div[@id="footer"]', o:insert('FOOTER') ]   
     ));
 
 (: Snippets should be able to combine both o:snippet/o:template e.g o:template#3 would do extract and transform :)
 declare variable $ex:three-col := 
     o:template(
-        o:snippets(ex:html('3col.html'), [ 'div[@id="main"]', μ:copy() ]),
+        o:snippets(ex:html('3col.html'), [ 'div[@id="main"]', o:copy() ]),
         (
-            [ 'div[@id="left"]', μ:insert('LEFT') ],
-            [ 'div[@id="middle"]', μ:insert('MIDDLE') ],
-            [ 'div[@id="right"]', μ:insert('RIGHT') ]
+            [ 'div[@id="left"]', o:insert('LEFT') ],
+            [ 'div[@id="middle"]', o:insert('MIDDLE') ],
+            [ 'div[@id="right"]', o:insert('RIGHT') ]
         )
     );
 
@@ -65,18 +65,18 @@ declare variable $ex:three-col :=
 declare variable $ex:three-col2 := 
     o:apply(o:snippets(ex:html('3col.html'), 
         [ 'div[@id="main"]', o:template((
-            [ 'div[@id="left"]', μ:insert('LEFT') ],
-            [ 'div[@id="middle"]', μ:insert('MIDDLE') ],
-            [ 'div[@id="right"]', μ:insert('RIGHT') ]
+            [ 'div[@id="left"]', o:insert('LEFT') ],
+            [ 'div[@id="middle"]', o:insert('MIDDLE') ],
+            [ 'div[@id="right"]', o:insert('RIGHT') ]
         ))]
     ));
 
 declare variable $ex:nav-model := 
     function($list as element(list)) {
         ['span[@class="count"]', 
-            μ:insert(μ:text(count($list/item))) ],
+            o:insert(o:text(count($list/item))) ],
         ['div[text()][1]', 
-            μ:replace(for $item in $list/item return <div>{ string($item) }</div>) ],
+            o:replace(for $item in $list/item return <div>{ string($item) }</div>) ],
         ['div[text()]', () ]
     };
 

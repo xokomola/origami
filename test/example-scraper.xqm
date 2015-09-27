@@ -5,8 +5,8 @@ xquery version "3.1";
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
-import module namespace o = 'http://xokomola.com/xquery/origami' at '../origami.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+    at '../origami.xqm'; 
 
 declare variable $ex:web := 'http://www.nytimes.com';
 declare variable $ex:local := file:base-dir() || 'ny-times.html';
@@ -47,9 +47,9 @@ declare function ex:stories($html)
                 $e => o:snippets((
                     (: this is not allowed in XSLT 1.0, TODO: test XSLT 2.0 option :)
                     (: '(h2|h3|h5)//a' :)
-                    ['*[contains(@class,"story-heading")]', function($e) { $e => μ:ntext() => μ:wrap(['headline']) }],
-                    ['*[contains(@class,"byline")]', function($e) { $e => μ:ntext() => μ:wrap(['byline']) }],
-                    ['*[contains(@class,"summary")]', function($e) { $e => μ:ntext() => μ:wrap(['summary']) }]            
+                    ['*[contains(@class,"story-heading")]', function($e) { $e => o:ntext() => o:wrap(['headline']) }],
+                    ['*[contains(@class,"byline")]', function($e) { $e => o:ntext() => o:wrap(['byline']) }],
+                    ['*[contains(@class,"summary")]', function($e) { $e => o:ntext() => o:wrap(['summary']) }]            
                 ))
             ] 
         }]

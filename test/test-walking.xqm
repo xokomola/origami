@@ -6,18 +6,19 @@ xquery version "3.1";
 
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami'
+    at '../origami.xqm'; 
 
 declare %unit:test function test:walk-identity()
 {
     unit:assert-equals(
-        μ:postwalk(μ:identity#1, [1,2,[3,4,[5,6]]]),
+        o:postwalk(o:identity#1, [1,2,[3,4,[5,6]]]),
         [1,2,[3,4,[5,6]]],
         "Post-order traversal"
     ),
     
     unit:assert-equals(
-        μ:prewalk(μ:identity#1, [1,2,[3,4,[5,6]]]),
+        o:prewalk(o:identity#1, [1,2,[3,4,[5,6]]]),
         [1,2,[3,4,[5,6]]],
         "Pre-order traversal"
     )
@@ -26,7 +27,7 @@ declare %unit:test function test:walk-identity()
 declare %unit:test function test:walk-sum()
 {
     unit:assert-equals(
-        μ:postwalk(
+        o:postwalk(
             function($n) { 
                 sum($n?*) 
             }, 
@@ -39,7 +40,7 @@ declare %unit:test function test:walk-sum()
 declare %unit:test function test:walk-inc-head()
 {
     unit:assert-equals(
-        μ:prewalk(
+        o:prewalk(
             function($n) { 
                 [array:head($n)+10, array:tail($n)?*]
             }, 
@@ -52,9 +53,9 @@ declare %unit:test function test:walk-inc-head()
 declare %unit:test function test:walk-uppercase-elements()
 {
     unit:assert-equals(
-        μ:postwalk(
+        o:postwalk(
             function($n) { 
-                array { upper-case(μ:head($n)), μ:tail($n) }
+                array { upper-case(o:head($n)), o:tail($n) }
             }, 
             ['foo', map { 'x': 10 }, ['bar', ['baz', 'hello']]]
         ),
@@ -62,9 +63,9 @@ declare %unit:test function test:walk-uppercase-elements()
     ),
     
     unit:assert-equals(
-        μ:prewalk(
+        o:prewalk(
             function($n) { 
-                array { upper-case(μ:head($n)), μ:tail($n) }
+                array { upper-case(o:head($n)), o:tail($n) }
             }, 
             ['foo', map { 'x': 10 }, ['bar', ['baz', 'hello']]]
         ),

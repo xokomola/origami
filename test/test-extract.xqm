@@ -1,15 +1,13 @@
 xquery version "3.1";
 
 (:~
- : Tests for μ:apply.
+ : Tests for o:apply.
  :
- : In most tests μ:xml is used to convert the mu-document to XML. This makes
+ : In most tests o:xml is used to convert the mu-document to XML. This makes
  : it much easier to read. So, strictly, this is not a unit-test any more.
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' 
-    at '../mu.xqm'; 
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
@@ -72,7 +70,7 @@ declare variable $test:html-no-lists :=
 
 declare function test:xf($rules)
 {
-    μ:xml(o:transformer($rules)($test:html))
+    o:xml(o:transformer($rules)($test:html))
 };
 
 declare %unit:test function test:empty() 

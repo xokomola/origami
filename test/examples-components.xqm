@@ -18,7 +18,8 @@ xquery version "3.1";
  :)
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
-import module namespace o = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+    at '../origami.xqm'; 
 
 declare variable $ex:state :=
     map { 'contacts':

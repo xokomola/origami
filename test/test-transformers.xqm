@@ -9,21 +9,21 @@ xquery version "3.1";
 
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' 
-    at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+    at '../origami.xqm'; 
 
 declare %unit:test function test:insert()
 {
     unit:assert-equals(
-        ['p'] => μ:insert(['x']),
+        ['p'] => o:insert(['x']),
         ['p', ['x']]
     ),    
     unit:assert-equals(
-        ['p', 'foo'] => μ:insert(['x']),
+        ['p', 'foo'] => o:insert(['x']),
         ['p', ['x']]
     ),
     unit:assert-equals(
-        ['p', map { 'a': 1 }, 'foo'] => μ:insert(['x']),
+        ['p', map { 'a': 1 }, 'foo'] => o:insert(['x']),
         ['p', map { 'a': 1 },['x']]
     )        
 };
@@ -31,15 +31,15 @@ declare %unit:test function test:insert()
 declare %unit:test function test:replace()
 {
     unit:assert-equals(
-        ['p'] => μ:replace(['x']),
+        ['p'] => o:replace(['x']),
         ['x']
     ),    
     unit:assert-equals(
-        ['p', 'foo'] => μ:replace(['x']),
+        ['p', 'foo'] => o:replace(['x']),
         ['x']
     ),
     unit:assert-equals(
-        ['p', map { 'a': 1 }, 'foo'] => μ:replace(['x']),
+        ['p', map { 'a': 1 }, 'foo'] => o:replace(['x']),
         ['x']
     )        
 };
@@ -47,23 +47,23 @@ declare %unit:test function test:replace()
 declare %unit:test function test:wrap()
 {
     unit:assert-equals(
-        ['p'] => μ:wrap(['x']),
+        ['p'] => o:wrap(['x']),
         ['x', ['p']]
     ),    
     unit:assert-equals(
-        ['p'] => μ:wrap(['x', map { 'a': 1 }]),
+        ['p'] => o:wrap(['x', map { 'a': 1 }]),
         ['x', map { 'a': 1 }, ['p']]
     ),
     unit:assert-equals(
-        ['p'] => μ:wrap(['x', map { 'a': 1 }, 'foo']),
+        ['p'] => o:wrap(['x', map { 'a': 1 }, 'foo']),
         ['x', map { 'a': 1 }, ['p']]
     ),        
     unit:assert-equals(
-        ['p'] => μ:wrap(['x', 'foo']),
+        ['p'] => o:wrap(['x', 'foo']),
         ['x', ['p']]
     ),
     unit:assert-equals(
-        ['p'] => μ:wrap(()),
+        ['p'] => o:wrap(()),
         ['p']
     )
 };
@@ -71,31 +71,31 @@ declare %unit:test function test:wrap()
 declare %unit:test function test:unwrap()
 {
     unit:assert-equals(
-        ['p',['x']] => μ:unwrap(),
+        ['p',['x']] => o:unwrap(),
         ['x']
     ),    
     unit:assert-equals(
-        ['p', map { 'a': 1 }, ['x']] => μ:unwrap(),
+        ['p', map { 'a': 1 }, ['x']] => o:unwrap(),
         ['x']
     ),
     unit:assert-equals(
-        ['p', map { 'a': 1 }, 'foo'] => μ:unwrap(),
+        ['p', map { 'a': 1 }, 'foo'] => o:unwrap(),
         'foo'
     ),        
     unit:assert-equals(
-        ['p', 'foo', ['x']] => μ:unwrap(),
+        ['p', 'foo', ['x']] => o:unwrap(),
         ('foo', ['x'])
     ),
     unit:assert-equals(
-        ['p', map { 'a': 1 }, 'foo', ['x']] => μ:unwrap(),
+        ['p', map { 'a': 1 }, 'foo', ['x']] => o:unwrap(),
         ('foo', ['x'])
     ),
     unit:assert-equals(
-        ['p'] => μ:unwrap(),
+        ['p'] => o:unwrap(),
         ()
     ),
     unit:assert-equals(
-        (['p', ['x']],['p', ['y']]) => μ:unwrap(),
+        (['p', ['x']],['p', ['y']]) => o:unwrap(),
         (['x'],['y'])
     )
 };
@@ -103,7 +103,7 @@ declare %unit:test function test:unwrap()
 declare %unit:test function test:copy()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo'] => μ:copy(),
+        ['p', map { 'a': 10 }, 'foo'] => o:copy(),
         ['p', map { 'a': 10 }, 'foo']
     )
 };
@@ -111,7 +111,7 @@ declare %unit:test function test:copy()
 declare %unit:test function test:before()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo'] => μ:before(['x']),
+        ['p', map { 'a': 10 }, 'foo'] => o:before(['x']),
         (['x'],['p', map { 'a': 10 }, 'foo'])
     )
 };
@@ -119,7 +119,7 @@ declare %unit:test function test:before()
 declare %unit:test function test:after()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo'] => μ:after(['x']),
+        ['p', map { 'a': 10 }, 'foo'] => o:after(['x']),
         (['p', map { 'a': 10 }, 'foo'],['x'])
     )
 };
@@ -127,7 +127,7 @@ declare %unit:test function test:after()
 declare %unit:test function test:insert-before()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo'] => μ:insert-before(['x']),
+        ['p', map { 'a': 10 }, 'foo'] => o:insert-before(['x']),
         ['p', map { 'a': 10 }, ['x'], 'foo']
     )
 };
@@ -135,7 +135,7 @@ declare %unit:test function test:insert-before()
 declare %unit:test function test:insert-after()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo'] => μ:insert-after(['x']),
+        ['p', map { 'a': 10 }, 'foo'] => o:insert-after(['x']),
         ['p', map { 'a': 10 }, 'foo', ['x']]
     )
 };
@@ -143,7 +143,7 @@ declare %unit:test function test:insert-after()
 declare %unit:test function test:text()
 {
     unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo', ['b', 'bar']] => μ:text(),
+        ['p', map { 'a': 10 }, 'foo', ['b', 'bar']] => o:text(),
         ('foo','bar')
     )
 };
@@ -151,7 +151,7 @@ declare %unit:test function test:text()
 declare %unit:test function test:set-attr()
 {
     unit:assert-equals(
-        ['p', map { 'a': 0 }] => μ:set-attr(map { 'a': 10, 'b': 20 }),
+        ['p', map { 'a': 0 }] => o:set-attr(map { 'a': 10, 'b': 20 }),
         ['p', map { 'a': 10, 'b': 20 }]
     )
 };
@@ -159,11 +159,11 @@ declare %unit:test function test:set-attr()
 declare %unit:test function test:remove-attr()
 {
     unit:assert-equals(
-        ['p', map { 'a': 0, 'x': 10 }] => μ:remove-attr(('a','b')),
+        ['p', map { 'a': 0, 'x': 10 }] => o:remove-attr(('a','b')),
         ['p', map { 'x': 10 }]
     ),
     unit:assert-equals(
-        ['p', map { 'a': 0, 'x': 10 }] => μ:remove-attr(('a','x')),
+        ['p', map { 'a': 0, 'x': 10 }] => o:remove-attr(('a','x')),
         ['p']
     )
 };
@@ -171,19 +171,19 @@ declare %unit:test function test:remove-attr()
 declare %unit:test function test:add-class()
 {
     unit:assert-equals(
-        ['p', map { 'class': 'a x' }] => μ:add-class(('a','b')),
+        ['p', map { 'class': 'a x' }] => o:add-class(('a','b')),
         ['p', map { 'class': 'a x b' }]
     ),
     unit:assert-equals(
-        ['p', map { 'class': 'a x' }] => μ:add-class(('a','b','a')),
+        ['p', map { 'class': 'a x' }] => o:add-class(('a','b','a')),
         ['p', map { 'class': 'a x b' }]
     ),
     unit:assert-equals(
-        ['p', map { 'class': 'a x' }] => μ:add-class(('a','x')),
+        ['p', map { 'class': 'a x' }] => o:add-class(('a','x')),
         ['p', map { 'class': 'a x' }]
     ),
     unit:assert-equals(
-        ['p'] => μ:add-class(('a','x')),
+        ['p'] => o:add-class(('a','x')),
         ['p', map { 'class': 'a x' }]
     )
 };
@@ -191,15 +191,15 @@ declare %unit:test function test:add-class()
 declare %unit:test function test:remove-class()
 {
     unit:assert-equals(
-        ['p', map { 'class': 'a x' }] => μ:remove-class(('a','b','a')),
+        ['p', map { 'class': 'a x' }] => o:remove-class(('a','b','a')),
         ['p', map { 'class': 'x' }]
     ),
     unit:assert-equals(
-        ['p', map { 'class': 'a x' }] => μ:remove-class(('a','x')),
+        ['p', map { 'class': 'a x' }] => o:remove-class(('a','x')),
         ['p']
     ),
     unit:assert-equals(
-        ['p'] => μ:remove-class(('a','x')),
+        ['p'] => o:remove-class(('a','x')),
         ['p']
     )
 };
@@ -207,23 +207,23 @@ declare %unit:test function test:remove-class()
 declare %unit:test function test:rename()
 {
     unit:assert-equals(
-        (['p']) => μ:rename('x'),
+        (['p']) => o:rename('x'),
         ['x']
     ),
     unit:assert-equals(
-        (['p', map { 'a': 10 }]) => μ:rename('x'),
+        (['p', map { 'a': 10 }]) => o:rename('x'),
         ['x', map { 'a': 10 }]
     ),
     unit:assert-equals(
-        (['p', map { 'a': 10 }, 'foo']) => μ:rename('x'),
+        (['p', map { 'a': 10 }, 'foo']) => o:rename('x'),
         ['x', map { 'a': 10 }, 'foo']
     ),
     unit:assert-equals(
-        ['p'] => μ:rename(map { 'p': 'x' }),
+        ['p'] => o:rename(map { 'p': 'x' }),
         ['x']
     ),
     unit:assert-equals(
-        ['p'] => μ:rename(map { 'y': 'x' }),
+        ['p'] => o:rename(map { 'y': 'x' }),
         ['p']
     )
 };
@@ -249,7 +249,7 @@ declare variable $test:xslt :=
 declare %unit:test function test:xslt()
 {
     unit:assert-equals(
-        (['p',  'foobar']) => μ:xslt($test:xslt),
+        (['p',  'foobar']) => o:xslt($test:xslt),
         ['result', ['para', map { 'x': '10' }, 'foobar' ]]
     )
 };

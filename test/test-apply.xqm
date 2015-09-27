@@ -1,23 +1,23 @@
 xquery version "3.1";
 
 (:~
- : Tests for μ:apply.
+ : Tests for o:apply.
  :
- : In most tests μ:xml is used to convert the mu-document to XML. This makes
+ : In most tests o:xml is used to convert the mu-document to XML. This makes
  : it much easier to read. So, strictly, this is not a unit-test any more.
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' 
-    at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+    at '../origami.xqm'; 
 
 declare %unit:test function test:attribute-handler-default() 
 {
     unit:assert-equals(
-        μ:xml(μ:apply(
+        o:xml(o:apply(
             ['x', map { 
                 'a': function($e) { 
-                    μ:data($e)[1] + μ:data($e)[2] 
+                    o:data($e)[1] + o:data($e)[2] 
                 } 
             }],
             (2,4)
@@ -30,7 +30,7 @@ declare %unit:test function test:attribute-handler-default()
 declare %unit:test function test:attribute-handler-custom() 
 {
     unit:assert-equals(
-        μ:xml(μ:apply(
+        o:xml(o:apply(
             ['x', map { 
                 'a': [ function($e,$x,$y) { 
                     $x + $y 
@@ -45,11 +45,11 @@ declare %unit:test function test:attribute-handler-custom()
 declare %unit:test function test:content-handler-default()
 {  
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['ul', 
                     function($e) { 
-                        for $i in 1 to μ:data($e) 
+                        for $i in 1 to o:data($e) 
                         return ['li', concat('item ', $i)] 
                     }
                 ],
@@ -72,8 +72,8 @@ declare %unit:test function test:content-handler-custom()
      : function.
      :)
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['ul', 
                     [ function($e,$x) { 
                         for $i in 1 to $x 
@@ -94,8 +94,8 @@ declare %unit:test function test:content-handler-custom()
      : Identical result but produced with literal element constructors 
      :)
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['ul', 
                     [ function($e,$x) { 
                         for $i in 1 to $x 
@@ -146,20 +146,20 @@ declare variable $test:table :=
 declare %unit:test function test:nested-apply-table()
 {    
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['table',
                     function($e) {
-                        for $i in 1 to μ:data($e)[1]
+                        for $i in 1 to o:data($e)[1]
                         return
-                            μ:apply(
+                            o:apply(
                                 ['tr', 
                                     function($e) {
-                                        for $j in 1 to μ:data($e)
+                                        for $j in 1 to o:data($e)
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
-                                ] => μ:set-data(μ:data($e)[2])                            )
+                                ] => o:set-data(o:data($e)[2])                            )
                     }
                 ], 
                 (3,2)
@@ -170,16 +170,16 @@ declare %unit:test function test:nested-apply-table()
     ),
     
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['table',
                     function($e) {
-                        for $i in 1 to μ:data($e)[1]
+                        for $i in 1 to o:data($e)[1]
                         return
-                            $e => μ:apply-children(
+                            $e => o:apply-children(
                                 ['tr', 
                                     function($e) {
-                                        for $j in 1 to μ:data($e)[2]
+                                        for $j in 1 to o:data($e)[2]
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
@@ -195,21 +195,21 @@ declare %unit:test function test:nested-apply-table()
     ),
 
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['table',
                     function($e) {
-                        for $i in 1 to μ:data($e)[1]
+                        for $i in 1 to o:data($e)[1]
                         return
-                            μ:apply(
+                            o:apply(
                                 ['tr', 
                                     function($e) {
-                                        for $j in 1 to μ:data($e)
+                                        for $j in 1 to o:data($e)
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
                                 ],
-                                μ:data($e)[2]
+                                o:data($e)[2]
                             )
                     }
                 ], 
@@ -221,21 +221,21 @@ declare %unit:test function test:nested-apply-table()
     ),
     
     unit:assert-equals(
-        μ:xml(
-            μ:apply(
+        o:xml(
+            o:apply(
                 ['table',
                     function($e) {
-                        for $i in 1 to μ:data($e)[1]
+                        for $i in 1 to o:data($e)[1]
                         return
-                            μ:apply(
+                            o:apply(
                                 ['tr', 
                                     function($e) {
-                                        for $j in 1 to μ:data($e)[2]
+                                        for $j in 1 to o:data($e)[2]
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
                                 ],
-                                μ:data($e)
+                                o:data($e)
                             )
                     }
                 ], 

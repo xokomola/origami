@@ -5,30 +5,31 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu' at '../mu.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami'
+    at '../origami.xqm'; 
 
 declare %unit:test %unit:ignore function test:default-namespace() 
 {
-    let $xml := μ:xml(['p'])
+    let $xml := o:xml(['p'])
     return
         unit:assert-equals(namespace-uri($xml), '')
     ,
-    let $xml := μ:xml(['h:p'])
+    let $xml := o:xml(['h:p'])
     return
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ,
-    let $xml := μ:xml(['p'], μ:qname-resolver(map {}, 'http://foobar'))
+    let $xml := o:xml(['p'], o:qname-resolver(map {}, 'http://foobar'))
     return
         unit:assert-equals(namespace-uri($xml), 'http://foobar')
     (: ,
-    let $xml := μ:xml(['h:x',['p']], μ:qname-resolver(μ:ns(), 'http://foobar'))
+    let $xml := o:xml(['h:x',['p']], o:qname-resolver(o:ns(), 'http://foobar'))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         (: default is set to a uri so we cannot just use $xml/p to get at the child element :)
         unit:assert-equals(namespace-uri($xml/*[1]), 'http://foobar')
     )
     ,
-    let $xml := μ:xml(['h:x',['p']], μ:qname-resolver(μ:ns(), ''))
+    let $xml := o:xml(['h:x',['p']], o:qname-resolver(o:ns(), ''))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         unit:assert-equals(namespace-uri($xml/p), '')
@@ -37,28 +38,28 @@ declare %unit:test %unit:ignore function test:default-namespace()
 
 declare %unit:test %unit:ignore function test:prefixes() 
 {
-    let $xml := μ:xml(['p'])
+    let $xml := o:xml(['p'])
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     (:,
-    let $xml := μ:xml(['h:p'])
+    let $xml := o:xml(['h:p'])
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'h')
     ,
-    let $xml := μ:xml(['p'], μ:qname-resolver(μ:ns(), 'http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['p'], o:qname-resolver(o:ns(), 'http://www.w3.org/1999/xhtml'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ),
-    let $xml := μ:xml(['h:p'], μ:qname-resolver(μ:ns(), 'http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['h:p'], o:qname-resolver(o:ns(), 'http://www.w3.org/1999/xhtml'))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := μ:xml(['x:p'], μ:qname-resolver(μ:ns(map { 'x': 'http://foobar' }), 'http://foobar'))
+    let $xml := o:xml(['x:p'], o:qname-resolver(o:ns(map { 'x': 'http://foobar' }), 'http://foobar'))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := μ:xml(['x:p'], μ:qname-resolver(μ:ns(map { 'x': 'http://foobar' })))
+    let $xml := o:xml(['x:p'], o:qname-resolver(o:ns(map { 'x': 'http://foobar' })))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'x')
     :)
@@ -67,9 +68,9 @@ declare %unit:test %unit:ignore function test:prefixes()
 declare %unit:test function test:mixed-namespaces()
 {
     true()
-     (: let $xml := μ:xml(
+     (: let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        μ:qname-resolver(μ:ns()))
+        o:qname-resolver(o:ns()))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -78,9 +79,9 @@ declare %unit:test function test:mixed-namespaces()
         unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
         unit:assert-equals(namespace-uri($xml/*[3]), '')        
     ),
-    let $xml := μ:xml(
+    let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        μ:qname-resolver(μ:ns(), 'http://www.w3.org/2007/app'))
+        o:qname-resolver(o:ns(), 'http://www.w3.org/2007/app'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -89,9 +90,9 @@ declare %unit:test function test:mixed-namespaces()
         unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
         unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2007/app')         
     ),
-    let $xml := μ:xml(
+    let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        μ:qname-resolver(μ:ns(), 'http://www.w3.org/2005/Atom'))
+        o:qname-resolver(o:ns(), 'http://www.w3.org/2005/Atom'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -100,9 +101,9 @@ declare %unit:test function test:mixed-namespaces()
         unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
         unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2005/Atom')         
     ),    
-    let $xml := μ:xml(
+    let $xml := o:xml(
         ['app:foo', ['x:bar'], ['atom:bar'], ['category']], 
-        μ:qname-resolver(μ:ns(map { 'x': 'http://www.w3.org/2005/Atom' }), 'http://www.w3.org/2005/Atom'))
+        o:qname-resolver(o:ns(map { 'x': 'http://www.w3.org/2005/Atom' }), 'http://www.w3.org/2005/Atom'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -179,7 +180,7 @@ declare variable $test:psychotic-borderline-neurotic :=
 declare %unit:test function test:neurotic()
 {
     unit:assert-equals(
-        μ:ns-map-from-nodes($test:neurotic),
+        o:ns-map-from-nodes($test:neurotic),
         map { 'x': 'foo' },
         "A neurotic XML maps the same namespace prefix to two different namespace URIs
          at different points."
@@ -189,7 +190,7 @@ declare %unit:test function test:neurotic()
 declare %unit:test function test:borderline()
 {
     unit:assert-equals(
-        μ:ns-map-from-nodes($test:borderline),
+        o:ns-map-from-nodes($test:borderline),
         map { 'x': 'foo', 'y': 'foo' },
         "A borderline XML maps two different namespace prefixes to the same namespace
         URI."
@@ -199,7 +200,7 @@ declare %unit:test function test:borderline()
 declare %unit:test function test:psychotic()
 {
     unit:assert-equals(
-        μ:ns-map-from-nodes($test:psychotic),
+        o:ns-map-from-nodes($test:psychotic),
         map { 'x': 'foo', 'y': 'foo' },
         "A psychotic XML maps two different URIs to the same prefix."
     )
@@ -208,7 +209,7 @@ declare %unit:test function test:psychotic()
 declare %unit:test function test:psychotic-borderline-neurotic()
 {
     unit:assert-equals(
-        μ:ns-map-from-nodes($test:psychotic-borderline-neurotic),
+        o:ns-map-from-nodes($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
         "A mixture of insanity."
     )

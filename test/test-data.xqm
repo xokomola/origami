@@ -5,8 +5,8 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace o = 'http://xokomola.com/xquery/origami/mu'
-    at '../mu.xqm';
+import module namespace o = 'http://xokomola.com/xquery/origami'
+    at '../origami.xqm';
 
 declare %unit:test function test:attribute-handlers() 
 {

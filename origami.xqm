@@ -303,7 +303,10 @@ as item()*
 (: NOTE: this doesn't protect us from clashes, it would just overwrite a previous rule entry :)
 declare function o:mode($paths as xs:string*)
 as xs:QName {
-    QName('http://xokomola.com/xquery/origami',concat('_', xs:hexBinary(hash:md5(string-join($paths,' * ')))))
+    QName(
+        'http://xokomola.com/xquery/origami',
+        concat('_', xs:hexBinary(hash:md5(string-join($paths,' * '))))
+    )
 };
 
 declare function o:compile-stylesheet($rules as map(*))
@@ -321,7 +324,6 @@ as element(*)
                 map:entry('version', '1.0')
             )),
             ['output', map { 'method': 'xml' }],
-            (: prepare the root template :)
             ['template', map { 'match': '/' }, 
                 ['o:seq',
                     map:for-each($rules,
@@ -335,7 +337,6 @@ as element(*)
                     )
                 ]
             ],            
-            (: prepare the match templates :)
             map:for-each($rules,
                 function($hash, $rule) {
                     let $xpath := translate($rule?xpath, "&quot;","'")
@@ -363,7 +364,6 @@ as element(*)
                         ]
                 }
             ),
-            (: prepare the other bits for copying / removing nodes :)
             map:for-each($rules,
                 function($mode, $rule) {
                     if ($rule?op = 'remove')
@@ -487,7 +487,11 @@ as node()*
 declare function o:xml($mu as item()*, $options as map(*))
 as node()*
 {
-    o:to-xml($mu, o:qname-resolver(o:ns($options?ns), $options?default-ns), $options)
+    o:to-xml(
+        $mu, 
+        o:qname-resolver(o:ns($options?ns), $options?default-ns), 
+        $options
+    )
 };
 
 (: TODO: namespace handling, especially to-attributes :)
@@ -597,12 +601,21 @@ as item()*
             let $atts := o:attributes(.)
             let $children := o:content(.)
             return
-                map:entry($tag, o:to-json(($atts, $children), $name-resolver))
+                map:entry(
+                    $tag, 
+                    o:to-json(($atts, $children), $name-resolver)
+                )
         case map(*) return
             map:merge(
                 map:for-each(.,
                     function($a,$b) {
-                        map:entry(concat(o:handler-att, $a), o:to-json($b, $name-resolver)) }))
+                        map:entry(
+                            concat(o:handler-att, $a), 
+                            o:to-json($b, $name-resolver)
+                        ) 
+                    }
+                )
+            )
         case function(*) return ()
         (: FIXME: I think this should be using to-json as well :)
         case node() return o:doc(.)
@@ -793,7 +806,9 @@ as item()*
 declare function o:attributes($element as array(*)?)
 as map(*)?
 {
-    if ($element instance of array(*) and array:size($element) > 1 and $element?2 instance of map(*))
+    if ($element instance of array(*) 
+        and array:size($element) > 1 
+        and $element?2 instance of map(*))
     then $element?2
     else ()
 };
@@ -872,8 +887,15 @@ declare function o:apply-element($element as array(*))
     let $atts := o:apply-attributes($element, $args)
     return
         if (o:is-handler($handler))
-        then o:apply-handler($handler, array { $tag, $atts, o:content($element)})
-        else array { $tag, $atts, o:apply-children($element, o:content($element), $args) }
+        then
+            o:apply-handler(
+                $handler, 
+                array { $tag, $atts, o:content($element) }
+            )
+        else 
+            array { $tag, $atts, 
+                o:apply-children($element, o:content($element), $args) 
+            }
 };
 
 declare function o:apply-attributes($element as array(*), $args as item()*)

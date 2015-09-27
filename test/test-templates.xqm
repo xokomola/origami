@@ -8,9 +8,6 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami'
     at '../origami.xqm';
 
-import module namespace μ = 'http://xokomola.com/xquery/origami/mu'
-    at '../mu.xqm';
-
 declare %unit:test function test:template-identity-function() 
 {
     unit:assert-equals(
@@ -22,7 +19,7 @@ declare %unit:test function test:template-identity-function()
     unit:assert-equals(
         o:apply(o:template(
             <p><x y="10"/></p>, 
-            ['*', μ:copy()]
+            ['*', o:copy()]
         )),
         ['p', ['x', map { 'y': '10' }]],
         'Identity transform using copy node transformer'
@@ -33,9 +30,9 @@ declare %unit:test function test:template-identity-function()
         o:apply(o:template(
             <doc><p><x y="10"/></p><y x="20"/></doc>, 
             (
-                ['p', μ:copy()],
-                ['x', μ:copy()],
-                ['y', μ:copy()]
+                ['p', o:copy()],
+                ['x', o:copy()],
+                ['y', o:copy()]
             )
         )),
         ['doc', ['p', ['x', map { 'y': '10' }]],['y', map { 'x': '20' }]],
