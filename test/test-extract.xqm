@@ -11,6 +11,82 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
+declare %unit:test function test:extract-nothing() 
+{
+    unit:assert-equals(
+        o:extract(())(<p><x y="10"/></p>),
+        (),
+        'Nothing'
+    ),
+    
+    unit:assert-equals(
+        o:extract(['y'])(<p><x y="10"/></p>),
+        (),
+        'If no rule matches return nothing'
+    )
+    
+};
+
+declare %unit:test function test:extract-whole-document() 
+{
+    unit:assert-equals(
+        o:xml(o:extract(['*'])(<p><x y="10"/></p>)),
+        <p><x y="10"/></p>,
+        'Copies every element'
+    )
+};
+
+(: ISSUE: removing an element doesn't allow a handler to be added :)
+
+declare %unit:test function test:extract-whole-document-with-holes() 
+{
+    unit:assert-equals(
+        o:xml(o:extract(
+            ['p', ['c', ()]]
+        )(<p>
+            <x>
+                <c>
+                    <xxx/>
+                </c>
+            </x>
+            <y>
+                <c>
+                    <yyy/>
+                </c>
+            </y>
+        </p>)),
+        <p><x/><y/></p>,
+        'Whole document leaving out c elements with content'
+    )
+};
+
+(:
+(:~
+ : A context function will typecheck context arguments and return
+ : the context that will be available in the template rules ($c).
+ :)
+declare %unit:test function test:template-context-function() 
+{
+    unit:assert-equals(
+        o:apply(o:extract(
+            <p><x y="10"/></p>, 
+            ['p', function($n,$c) { ['foo', $c] }]
+        ), 12),
+        ['foo', 12],
+        "One argument template"
+    ),
+    
+    unit:assert-equals(
+        o:apply(o:extract(
+            <p><x y="10"/></p>, 
+            ['p', function($n,$c) { <foo>{ $c }</foo> }]
+        ), 12),
+        <foo>12</foo>,
+        "One argument template producing XML element node")
+};
+
+:)
+
 declare variable $test:html :=
     <html>
         <head>
@@ -70,16 +146,7 @@ declare variable $test:html-no-lists :=
 
 declare function test:xf($rules)
 {
-    o:xml(o:transformer($rules)($test:html))
-};
-
-declare %unit:test function test:empty() 
-{
-    unit:assert-equals(
-        test:xf([]),
-        (),
-        'No transform rules, no result'
-    )    
+    o:xml(o:extract($rules)($test:html))
 };
 
 declare %unit:test function test:copy-whole-page() 
@@ -103,7 +170,7 @@ declare %unit:test function test:extract-lists()
     ),
     unit:assert-equals(
         test:xf(
-            ['div', ['ol']]
+            ['div', (), ['ol']]
         ),
         ($test:html//ol[@id='list-1'], $test:html//ol[@id='list-2']),
         'Take some lists using nested rule'
@@ -114,23 +181,45 @@ declare %unit:test function test:remove-lists()
 {
     unit:assert-equals(
         test:xf(
-            ['ol', ()]
+            ['html', ['ol', ()]]
         ),
         $test:html-no-lists,
         'Remove all lists'
-    ),
-    unit:assert-equals(
-        test:xf(
-            ['div', ['ol', ()]]
-        ),
-        $test:html-no-lists,
-        'Remove some lists using nested rule'
     )
 };
 
-(: remove all but first item from a list :)
-(: ['ol', ['li[1]'], ['li', ()]] :)
-(: return only first item from a list :)
-(: ['ol', (), ['li[1]']] :)
+declare %unit:test function test:remove-all-but-first()
+{
+    unit:assert-equals(
+        test:xf(
+            ['ol[@id="list-1"]', ['li[1]'], ['li', ()]]
+        ),
+        <ol id="list-1">
+            <li>item 1</li>
+        </ol>,
+        'Take first list and remove all but first item'
+    )
+};
 
+declare %unit:test function test:list-handler()
+{
+    unit:assert-equals(
+        o:xml(o:apply(o:extract(
+            ['ol', o:wrap(['list']),
+                ['li[1]'], ['li', ()]
+            ]
+        )(
+            <ol>
+                <li>item 1</li>
+                <li>item 2</li>
+            </ol>
+        ))),
+        <list>
+            <ol>
+                <li>item 1</li>
+            </ol>
+        </list>,
+        'Add list handler'
+    )
+};
  

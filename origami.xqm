@@ -223,26 +223,71 @@ declare %private function o:csv-normal-form($csv)
 
 declare function o:stylesheet($rules as array(*)*)
 {
-    o:compile-stylesheet($rules, map {})
+    o:compile-stylesheet(o:compile-rules($rules), map {})
 };
 
 declare function o:stylesheet($rules as array(*)*, $options as map(*))
 {
-    o:compile-stylesheet($rules, $options)
+    o:compile-stylesheet(o:compile-rules($rules), $options)
+};
+
+declare function o:rules($rules as array(*)*)
+{
+    o:compile-rules($rules)
 };
 
 (: TODO: also attach handlers to attributes and remove attributes by not copying them :)
+(: ISSUE: what if we want to remove all inline tags in, say, a table cell? :)
+(: ISSUE: attaching handlers to matched nodes (these aren't always element nodes - add test case for this :)
+    
 declare function o:extract($rules as array(*)*)
 as item()*
 {
     o:extract($rules, map {})
 };
 
+(: TODO: attribute handlers :)
 declare function o:extract($rules as array(*)*, $options as map(*))
 as item()*
 {
-    let $extractor := o:compile-stylesheet(o:compile-rules($rules))
-    return o:xslt($extractor, $options)
+    let $rules := o:compile-rules($rules)
+    let $extractor := o:compile-stylesheet($rules)
+    return o:merge-handlers($extractor, $rules, $options)
+};
+
+declare %private function o:merge-handlers($extractor, $rules, $options)
+{
+    function($nodes) {
+        o:prewalk(
+            o:xslt($extractor, $options)($nodes), 
+            o:merge-handlers-on-node($rules))
+    }
+};
+
+(: TODO: clean up o:id mess :)
+declare %private function o:merge-handlers-on-node($rules)
+{
+    function($element as array(*)) {
+        let $tag := o:tag($element)
+        let $attrs := o:attrs($element)
+        let $content := o:content($element)
+        let $rule := if (map:contains($attrs,'o:id')) then $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) else map {} 
+        let $merged-attributes :=
+            map:merge((
+                map:for-each($attrs,
+                    function($k,$v) { if ($k = 'o:id') then () else map:entry($k,$v) }
+                ),
+                if (map:contains($rule,'handler'))
+                then map:entry($o:handler-att, $rule?handler)
+                else ()                
+            ))
+        return
+            array { 
+                $tag, 
+                if (map:size($merged-attributes) > 0) then $merged-attributes else (), 
+                $content 
+            }
+    }
 };
 
 (: TODO: ['p', fn1#2, fn2#2, fn3#2] compose a node transformer/pipeline :)
@@ -253,7 +298,7 @@ as item()*
  : handler to the correct mu-node. Also has prepares the tail of the rule
  : to compose pipelines (?)
  :)
-declare function o:compile-rules($rules as array(*)*)
+declare %private function o:compile-rules($rules as array(*)*)
 as map(*)
 {
     map:merge($rules ! o:compile-rule(., ()))
@@ -263,13 +308,23 @@ as map(*)
  : Compiles a rule structure into a series of template descriptions which
  : can be compiled into an XSLT stylesheet using o:compile-stylesheet.
  :)
-declare function o:compile-rule($rule as array(*), $context as xs:string*)
+declare %private function o:compile-rule($rule as array(*), $context as xs:string*)
 as item()*
 {
     let $head := array:head($rule)
     let $hash := o:mode(($context, $head))
     let $mode := o:mode($context)
     let $tail := array:tail($rule)
+    let $handler := 
+        if (array:size($tail) > 0) 
+        then 
+            (: TODO: clean this up :)
+            typeswitch(array:head($tail))
+            case map(*) return ()
+            case array(*) return ()
+            case function(*) return array:head($tail)
+            default return ()
+        else ()
     let $op := if (array:size($tail) = 0 or (array:size($tail) > 0 and not(array:head($tail) instance of empty-sequence()))) then 'copy' else 'remove'
     let $rules := if (array:size($tail) > 0 and array:head($tail) instance of empty-sequence()) then array:tail($tail) else $tail
     return (
@@ -278,7 +333,10 @@ as item()*
                 map:entry('xpath', $head),
                 map:entry('context', $context),
                 map:entry('mode', $mode),
-                map:entry('op', $op)
+                map:entry('op', $op),
+                if (exists($handler))
+                then map:entry('handler', $handler)
+                else ()
             ))
         ),
         for $rule in $rules?*
@@ -301,7 +359,7 @@ as item()*
  :) 
 
 (: NOTE: this doesn't protect us from clashes, it would just overwrite a previous rule entry :)
-declare function o:mode($paths as xs:string*)
+declare %private function o:mode($paths as xs:string*)
 as xs:QName {
     QName(
         'http://xokomola.com/xquery/origami',
@@ -309,13 +367,13 @@ as xs:QName {
     )
 };
 
-declare function o:compile-stylesheet($rules as map(*))
+declare %private function o:compile-stylesheet($rules as map(*))
 as element(*)
 {
     o:compile-stylesheet($rules, map {})
 };
 
-declare function o:compile-stylesheet($rules as map(*), $options as map(*))
+declare %private function o:compile-stylesheet($rules as map(*), $options as map(*))
 as element(*)
 {
     o:xml(
@@ -330,13 +388,14 @@ as element(*)
                         function($hash, $rule) {
                             if (empty($rule?context))
                             then
-                                ['apply-templates', map { 'mode': $hash }]
+                                ['apply-templates']
                             else
                                 ()
                         }
                     )
                 ]
-            ],            
+            ], 
+            ['template', map { 'match': 'text()' }],
             map:for-each($rules,
                 function($hash, $rule) {
                     let $xpath := translate($rule?xpath, "&quot;","'")
@@ -348,15 +407,15 @@ as element(*)
                             map:merge((
                                 map:entry('match', $xpath),
                                 if (empty($context)) 
-                                then map:entry('mode', $hash)
+                                then ()
                                 else map:entry('mode', $mode)
                             )),
                             if ($op = 'copy')
                             then
                                 ['copy',
-                                    ['attribute', map { 'name': 'o:id', 'select': concat('&quot;',$hash,'&quot;') }],
+                                    ['attribute', map { 'name': 'o:id' }, $hash ],
                                     (: for debugging :)
-                                    ['attribute', map { 'name': 'o:path', 'select': concat('&quot;',string-join(($context,$xpath),' * '),'&quot;') }],                                    
+                                    ['attribute', map { 'name': 'o:path' }, string-join(($context,$xpath),' * ') ],                                    
                                     ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
                                 ]
                             else
@@ -390,7 +449,7 @@ as element(*)
     )
 };
 
-declare function o:identity-transform()
+declare %private function o:identity-transform()
 as array(*)+
 {
     ['template', map { 'priority': -10, 'match': '@*|*' },
@@ -551,7 +610,7 @@ as attribute()*
 {
     map:for-each($atts,
         function($k,$v) {
-            if ($k = ($o:handler-att, $o:data-att)) 
+            if (namespace-uri-from-QName($name-resolver($k)) = 'http://xokomola.com/xquery/origami') 
             then ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
@@ -788,13 +847,13 @@ as item()*
 declare function o:tag($element as array(*)?)
 as xs:string?
 {
-    if (empty($element)) then () else array:head($element)
+    if (exists($element)) then array:head($element) else () 
 };
 
 declare function o:content($element as array(*)?)
 as item()*
 {
-    if (array:size($element) > 0) then
+    if (exists($element) and array:size($element) > 0) then
         let $c := array:tail($element)
         return
             if (array:size($c) > 0 and array:head($c) instance of map(*))
@@ -806,7 +865,7 @@ as item()*
 declare function o:attributes($element as array(*)?)
 as map(*)?
 {
-    if ($element instance of array(*) 
+    if (exists($element)
         and array:size($element) > 1 
         and $element?2 instance of map(*))
     then $element?2
@@ -979,7 +1038,20 @@ as array(*)
 };
 
 (: μ-node transformers :)
+
 declare function o:identity($x) { $x };
+
+declare function o:map($n as array(*)?, $fn as function(*))
+{
+    $fn($n),
+    o:content($n) ! o:map(., $fn)
+};
+
+declare function o:filter($n as array(*)?, $fn as function(*))
+{
+    if ($fn($n)) then $n else (),
+    o:content($n) ! o:filter(., $fn)
+};
 
 (:~
  : Returns a sequence even if the argument is an array.
@@ -997,34 +1069,38 @@ declare function o:seq($x as item()*)
 (:~
  : Generic walker function that traverses the μ-node (depth-first).
  :)
-declare function o:postwalk($fn as function(*), $form as item())
+declare function o:postwalk($form as item()*, $fn as function(*))
 {
-    typeswitch ($form)
-    case array(*) return
-        $fn(array {
-            for $item in $form?*
-            return o:postwalk($fn, $item)
-        })
-    default return $form
+    $form ! (
+        typeswitch (.)
+        case array(*) return
+            $fn(array {
+                for $item in $form?*
+                return o:postwalk($item, $fn)
+            })
+        default return $form
+    )
 };
 
 (:~
  : Generic walker function that traverses the μ-node (breadth-first).
  :)
-declare function o:prewalk($fn as function(*), $form as array(*))
+declare function o:prewalk($form as item()*, $fn as function(*))
 {
-    let $walked := $fn($form)
-    return
-        typeswitch ($walked)
-        case array(*) return
-            array {
-                for $item in $walked?*
-                return
-                    if ($item instance of array(*))
-                    then o:prewalk($fn, $item)
-                    else $item
-            }
-        default return $walked
+    $form ! (
+        let $walked := $fn(.)
+        return
+            typeswitch ($walked)
+            case array(*) return
+                array {
+                    for $item in $walked?*
+                    return
+                        if ($item instance of array(*))
+                        then o:prewalk($item, $fn)
+                        else $item
+                }
+            default return $walked
+    )
 };
 
 declare function o:has-handler($element as array(*))
@@ -1510,25 +1586,38 @@ as item()*
  : an XSLT stylesheet.
  : TODO: maybe template and snippet should also use this function.
  :)
- 
+
 declare function o:xslt($stylesheet as item()*)
 as function(*)
 {
-    function($nodes as item()?) as item()* {
-        o:doc(
-            xslt:transform(
-                o:xml($nodes),
-                $stylesheet
+    o:xslt($stylesheet, map {})
+};
+
+declare function o:xslt($stylesheet as item()*, $params as map(*))
+as function(*)
+{
+    function($nodes as item()*) as item()* {
+        if (exists($nodes) and exists($stylesheet))
+        then
+            o:doc(
+                for $node in $nodes
+                return
+                    xslt:transform(
+                        o:xml($nodes),
+                        $stylesheet,
+                        $params
+                    )
             )
-        )
+        else
+            ()
     }
 };
 
 (:~
- : Transform `$mu` nodes using XSLT stylesheet.
+ : Transform nodes using XSLT stylesheet.
  :)
-declare function o:xslt($mu as item()*, $stylesheet as item()*)
+declare function o:xslt($nodes as item()*, $stylesheet as item()*, $params as map(*))
 as function(*)
 {
-    o:xslt($stylesheet)($mu)
+    o:xslt($stylesheet, $params)($nodes)
 };
