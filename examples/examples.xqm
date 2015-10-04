@@ -119,7 +119,7 @@ declare function ex:for-each($nodes, $items) {
 };
 
 declare function ex:template($xml) {
-    o:template(
+    o:extract(
         $xml,
         (
             ['li[@ex:for-each]', ex:for-each#2],
@@ -148,7 +148,7 @@ declare %unit:test function ex:test-list-template-dsl()
  : Free functions do not receive the node as automatic first arg.
  :)
 declare variable $ex:list-item :=
-  ['li', map {'class': 'calc'}, function($pair) { sum($pair) }];
+  ['li', [function($e,$seq) { sum($seq) }, (1,2,3)]];
   
 declare variable $ex:ol-list :=
   ['ol', function($seq) {

@@ -11,13 +11,13 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 declare %unit:test function test:attribute-handlers() 
 {
     unit:assert-equals(
-        o:apply(['foo', map { 'bar': function($d) { if ($d) then $d * 10 else 0 } }]),
-        ['foo', map { 'bar': 0 }],
+        o:apply(['foo', map { 'bar': function($e) { 100 } }]),
+        ['foo', map { 'bar': 100 }],
         "Apply attribute handler without data."
     ),
     
     unit:assert-equals(
-        o:apply(['foo', map { 'bar': function($d) { if ($d) then $d * 10 else 0 } }], 3),
+        o:apply(['foo', map { 'bar': function($e, $d) { if ($d) then $d * 10 else 0 } }], [3]),
         ['foo', map { 'bar': 30 }],
         "Apply data to an attribute handler."
     )
@@ -26,7 +26,7 @@ declare %unit:test function test:attribute-handlers()
 declare %unit:test function test:to-xml() 
 {
     unit:assert-equals(
-        o:xml(['ul', map { 'μ:data': [10,20,30] },
+        o:xml(['ul', map { '!': [10,20,30] },
             ['li', 'list item']
         ]),
         <ul>
@@ -36,16 +36,17 @@ declare %unit:test function test:to-xml()
     )
 };
 
+(: TODO: should data ! be passed to children as args? :)
 declare %unit:test function test:to-xml-with-data() 
 {
     unit:assert-equals(
-        o:xml(o:apply(['ul', map { 'μ:data': [10,20,30] },
-            ['li', function($d) { sum($d?*) }]
+        o:xml(o:apply(['ul', map { '!': [10,20,30] },
+            ['li', function($e,$a,$b,$c) { sum(($a,$b,$c)) }]
         ])),
         <ul>
             <li>60</li>
         </ul>,
-        "The data is used in the li function."
+        "The data is used in the li function but there is no access to parent data"
     )
 };
 
@@ -53,9 +54,9 @@ declare %unit:test function test:pass-data()
 {    
     unit:assert-equals(
         o:apply(
-            ['foo', map { 'μ:data': 3 },
-                ['bar', map { 'μ:data': function($d) { $d * $d } },
-                    ['baz', function($d) { $d * $d }]
+            ['foo', map { '!': 3 },
+                ['bar', map { '!': function($e, $d) { $d * $d } },
+                    ['baz', function($e, $d) { $d * $d }]
                 ]
             ]
         ),
@@ -70,11 +71,11 @@ declare %unit:test function test:pass-data()
     unit:assert-equals(
         o:apply(
             ['foo',
-                ['bar', map { 'μ:data': function($d) { $d * $d } },
-                    ['baz', function($d) { $d * $d }]
+                ['bar', map { '!': function($e, $d) { $d * $d } },
+                    ['baz', function($e, $d) { $d * $d }]
                 ]
             ],
-            3
+            [3]
         ),
         ['foo',
             ['bar',

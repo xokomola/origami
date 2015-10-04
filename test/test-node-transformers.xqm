@@ -244,7 +244,9 @@ declare variable $test:xslt :=
 
 declare variable $test:xslt-params :=
     map { 'x': 10 };
-    
+
+(: TODO: also add a mu stylesheet example :)
+(: TODO: add an example that uses node transformers to modify an identity transform :)    
 declare %unit:test function test:xslt()
 {
     unit:assert-equals(

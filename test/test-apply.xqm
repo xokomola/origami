@@ -16,14 +16,14 @@ declare %unit:test function test:attribute-handler-default()
     unit:assert-equals(
         o:xml(o:apply(
             ['x', map { 
-                'a': function($e) { 
-                    o:data($e)[1] + o:data($e)[2] 
+                'a': function($e, $x, $y) { 
+                    $x + $y 
                 } 
             }],
-            (2,4)
+            [2,4]
         )),
         <x a="6"/>,
-        'Default attribute handler: add two extra args from data'
+        'Attribute handler'
     )    
 };
 
@@ -32,13 +32,13 @@ declare %unit:test function test:attribute-handler-custom()
     unit:assert-equals(
         o:xml(o:apply(
             ['x', map { 
-                'a': [ function($e,$x,$y) { 
+                'a': [ function($e, $x, $y) { 
                     $x + $y 
                 }, 2,4 ]
             }]
         )),
         <x a="6"/>,
-        'Custom attribute handler: add two extra args'
+        'Attribute handler with arguments'
     )
 };
 
@@ -48,12 +48,12 @@ declare %unit:test function test:content-handler-default()
         o:xml(
             o:apply(
                 ['ul', 
-                    function($e) { 
-                        for $i in 1 to o:data($e) 
+                    function($e, $n) { 
+                        for $i in 1 to $n
                         return ['li', concat('item ', $i)] 
                     }
                 ],
-                3
+                [3]
             )
         ),
         <ul>
@@ -137,11 +137,6 @@ declare variable $test:table :=
 (:
  : Shows how a nested apply is used to push processing forward into
  : the content produced by a handler.
- :
- : TODO: this needs refactoring as it is impossible to explain the
- : difference between apply and apply-children. I need it because
- : of arity problems. There should be a different solution. Or maybe
- : it's a matter of better naming.
  :)
 declare %unit:test function test:nested-apply-table()
 {    
@@ -149,101 +144,51 @@ declare %unit:test function test:nested-apply-table()
         o:xml(
             o:apply(
                 ['table',
-                    function($e) {
-                        for $i in 1 to o:data($e)[1]
+                    function($e, $rows, $cols) {
+                        for $i in 1 to $rows
                         return
                             o:apply(
                                 ['tr', 
-                                    function($e) {
-                                        for $j in 1 to o:data($e)
-                                        return
-                                            ['td', concat('item ',$i,',',$j)]
-                                    }
-                                ] => o:set-data(o:data($e)[2])                            )
-                    }
-                ], 
-                (3,2)
-            )
-        ),
-        $test:table,
-        'Use nested default handlers to produce a table'
-    ),
-    
-    unit:assert-equals(
-        o:xml(
-            o:apply(
-                ['table',
-                    function($e) {
-                        for $i in 1 to o:data($e)[1]
-                        return
-                            $e => o:apply-children(
-                                ['tr', 
-                                    function($e) {
-                                        for $j in 1 to o:data($e)[2]
-                                        return
-                                            ['td', concat('item ',$i,',',$j)]
-                                    }
-                                ]
-                            )
-                    }
-                ], 
-                (3,2)
-            )
-        ),
-        $test:table,
-        'Use nested default handlers to produce a table (apply-children)'
-    ),
-
-    unit:assert-equals(
-        o:xml(
-            o:apply(
-                ['table',
-                    function($e) {
-                        for $i in 1 to o:data($e)[1]
-                        return
-                            o:apply(
-                                ['tr', 
-                                    function($e) {
-                                        for $j in 1 to o:data($e)
+                                    function($e, $cols) {
+                                        for $j in 1 to $cols
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
                                 ],
-                                o:data($e)[2]
+                                [$cols]
                             )
                     }
                 ], 
-                (3,2)
+                [3,2]
             )
         ),
         $test:table,
-        'Third way, looks good and does not have the issues of the second'
-    ),
-    
-    unit:assert-equals(
-        o:xml(
+        'Use nested handlers to produce a table'
+    )
+    (: TODO: other idiom, can't get it work yet :)
+    (:,
             o:apply(
                 ['table',
-                    function($e) {
-                        for $i in 1 to o:data($e)[1]
+                    function($e, $rows, $cols) {
+                        let $rows := trace($rows,'ROWS: ')
+                        let $cols := trace($cols, 'COLS: ')
                         return
-                            o:apply(
+                        1 to $rows ! o:apply(
                                 ['tr', 
-                                    function($e) {
-                                        for $j in 1 to o:data($e)[2]
-                                        return
-                                            ['td', concat('item ',$i,',',$j)]
+                                    function($e, $row, $cols) {
+                                      let $row := trace($row, 'CROW: ')
+                                      let $cols := trace($cols, 'CCOLS: ')
+                                      return
+                                       1 to $cols ! o:copy(
+                                         ['td', trace(concat('item ',$row,',',.),'I: ')]
+                                       )
                                     }
                                 ],
-                                o:data($e)
-                            )
+                                [.,$cols]
+                        )
                     }
                 ], 
-                (3,2)
-            )
-        ),
-        $test:table,
-        'Third way, looks good and does not have the issues of the second'
-    )  
-
+                [3,2]
+            )    
+    :)
 };

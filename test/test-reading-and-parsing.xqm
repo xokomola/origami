@@ -176,7 +176,7 @@ declare %unit:test("expected", "err:FOUT1190") function test:read-text-encoding-
 
 (: =========== XML =========== :)
 
-declare %unit:test function test:read-xml()
+declare %unit:test %unit:ignore function test:read-xml()
 {    
     unit:assert-equals(
         o:read-xml(test:xml('test001.xml')),
@@ -185,7 +185,7 @@ declare %unit:test function test:read-xml()
     )    
 };
 
-declare %unit:test function test:read-xml-fetch()
+declare %unit:test %unit:ignore function test:read-xml-fetch()
 {    
     unit:assert-equals(
         o:read-xml(test:xml('test001.xml'), map { 'foo': 'bar' }),

@@ -10,6 +10,9 @@ declare variable $o:d := xs:QName('o:data');
 declare %private variable $o:ns := o:ns();
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:data-att := '!';
+declare %private variable $o:is-element := true();
+declare %private variable $o:is-handler := false();
+declare %private variable $o:internal-att := ($o:data-att,$o:handler-att);
 
 (: Reading from external entities :)
 
@@ -359,6 +362,7 @@ as item()*
  :) 
 
 (: NOTE: this doesn't protect us from clashes, it would just overwrite a previous rule entry :)
+(: TODO: probably better to use normal string instead of QName :)
 declare %private function o:mode($paths as xs:string*)
 as xs:QName {
     QName(
@@ -610,7 +614,7 @@ as attribute()*
 {
     map:for-each($atts,
         function($k,$v) {
-            if (namespace-uri-from-QName($name-resolver($k)) = 'http://xokomola.com/xquery/origami') 
+            if ($k = $o:internal-att or namespace-uri-from-QName($name-resolver($k)) = 'http://xokomola.com/xquery/origami') 
             then ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
@@ -896,82 +900,63 @@ as item()*
 
 declare function o:apply($nodes as item()*)
 {
+    o:apply($nodes, (), [])
+};
+
+declare function o:apply($nodes as item()*, $ctx as array(*))
+as item()*
+{
+    o:apply($nodes, (), $ctx)
+};
+
+declare function o:apply($nodes as item()*, $current as array(*)?, $ctx as array(*))
+as item()*
+{
+    (: TODO: top-level apply doesn't have a current element in context :)
     $nodes ! (
-        if (o:is-element(.))
-        then o:apply-element(.)
-        else
-            if (o:is-handler(.))
-            then o:apply-handler(., ())
-            else .
+        switch (o:is-element-or-handler(.))
+        case $o:is-element return o:apply-element(., $ctx)
+        case $o:is-handler return o:apply-handler(., $current, $ctx)
+        default return .
     )
 };
 
-declare function o:apply($nodes as item()*, $args as item()*)
-as item()*
+declare function o:apply-element($element as array(*), $ctx as array(*))
 {
-    $nodes ! (
-        if (o:is-element(.))
-        then o:apply-element(. => o:set-data($args))
-        else
-            if (o:is-handler(.))
-            then o:apply-handler(., ())
-            else .
-    )
-};
-
-declare function o:apply-children($current-element as array(*)?, $nodes as item()*)
-as item()*
-{
-    o:apply-children($current-element, $nodes, ())
-};
-
-declare function o:apply-children($current-element as array(*)?, $nodes as item()*, $args as item()*)
-as item()*
-{
-    $nodes ! (
-        if (o:is-element(.))
-        then o:apply-element(. => o:set-data(if (empty($args)) then o:data($current-element) else $args))
-        else
-            if (o:is-handler(.))
-            then o:apply-handler(., $current-element)
-            else .
-    )
-};
-
-declare function o:apply-element($element as array(*))
-{
-    let $args := o:data($element)
     let $tag := o:tag($element)
-    let $handler := o:element-handler($element)
-    let $atts := o:apply-attributes($element, $args)
+    let $handler := o:handler($element)
+    let $ctx := o:context($element, $ctx)
+    let $atts := o:apply-attributes($element, $ctx)
+    let $content := o:content($element)
     return
-        if (o:is-handler($handler))
+        if (exists($handler))
         then
             o:apply-handler(
                 $handler, 
-                array { $tag, $atts, o:content($element) }
+                array { $tag, $atts, $content },
+                $ctx
             )
-        else 
+        else
             array { $tag, $atts, 
-                o:apply-children($element, o:content($element), $args) 
+                o:apply($content, $element, $ctx) 
             }
 };
 
-declare function o:apply-attributes($element as array(*), $args as item()*)
+declare function o:apply-attributes($element as array(*), $ctx as item()*)
 {
     let $atts :=
         map:merge((
             map:for-each(
                 o:attrs($element),
                 function($att-name, $att-value) {
-                    if ($att-name = ($o:handler-att, $o:data-att))
+                    if ($att-name = $o:internal-att)
                     then ()
                     else
                         map:entry(
                             $att-name,
-                            if (o:is-handler($att-value))
-                            then o:apply-handler($att-value, $element)
-                            else $att-value
+                            switch (o:is-element-or-handler($att-value))
+                            case $o:is-handler return o:apply-handler($att-value, $element, $ctx)
+                            default return $att-value
                         )
                 }
             )
@@ -980,61 +965,36 @@ declare function o:apply-attributes($element as array(*), $args as item()*)
     return $atts
 };
 
-declare function o:is-handler($node as item()*)
-{
-    $node instance of function(*)
-        and not($node instance of array(*))
-        and not($node instance of map(*))
-        
-    or 
-    
-    $node instance of array(*)
-        and array:size($node) > 0
-        and array:head($node) instance of function(*)
-        and not(array:head($node) instance of array(*))
-        and not(array:head($node) instance of map(*))
-};
-
-declare function o:is-element($node as item()*)
-{
-    $node instance of array(*)
-        and array:size($node) > 0
-        and array:head($node) instance of xs:string
-};
-
-declare function o:element-handler($element as array(*))
-{
-    if (array:size($element) > 1 and $element(2) instance of map(*))
-    then $element(2)($o:handler-att)
-    else ()
-};
-
-declare function o:apply-handler($handler as array(*))
-{
-    o:apply-handler($handler, ())
-};
-
-declare function o:apply-handler($handler as item(), $element as array(*)?)
-{
-    typeswitch ($handler)
+(: returns true if this is an element, false if this is a handler or nil it is neither :)
+declare function o:is-element-or-handler($node as item()*)
+as xs:boolean? {
+    typeswitch ($node)
     case array(*)
-    return apply(array:head($handler), o:handler-args($handler, $element))
-    case map(*)
-    return $handler
-    case function(*)
-    return apply($handler, [$element])
-    default
-    return $handler
+    return
+        if (array:size($node) = 0)
+        then ()
+        else
+            typeswitch (array:head($node))
+            case empty-sequence() return ()
+            case xs:string return $o:is-element
+            case array(*) return ()
+            case map(*) return ()
+            case function(*) return $o:is-handler
+            default return ()
+    case map(*) return ()
+    case function(*) return $o:is-handler
+    default return ()
 };
 
-declare function o:handler-args($handler as array(*), $element as array(*)?)
-as array(*)
+(: NOTE: $handler is already identified as a handler :)
+(: TODO: apply-handler should be private :)
+
+declare function o:apply-handler($handler as item(), $current as array(*)?, $ctx as array(*))
+as item()*
 {
-    let $args := array:tail($handler)
-    return
-        if (array:size($args) = 0) 
-        then [$element]
-        else array:join(([$element], $args))
+    if ($handler instance of array(*))
+    then apply(array:head($handler), array:join(([$current], array:tail($handler), $ctx)))
+    else apply($handler, array:join(([$current], $ctx)))
 };
 
 (: μ-node transformers :)
@@ -1126,9 +1086,24 @@ as function(*)
     }
 };
 
-declare function o:data($element as array(*)?)
+declare function o:context($element as array(*)?)
 {
-    o:attrs($element)($o:data-att)
+    o:context($element, [])
+};
+
+(:~
+ : Make a new context. Replacing head of $ctx with $element.
+ :)
+declare function o:context($element as array(*)?, $ctx as array(*))
+{
+    let $arg-handler := o:attrs($element)($o:data-att)
+    return
+        typeswitch ($arg-handler)
+        case empty-sequence() return $ctx
+        case array(*) return $arg-handler
+        case map(*) return [$arg-handler]
+        case function(*) return [apply($arg-handler, array:join(([$element], $ctx)))] 
+        default return [$arg-handler]
 };
 
 declare function o:set-data($element as array(*), $data as item()*)

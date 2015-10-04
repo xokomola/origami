@@ -103,15 +103,15 @@ declare %unit:test function test:doc-rules()
     unit:assert-equals(
         o:doc(<test:foo bar="10"/>, 
             map { 'test:foo': 'a-function' }),
-        ['test:foo', map { 'bar': '10', 'o:fn': 'a-function'}],
+        ['test:foo', map { 'bar': '10', '@': 'a-function'}],
         "Element handler"
     ),
     
     unit:assert-equals(
         o:doc(<test:foo bar="10"><p/><x/></test:foo>, 
             map { 'test:foo': 'a-function', 'x': 'another-function' }),
-        ['test:foo', map { 'bar': '10', 'o:fn': 'a-function'},
-          ['p'], ['x', map { 'o:fn': 'another-function'}]
+        ['test:foo', map { 'bar': '10', '@': 'a-function'},
+          ['p'], ['x', map { '@': 'another-function'}]
         ],
         "Element handler nested"
     )
