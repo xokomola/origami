@@ -104,9 +104,15 @@ as xs:string*
     let $parse-into-lines := ($options?lines, true())[1]
     let $encoding := $options?encoding
     return
-        if ($parse-into-lines)
-        then if ($encoding) then unparsed-text-lines($uri, $encoding) else unparsed-text-lines($uri) 
-        else if ($encoding) then unparsed-text($uri, $encoding) else unparsed-text($uri)
+        if ($parse-into-lines) then 
+            if ($encoding) then 
+                unparsed-text-lines($uri, $encoding) 
+            else 
+                unparsed-text-lines($uri) 
+        else 
+            if ($encoding) then 
+                unparsed-text($uri, $encoding) 
+            else unparsed-text($uri)
 };
 
 declare function o:read-json($uri as xs:string)
@@ -272,17 +278,19 @@ declare %private function o:doc-node($item as item(), $rules as map(*))
 as item()*
 {
     typeswitch($item)
-    case document-node() return o:doc-node($item/*, $rules)
-    case processing-instruction() return ()
-    case comment() return ()
+    case document-node() return 
+        o:doc-node($item/*, $rules)
+    case processing-instruction() return 
+        ()
+    case comment() return 
+        ()
     case element() return
-        if  (name($item) = 'o:seq')
-        then $item/node() ! o:doc-node(., $rules)
+        if  (name($item) = 'o:seq') then
+            $item/node() ! o:doc-node(., $rules)
         else
             array {
                 name($item),
-                if ($item/@* or map:contains($rules, name($item)))
-                then
+                if ($item/@* or map:contains($rules, name($item))) then
                     map:merge((
                         for $a in $item/@* except $item/@o:path
                         return map:entry(name($a), data($a)),
@@ -295,7 +303,8 @@ as item()*
                             then map:entry($o:handler-att, $rules($path))
                             else ()
                     ))
-                else (),
+                else 
+                    (),
                 $item/node() ! o:doc-node(., $rules)
             }
     case array(*) return
@@ -304,8 +313,10 @@ as item()*
         let $content := o:content($item)
         return
             array { $tag, $atts, $content ! o:doc-node(., $rules) }
-    case text() return string($item)
-    default return $item
+    case text() return
+        string($item)
+    default return 
+        $item
 };
 
 (: "Serializing" :)
@@ -341,12 +352,18 @@ as node()*
 {
     $mu ! (
         typeswitch (.)
-        case array(*) return o:to-element(., $name-resolver, $options)
-        case map(*) return  o:to-attributes(., $name-resolver)
-        case function(*) return ()
-        case empty-sequence() return ()
-        case node() return .
-        default return text { . }
+        case array(*) return 
+            o:to-element(., $name-resolver, $options)
+        case map(*) return  
+            o:to-attributes(., $name-resolver)
+        case function(*) return 
+            ()
+        case empty-sequence() return 
+            ()
+        case node() return 
+            .
+        default return 
+            text { . }
     )
 };
 
@@ -365,8 +382,7 @@ as item()*
             (: TODO: this shouldn't be in here but was here for compile template, move it there :)
             (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
             namespace o { 'http://xokomola.com/xquery/origami' },
-            if ($options?ns instance of map(*))
-            then
+            if ($options?ns instance of map(*)) then
                 for $prefix in map:keys($options?ns)
                 let $uri := $options?ns($prefix)
                 where $prefix != '' and $uri != ''
@@ -390,17 +406,23 @@ as attribute()*
 {
     map:for-each($atts,
         function($k,$v) {
-            if ($k = $o:internal-att or namespace-uri-from-QName($name-resolver($k)) = 'http://xokomola.com/xquery/origami') 
-            then ()
+            if ($k = $o:internal-att 
+                or namespace-uri-from-QName($name-resolver($k)) 
+                = 'http://xokomola.com/xquery/origami') then 
+                ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
                 attribute { if (contains($k,':')) then $name-resolver($k) else $k } {
                     data(
                         typeswitch ($v)
-                        case array(*) return $v
-                        case map(*) return $v
-                        case function(*) return ()
-                        default return $v
+                        case array(*) return 
+                            $v
+                        case map(*) return 
+                            $v
+                        case function(*) return 
+                            ()
+                        default return 
+                            $v
                     )
                 }
         }
@@ -455,20 +477,28 @@ declare %private function o:merge-handlers-on-node($rules)
         let $tag := o:tag($element)
         let $attrs := o:attrs($element)
         let $content := o:content($element)
-        let $rule := if (map:contains($attrs,'o:id')) then $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) else map {} 
+        let $rule := 
+            if (map:contains($attrs,'o:id')) then 
+                $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
+            else
+                map {} 
         let $merged-attributes :=
             map:merge((
                 map:for-each($attrs,
                     function($k,$v) { if ($k = 'o:id') then () else map:entry($k,$v) }
                 ),
-                if (map:contains($rule,'handler'))
-                then map:entry($o:handler-att, $rule?handler)
-                else ()                
+                if (map:contains($rule,'handler')) then
+                    map:entry($o:handler-att, $rule?handler)
+                else
+                    ()                
             ))
         return
             array { 
                 $tag, 
-                if (map:size($merged-attributes) > 0) then $merged-attributes else (), 
+                if (map:size($merged-attributes) > 0) then 
+                    $merged-attributes 
+                else 
+                    (), 
                 $content 
             }
     }
@@ -500,17 +530,32 @@ as item()*
     let $mode := o:mode($context)
     let $tail := array:tail($rule)
     let $handler := 
-        if (array:size($tail) > 0) 
-        then 
+        if (array:size($tail) > 0) then 
             (: TODO: clean this up :)
             typeswitch(array:head($tail))
-            case map(*) return ()
-            case array(*) return ()
-            case function(*) return array:head($tail)
-            default return ()
-        else ()
-    let $op := if (array:size($tail) = 0 or (array:size($tail) > 0 and not(array:head($tail) instance of empty-sequence()))) then 'copy' else 'remove'
-    let $rules := if (array:size($tail) > 0 and array:head($tail) instance of empty-sequence()) then array:tail($tail) else $tail
+            case map(*) return 
+                ()
+            case array(*) return 
+                ()
+            case function(*) return 
+                array:head($tail)
+            default return 
+                ()
+        else 
+            ()
+    let $op := 
+        if (array:size($tail) = 0 
+            or (array:size($tail) > 0 
+                and not(array:head($tail) instance of empty-sequence()))) then 
+            'copy'
+        else 
+            'remove'
+    let $rules := 
+        if (array:size($tail) > 0 
+            and array:head($tail) instance of empty-sequence()) then
+            array:tail($tail) 
+        else 
+            $tail
     return (
         map:entry($hash,
             map:merge((
@@ -572,8 +617,7 @@ as element(*)
                 ['o:seq',
                     map:for-each($rules,
                         function($hash, $rule) {
-                            if (empty($rule?context))
-                            then
+                            if (empty($rule?context)) then
                                 ['apply-templates']
                             else
                                 ()
@@ -1228,8 +1272,7 @@ as item()*
 declare function o:wrap($mu as array(*)?)
 as function(*)
 {
-    if (exists($mu))
-    then
+    if (exists($mu)) then
         function($content as item()*) {
             array { o:tag($mu), o:attributes($mu), $content }
         }
@@ -1477,14 +1520,20 @@ as function(item()*) as item()*
             map:merge((
                 map:for-each(o:attrs($element),
                     function($k,$v) {
-                        if ($k = $remove-atts) then () else map:entry($k,$v)
+                        if ($k = $remove-atts) then 
+                            () 
+                        else 
+                            map:entry($k,$v)
                     }
                 )
             ))
         return
             array {
                 o:tag($element),
-                if (map:size($atts) = 0) then () else $atts,
+                if (map:size($atts) = 0) then 
+                    () 
+                else 
+                    $atts,
                 o:content($element)
             }
     }
@@ -1562,7 +1611,10 @@ as function(item()*) as item()*
         return
             array {
                 o:tag($element),
-                if (map:size($new-atts) = 0) then () else $new-atts,
+                if (map:size($new-atts) = 0) then 
+                    () 
+                else 
+                    $new-atts,
                 o:content($element)
             }
     }
@@ -1594,7 +1646,10 @@ as function(item()*) as item()*
 {
     function($node as array(*)) {
         let $new-name :=
-            if ($name instance of map(*)) then $name(o:tag($node)) else $name
+            if ($name instance of map(*)) then
+                $name(o:tag($node)) 
+            else 
+                $name
         return
             if ($new-name) then
                 array {
