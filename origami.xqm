@@ -923,10 +923,12 @@ as xs:string?
         () 
 };
 
-declare function o:content($element as array(*)?)
+declare function o:content($element as item()?)
 as item()*
 {
-    if (exists($element) and array:size($element) > 0) then
+    if (exists($element)
+        and $element instance of array(*)
+        and array:size($element) > 0) then
         let $c := array:tail($element)
         return
             if (array:size($c) > 0 and array:head($c) instance of map(*)) then 
@@ -1087,16 +1089,35 @@ as item()*
 
 declare function o:identity($x) { $x };
 
-declare function o:map($n as array(*)?, $fn as function(*))
+declare function o:tree-seq($nodes)
 {
-    $fn($n),
-    o:content($n) ! o:map(., $fn)
+    $nodes ! (., o:tree-seq(o:content(.)))
 };
 
-declare function o:filter($n as array(*)?, $fn as function(*))
+(: TODO: explore something like Spectre for this :)
+declare function o:map($nodes as array(*)?, $fn as function(*))
 {
-    if ($fn($n)) then $n else (),
-    o:content($n) ! o:filter(., $fn)
+    o:map($fn)($nodes)
+};
+
+declare function o:map($fn as function(*))
+{
+    function($nodes) {
+        o:tree-seq($nodes) ! $fn(.)
+    }
+};
+
+(: TODO: explore something like Spectre for this :)
+declare function o:select($nodes as array(*)*, $fn as function(*))
+{
+    o:select($fn)($nodes)   
+};
+
+declare function o:select($fn as function(*))
+{
+    function($nodes as array(*)*) {
+        o:tree-seq($nodes) ! (if ($fn(.)) then . else ())
+    }
 };
 
 (:~

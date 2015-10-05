@@ -254,3 +254,31 @@ declare %unit:test function test:xslt()
         ['result', ['para', map { 'x': '10' }, 'foobar' ]]
     )
 };
+
+declare %unit:test function test:tree-seq()
+{
+    unit:assert-equals(
+        o:tree-seq(()),
+        ()
+    ),
+
+    unit:assert-equals(
+        o:tree-seq((['a'],['b'],['c'])),
+        (['a'],['b'],['c'])
+    ),
+
+    unit:assert-equals(
+        o:tree-seq((['a', 'b',['c']])),
+        (['a', 'b', ['c']],'b', ['c'])
+    ),
+    
+    unit:assert-equals(
+        o:tree-seq((['a', map { 'x': 10 },['c']])),
+        (['a', map { 'x': 10 }, ['c']],['c'])
+    ),
+    
+    unit:assert-equals(
+        o:tree-seq(['a', ['b', ['c', ['d']]]]),
+        (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
+    )
+};
