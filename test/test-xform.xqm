@@ -14,13 +14,19 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 declare %unit:test function test:extract-nothing() 
 {
     unit:assert-equals(
-        o:extract(())(<p><x y="10"/></p>),
+        o:xform()(<p><x y="10"/></p>),
+        ['p', ['x', map { 'y': '10' }]],
+        'No argument = identity'
+    ),
+
+    unit:assert-equals(
+        o:xform(())(<p><x y="10"/></p>),
         (),
-        'Nothing'
+        'Empty argument = nothing'
     ),
     
     unit:assert-equals(
-        o:extract(['y'])(<p><x y="10"/></p>),
+        o:xform(['y'])(<p><x y="10"/></p>),
         (),
         'If no rule matches return nothing'
     )
@@ -30,7 +36,7 @@ declare %unit:test function test:extract-nothing()
 declare %unit:test function test:extract-whole-document() 
 {
     unit:assert-equals(
-        o:xml(o:extract(['*'])(<p><x y="10"/></p>)),
+        o:xml(o:xform(['*'])(<p><x y="10"/></p>)),
         <p><x y="10"/></p>,
         'Copies every element'
     )
@@ -41,7 +47,7 @@ declare %unit:test function test:extract-whole-document()
 declare %unit:test function test:extract-whole-document-with-holes() 
 {
     unit:assert-equals(
-        o:xml(o:extract(
+        o:xml(o:xform(
             ['p', ['c', ()]]
         )(<p>
             <x>
@@ -56,7 +62,7 @@ declare %unit:test function test:extract-whole-document-with-holes()
             </y>
         </p>)),
         <p><x/><y/></p>,
-        'Whole document leaving out c elements with content'
+        'Whole document leaving out c elements'
     )
 };
 
@@ -68,7 +74,7 @@ declare %unit:test function test:extract-whole-document-with-holes()
 declare %unit:test function test:template-context-function() 
 {
     unit:assert-equals(
-        o:apply(o:extract(
+        o:apply(o:xform(
             <p><x y="10"/></p>, 
             ['p', function($n,$c) { ['foo', $c] }]
         ), 12),
@@ -77,7 +83,7 @@ declare %unit:test function test:template-context-function()
     ),
     
     unit:assert-equals(
-        o:apply(o:extract(
+        o:apply(o:xform(
             <p><x y="10"/></p>, 
             ['p', function($n,$c) { <foo>{ $c }</foo> }]
         ), 12),
@@ -146,7 +152,7 @@ declare variable $test:html-no-lists :=
 
 declare function test:xf($rules)
 {
-    o:xml(o:extract($rules)($test:html))
+    o:xml(o:xform($rules)($test:html))
 };
 
 declare %unit:test function test:copy-whole-page() 
@@ -204,7 +210,7 @@ declare %unit:test function test:remove-all-but-first()
 declare %unit:test function test:list-handler()
 {
     unit:assert-equals(
-        o:xml(o:apply(o:extract(
+        o:xml(o:apply(o:xform(
             ['ol', o:wrap(['list']),
                 ['li[1]'], ['li', ()]
             ]

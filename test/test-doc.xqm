@@ -98,6 +98,11 @@ declare %unit:test function test:doc-data()
     )
 };
 
+(: TODO: use [fn args] to set both ! and @ :)
+(: TODO: maybe call extract o:xdoc or o:xf or o:xtransform or just use [..] arg to do transform :)
+(: TODO: add opts to o:doc as third argument :)
+(: TODO: add '@x' to add handler to attributes, or foo@x :)
+
 declare %unit:test function test:doc-rules()
 {
     unit:assert-equals(

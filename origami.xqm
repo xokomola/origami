@@ -239,25 +239,6 @@ declare function o:rules($rules as array(*)*)
     o:compile-rules($rules)
 };
 
-(: TODO: also attach handlers to attributes and remove attributes by not copying them :)
-(: ISSUE: what if we want to remove all inline tags in, say, a table cell? :)
-(: ISSUE: attaching handlers to matched nodes (these aren't always element nodes - add test case for this :)
-    
-declare function o:extract($rules as array(*)*)
-as item()*
-{
-    o:extract($rules, map {})
-};
-
-(: TODO: attribute handlers :)
-declare function o:extract($rules as array(*)*, $options as map(*))
-as item()*
-{
-    let $rules := o:compile-rules($rules)
-    let $extractor := o:compile-stylesheet($rules)
-    return o:merge-handlers($extractor, $rules, $options)
-};
-
 declare %private function o:merge-handlers($extractor, $rules, $options)
 {
     function($nodes) {
@@ -471,20 +452,56 @@ as array(*)+
  : Convert XML nodes to a μ-document.
  :)
 (: TODO: whitespace handling :)
-declare function o:doc($items as item()*)
+declare function o:doc($nodes as item()*)
 as item()*
 {
-    $items ! o:doc-node(., map {})
+    o:xform()($nodes)
 };
 
 (:~
  : Convert XML nodes to a μ-document and attaching transformation functions
  : to some of the element nodes.
  :)
-declare function o:doc($items as item()*, $rules as map(*))
+declare function o:doc($nodes as item()*, $rules as item()*)
 as item()*
 {
-    $items ! o:doc-node(., $rules)
+    o:xform($rules)($nodes)
+};
+
+declare function o:doc($nodes as item()*, $rules as item()*, $options as map(*))
+as item()*
+{
+    o:xform($rules, $options)($nodes)
+};
+
+(: TODO: also attach handlers to attributes and remove attributes by not copying them :)
+(: ISSUE: what if we want to remove all inline tags in, say, a table cell? :)
+(: ISSUE: attaching handlers to matched nodes (these aren't always element nodes - add test case for this :)
+
+declare function o:xform()
+{
+    o:xform(map {}, map {})
+};
+
+declare function o:xform($rules as item()*)
+as item()*
+{
+    o:xform($rules, map {})
+};
+
+(: TODO: attribute handlers :)
+declare function o:xform($rules as item()*, $options as map(*))
+as item()*
+{
+    typeswitch ($rules)
+    case array(*)* return
+        let $rules := o:compile-rules($rules)
+        let $extractor := o:compile-stylesheet($rules)
+        return o:merge-handlers($extractor, $rules, $options)
+    case map(*) return 
+        function($nodes) { $nodes ! o:doc-node(., $rules) }
+    default return 
+        function($nodes) { $nodes ! o:doc-node(., map {}) }
 };
 
 declare %private function o:doc-node($item as item())

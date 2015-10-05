@@ -46,7 +46,17 @@ declare %unit:test function test:to-xml-with-data()
         <ul>
             <li>60</li>
         </ul>,
-        "The data is used in the li function but there is no access to parent data"
+        "The data handler modifies the context arguments"
+    ),
+
+    unit:assert-equals(
+        o:xml(o:apply(['ul', map { '!': (10,20,30) },
+            ['li', function($e,$x) { sum($x) }]
+        ])),
+        <ul>
+            <li>60</li>
+        </ul>,
+        "The data handler modifies the context arguments"
     )
 };
 
