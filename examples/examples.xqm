@@ -69,7 +69,6 @@ declare %unit:test function ex:test-list-template-pure()
 
 declare function ex:list-template-apply() 
 {
-    (: TODO: to pass this you must wrap it like this! Not ideal. :)
     let $groceries := [('Apples', 'Bananas', 'Pears')]
     let $template :=   
         ['ul', map { 'class': 'groceries' },  
@@ -99,7 +98,6 @@ declare %unit:test function ex:test-list-template-apply()
 
 declare function ex:list-template-dsl()
 {
-    (: TODO: It's hard to explain why here one array is enough :)
     let $groceries := [('Apples', 'Bananas', 'Pears')]
     let $list := 
         ex:template(
@@ -128,7 +126,6 @@ declare function ex:template($xml) {
     )
 };
 
-(: TODO: mu namespace shouldn't be here, see comment in code :)
 declare %unit:test function ex:test-list-template-dsl()
 {
     unit:assert-equals(
@@ -162,7 +159,6 @@ declare variable $ex:ol-list :=
  :)
 declare function ex:list-template3() 
 {
-    (: TODO: and this is even harder to explain :)
     o:apply($ex:ol-list, [[1,2],[3,4],[5,6]])
 };
 

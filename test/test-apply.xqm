@@ -165,7 +165,6 @@ declare %unit:test function test:nested-apply-table()
         $test:table,
         'Use nested handlers to produce a table'
     )
-    (: TODO: other idiom, can't get it work yet :)
     (:,
             o:apply(
                 ['table',

@@ -3,6 +3,7 @@ xquery version "3.1";
 (:~
  : Examples for μ-documents
  :)
+
 module namespace ex = 'http://xokomola.com/xquery/origami/examples';
 
 import module namespace o = 'http://xokomola.com/xquery/origami' 
@@ -48,7 +49,6 @@ declare variable $ex:main :=
         ['div[@id="footer"]', o:insert('FOOTER') ]   
     ));
 
-(: Snippets should be able to combine both o:snippet/o:template e.g o:template#3 would do extract and transform :)
 declare variable $ex:three-col := 
     o:template(
         o:snippets(ex:html('3col.html'), [ 'div[@id="main"]', o:copy() ]),
@@ -59,9 +59,6 @@ declare variable $ex:three-col :=
         )
     );
 
-(: it requires an extra apply to invoke the inner handlers but that's not the same as above :)
-(: it's harder to explain this though, i think, otoh it has some resemblence to XSLT :)
-(: TODO: other idea snippet and handler can be node transformers if we make a #1 version for them :)
 declare variable $ex:three-col2 := 
     o:apply(o:snippets(ex:html('3col.html'), 
         [ 'div[@id="main"]', o:template((

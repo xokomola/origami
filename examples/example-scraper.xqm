@@ -45,7 +45,6 @@ declare function ex:stories($html)
         ['article[contains(@class, "story")]', function($e) { 
             ['story',
                 $e => o:snippets((
-                    (: this is not allowed in XSLT 1.0, TODO: test XSLT 2.0 option :)
                     (: '(h2|h3|h5)//a' :)
                     ['*[contains(@class,"story-heading")]', function($e) { $e => o:ntext() => o:wrap(['headline']) }],
                     ['*[contains(@class,"byline")]', function($e) { $e => o:ntext() => o:wrap(['byline']) }],

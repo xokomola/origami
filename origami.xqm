@@ -159,8 +159,6 @@ declare %private variable $o:json-options :=
  : - lax: yes, no (yes) lax approach to parsing qnames to json names
  : - quotes: yes, no (yes)
  : - backslashes: yes, no (no)
- :
- : TODO: check which options are only meant for serialization.
  :)
 declare function o:read-csv($uri as xs:string)
 as array(*)*
@@ -215,8 +213,6 @@ declare %private function o:csv-normal-form($csv)
 (:~
  : Convert XML nodes to a μ-document.
  :)
-
-(: TODO: whitespace handling :)
 declare function o:doc($nodes as item()*)
 as item()*
 {
@@ -239,10 +235,6 @@ as item()*
     o:xform($rules, $options)($nodes)
 };
 
-(: TODO: also attach handlers to attributes and remove attributes by not copying them :)
-(: ISSUE: what if we want to remove all inline tags in, say, a table cell? :)
-(: ISSUE: attaching handlers to matched nodes (these aren't always element nodes - add test case for this :)
-
 declare function o:xform()
 {
     o:xform(map {}, map {})
@@ -254,7 +246,6 @@ as item()*
     o:xform($rules, map {})
 };
 
-(: TODO: attribute handlers :)
 declare function o:xform($rules as item()*, $options as map(*))
 as item()*
 {
@@ -344,9 +335,6 @@ as node()*
     )
 };
 
-(: TODO: namespace handling, especially to-attributes :)
-(: TODO: default namespaces was set to XSLT o:qname-resolver($ns-map, $ns-map?xsl)
-         but this isn't the right approach :)
 declare %private function o:to-xml($mu as item()*, $name-resolver as function(xs:string) as xs:QName, $options as map(*))
 as node()*
 {
@@ -367,9 +355,6 @@ as node()*
     )
 };
 
-(: TODO: need more common map manipulation functions :)
-(: TODO: change ns handling to using a map to construct them at the top (sane namespaces) :)
-(: TODO: in mu we should not get xmlns attributes so change o:doc to take them off :)
 declare %private function o:to-element($element as array(*), $name-resolver as function(*), $options)
 as item()*
 {
@@ -379,7 +364,6 @@ as item()*
     where $tag
     return
         element { $name-resolver($tag) } {
-            (: TODO: this shouldn't be in here but was here for compile template, move it there :)
             (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
             namespace o { 'http://xokomola.com/xquery/origami' },
             if ($options?ns instance of map(*)) then
@@ -399,8 +383,6 @@ as item()*
         }
 };
 
-(: TODO: we need an option for attribute serialization :)
-(: NOTE: another reason why we should avoid names with :, conversion to json is easier? Maybe also makes JSON-LD easier :)
 declare %private function o:to-attributes($atts as map(*), $name-resolver as function(*))
 as attribute()*
 {
@@ -444,8 +426,6 @@ as attribute()*
  : function takes the arguments and prepares the context map for the
  : use by the template rules.
  :)
-(: TODO: can't we simplify on always having an on array arg function as context corresp. to apply :)
-
 declare function o:stylesheet($rules as array(*)*)
 {
     o:compile-stylesheet(o:compile-rules($rules), map {})
@@ -470,7 +450,6 @@ declare %private function o:merge-handlers($extractor, $rules, $options)
     }
 };
 
-(: TODO: clean up o:id mess :)
 declare %private function o:merge-handlers-on-node($rules)
 {
     function($element as array(*)) {
@@ -504,9 +483,6 @@ declare %private function o:merge-handlers-on-node($rules)
     }
 };
 
-(: TODO: ['p', fn1#2, fn2#2, fn3#2] compose a node transformer/pipeline :)
-(: TODO: also should work with 1 item arrays :)
-
 (:~
  : Prepare a map that is used in a transformer to attach the correct
  : handler to the correct mu-node. Also has prepares the tail of the rule
@@ -531,7 +507,6 @@ as item()*
     let $tail := array:tail($rule)
     let $handler := 
         if (array:size($tail) > 0) then 
-            (: TODO: clean this up :)
             typeswitch(array:head($tail))
             case map(*) return 
                 ()
@@ -584,12 +559,9 @@ as item()*
 };
 
 (:~
- : private
  : Generate a QName string unique for the context and suitable for use in XSLT mode attribute.
  :) 
 
-(: NOTE: this doesn't protect us from clashes, it would just overwrite a previous rule entry :)
-(: TODO: probably better to use normal string instead of QName :)
 declare %private function o:mode($paths as xs:string*)
 as xs:QName {
     QName(
@@ -701,7 +673,6 @@ as xs:string
 (:~
  : Converts μ-nodes to JSON using a name-resolver.
  :)
-(: TODO: probably should be symmetrical with o:xml (options) :)
 declare function o:json($mu as item()*, $name-resolver as function(*))
 as xs:string
 {
@@ -711,7 +682,6 @@ as xs:string
     )
 };
 
-(: TODO: prefix attribute names with @?, plus general improvement :)
 declare %private function o:to-json($mu as item()*, $name-resolver as function(*))
 as item()*
 {
@@ -986,7 +956,6 @@ as item()*
 declare function o:apply($nodes as item()*, $current as array(*)?, $ctx as array(*))
 as item()*
 {
-    (: TODO: top-level apply doesn't have a current element in context :)
     $nodes ! (
         switch (o:is-element-or-handler(.))
         case $o:is-element return 
@@ -1073,9 +1042,6 @@ as xs:boolean? {
         ()
 };
 
-(: NOTE: $handler is already identified as a handler :)
-(: TODO: apply-handler should be private :)
-
 declare function o:apply-handler($handler as item(), $current as array(*)?, $ctx as array(*))
 as item()*
 {
@@ -1094,7 +1060,6 @@ declare function o:tree-seq($nodes)
     $nodes ! (., o:tree-seq(o:content(.)))
 };
 
-(: TODO: explore something like Spectre for this :)
 declare function o:map($nodes as array(*)?, $fn as function(*))
 {
     o:map($fn)($nodes)
@@ -1107,7 +1072,6 @@ declare function o:map($fn as function(*))
     }
 };
 
-(: TODO: explore something like Spectre for this :)
 declare function o:select($nodes as array(*)*, $fn as function(*))
 {
     o:select($fn)($nodes)   
@@ -1122,7 +1086,6 @@ declare function o:select($fn as function(*))
 
 (:~
  : Returns a sequence even if the argument is an array.
- : TODO: should this also flatten maps into a seq?
  :)
 declare function o:seq($x as item()*)
 {
@@ -1530,8 +1493,6 @@ as item()*
  :
  : If a name cannot be used as an attribute name (xs:QName) then
  : it will be silently ignored.
- :
- : TODO: better testing and clean up code.
  :)
 declare function o:remove-attr($remove-atts as xs:string*)
 as function(item()*) as item()*
@@ -1695,9 +1656,7 @@ as item()*
 (:~
  : Returns a node transformer that transforms nodes using
  : an XSLT stylesheet.
- : TODO: maybe template and snippet should also use this function.
  :)
-
 declare function o:xslt($stylesheet as item()*)
 as function(*)
 {

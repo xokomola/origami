@@ -305,7 +305,6 @@ declare %unit:test("expected", "err:FOUT1200") function test:read-html-decoding-
 };
 
 (: Tests for parsing HTML via TagSoup :)
-(: TODO: test more options :)
 declare %unit:test function test:parse-html()
 {
     unit:assert-equals(
@@ -465,8 +464,6 @@ declare %unit:test function test:parse-csv()
 };
 
 (: =========== JSON =========== :)
-
-(: TODO test various parsing options :)
 
 declare %unit:test function test:read-json() 
 {

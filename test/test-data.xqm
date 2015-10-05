@@ -36,7 +36,6 @@ declare %unit:test function test:to-xml()
     )
 };
 
-(: TODO: should data ! be passed to children as args? :)
 declare %unit:test function test:to-xml-with-data() 
 {
     unit:assert-equals(
