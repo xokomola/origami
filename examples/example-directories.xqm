@@ -23,13 +23,21 @@ declare function ex:files($dir as xs:string)
 
 declare function ex:fileset()
 {
-    ex:files(file:resolve-path('..', file:base-dir()))
+    ex:files(file:parent(file:base-dir()))
 };
 
-declare function ex:fileset($pattern)
+(:~ 
+ : example: ex:fileset(('\.xqm$','\.xml$','\.html$')) 
+ :
+ : List all XQuery modules, HTML and XML files in the origami directory.
+ :)
+declare function ex:fileset($patterns)
 {
     o:xml(o:select(
         ex:fileset(),
-        function($n) { matches(o:attrs($n)?path, $pattern) }
+        function($n) { 
+          some $pattern in $patterns 
+          satisfies matches(o:attrs($n)?path, $pattern) 
+        }
     ))
 };
