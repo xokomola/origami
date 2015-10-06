@@ -1012,8 +1012,18 @@ declare function o:apply-attributes($element as array(*), $ctx as item()*)
     return $atts
 };
 
+declare function o:is-element($node as item()?)
+as xs:boolean
+{
+    typeswitch($node)
+    case array(*)
+    return true()
+    default
+    return false()
+};
+
 (: returns true if this is an element, false if this is a handler or nil it is neither :)
-declare function o:is-element-or-handler($node as item()*)
+declare function o:is-element-or-handler($node as item()?)
 as xs:boolean? {
     typeswitch ($node)
     case array(*)
@@ -1060,7 +1070,23 @@ declare function o:tree-seq($nodes)
     $nodes ! (., o:tree-seq(o:content(.)))
 };
 
-declare function o:map($nodes as array(*)?, $fn as function(*))
+declare function o:tree-seq($nodes, $children as function(*))
+{
+    o:tree-seq($nodes, o:is-element#1, $children)
+};
+
+declare function o:tree-seq($nodes, $is-branch as function(*), $children as function(*))
+{
+    $nodes ! ( 
+        if ($is-branch(.)) then
+            $children(.) 
+        else
+            (),
+        o:tree-seq(o:content(.), $is-branch, $children)
+    )
+};
+
+declare function o:map($nodes as array(*)*, $fn as function(*))
 {
     o:map($fn)($nodes)
 };
@@ -1068,7 +1094,7 @@ declare function o:map($nodes as array(*)?, $fn as function(*))
 declare function o:map($fn as function(*))
 {
     function($nodes) {
-        o:tree-seq($nodes) ! $fn(.)
+        o:tree-seq($nodes, $fn)
     }
 };
 
@@ -1080,21 +1106,23 @@ declare function o:select($nodes as array(*)*, $fn as function(*))
 declare function o:select($fn as function(*))
 {
     function($nodes as array(*)*) {
-        o:tree-seq($nodes) ! (if ($fn(.)) then . else ())
+        o:tree-seq($nodes, $fn, o:identity#1)
     }
 };
 
 (:~
  : Returns a sequence even if the argument is an array.
  :)
-declare function o:seq($x as item()*)
+declare function o:seq($nodes as item()*)
 {
-    if ($x instance of array(*)) then
-        $x?*
-    else if ($x instance of map(*)) then
-        map:for-each($x, function($k,$v) { ($k,$v) })
-    else 
-        $x
+    $nodes ! (
+        if (. instance of array(*)) then
+            .?*
+        else if (. instance of map(*)) then
+            map:for-each(., function($k,$v) { ($k,$v) })
+        else 
+            .
+    )
 };
 
 (:~

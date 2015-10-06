@@ -258,13 +258,28 @@ declare %unit:test function test:tree-seq()
     ),
 
     unit:assert-equals(
+        o:tree-seq((), o:is-element#1, o:identity#1),
+        ()
+    ),
+
+    unit:assert-equals(
         o:tree-seq((['a'],['b'],['c'])),
+        (['a'],['b'],['c'])
+    ),
+
+    unit:assert-equals(
+        o:tree-seq((['a'],['b'],['c']), o:is-element#1, o:identity#1),
         (['a'],['b'],['c'])
     ),
 
     unit:assert-equals(
         o:tree-seq((['a', 'b',['c']])),
         (['a', 'b', ['c']],'b', ['c'])
+    ),
+
+    unit:assert-equals(
+        o:tree-seq(['a', 'b',['c']], o:is-element#1, o:identity#1),
+        (['a', 'b', ['c']],['c'])
     ),
     
     unit:assert-equals(
@@ -273,7 +288,25 @@ declare %unit:test function test:tree-seq()
     ),
     
     unit:assert-equals(
+        o:tree-seq(['a', map { 'x': 10 },['c']], o:is-element#1, o:identity#1),
+        (['a', map { 'x': 10 }, ['c']],['c'])
+    ),
+
+    unit:assert-equals(
         o:tree-seq(['a', ['b', ['c', ['d']]]]),
         (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
+    ),
+
+    unit:assert-equals(
+        o:tree-seq(['a', ['b', ['c', ['d']]]], o:is-element#1, o:identity#1),
+        (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
+    )
+};
+
+declare %unit:test function test:tree-seq-transform()
+{
+    unit:assert-equals(
+        o:tree-seq(['a',['b']], function($n) { 'element' }),
+        ('element','element')
     )
 };
