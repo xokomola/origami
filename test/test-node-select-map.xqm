@@ -18,10 +18,7 @@ declare %unit:test function test:filter-on-element()
                 then $n 
                 else () 
             }),
-        (
-            ['x', ['y']], 
-            ['x']
-        ) 
+        () 
     ),
 
     unit:assert-equals(
@@ -36,10 +33,7 @@ declare %unit:test function test:filter-on-element()
     unit:assert-equals(
         ['p', ['p', ['x', ['y']]], ['x']] 
             => o:select(function($n) { o:tag($n) = 'x' }),
-        (
-            ['x', ['y']], 
-            ['x']
-        ) 
+        () 
     ),        
 
     unit:assert-equals(
@@ -58,19 +52,52 @@ declare %unit:test function test:filter-on-attribute()
                 then $n 
                 else () 
             }),
-        (
-            ['p', map { 'class': 'x' }, ['x', ['y', map { 'class': 'x' }]]], 
-            ['y', map { 'class': 'x' }]
-        ) 
+        () 
     ),
             
     unit:assert-equals(
         ['p', ['p', map { 'class': 'x' }, ['x', ['y', map { 'class': 'x' }]]], ['x']] 
             => o:select(function($n) { o:attrs($n)?class = 'x' }),
-        (
-            ['p', map { 'class': 'x' }, ['x', ['y', map { 'class': 'x' }]]], 
-            ['y', map { 'class': 'x' }]
-        ) 
+        () 
     )        
 };
 
+declare %unit:test function test:seq()
+{
+    unit:assert-equals(
+        o:seq((1,2,3)),
+        (1,2,3)
+    ),
+    
+    unit:assert-equals(
+        o:seq([1,2,3]),
+        (1,2,3)
+    ),
+
+    unit:assert-equals(
+        o:seq([1,(2,3),4]),
+        (1,(2,3),4)
+    ),
+    
+    (: but this is true as well :)
+    unit:assert-equals(
+        o:seq([1,(2,3),4]),
+        (1,2,3,4)
+    ),
+    
+    unit:assert-equals(
+        o:seq([1,[2,3],4]),
+        (1,[2,3],4)
+    ),
+
+    unit:assert-equals(
+        o:seq([1,[2,3],map{'x': 4}]),
+        (1,[2,3],map{'x': 4})
+    ),
+
+    unit:assert-equals(
+        o:seq([1,<x/>,<y/>]),
+        (1,<x/>,<y/>)
+    )
+
+};

@@ -884,10 +884,10 @@ as item()*
     tail($element?*)
 };
 
-declare function o:tag($element as array(*)?)
+declare function o:tag($element as item()?)
 as xs:string?
 {
-    if (exists($element)) then 
+    if ($element instance of array(*)) then 
         array:head($element) 
     else 
         () 
@@ -1067,7 +1067,7 @@ declare function o:identity($x) { $x };
 
 declare function o:tree-seq($nodes)
 {
-    $nodes ! (., o:tree-seq(o:content(.)))
+    o:tree-seq($nodes, o:is-element#1, o:identity#1)
 };
 
 declare function o:tree-seq($nodes, $children as function(*))
@@ -1081,33 +1081,29 @@ declare function o:tree-seq($nodes, $is-branch as function(*), $children as func
         if ($is-branch(.)) then
             $children(.) 
         else
-            (),
+            .,
         o:tree-seq(o:content(.), $is-branch, $children)
     )
 };
 
-declare function o:map($nodes as array(*)*, $fn as function(*))
+declare function o:map($nodes as item()*, $fn as function(item()) as item()*)
 {
-    o:map($fn)($nodes)
+    for-each($nodes, $fn)
 };
 
-declare function o:map($fn as function(*))
+declare function o:map($fn as function(item()) as item()*)
 {
-    function($nodes) {
-        o:tree-seq($nodes, $fn)
-    }
+    for-each(?, $fn)
 };
 
-declare function o:select($nodes as array(*)*, $fn as function(*))
+declare function o:select($nodes as item()*, $fn as function(item()) as xs:boolean)
 {
-    o:select($fn)($nodes)   
+    filter($nodes, $fn)   
 };
 
-declare function o:select($fn as function(*))
+declare function o:select($fn as function(item()) as xs:boolean)
 {
-    function($nodes as array(*)*) {
-        o:tree-seq($nodes, $fn, o:identity#1)
-    }
+    filter(?, $fn)
 };
 
 (:~

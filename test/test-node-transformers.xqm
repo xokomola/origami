@@ -273,13 +273,13 @@ declare %unit:test function test:tree-seq()
     ),
 
     unit:assert-equals(
-        o:tree-seq((['a', 'b',['c']])),
-        (['a', 'b', ['c']],'b', ['c'])
+        o:tree-seq((['a', 'b', ['c']])),
+        (['a', 'b', ['c']], 'b', ['c'])
     ),
 
     unit:assert-equals(
         o:tree-seq(['a', 'b',['c']], o:is-element#1, o:identity#1),
-        (['a', 'b', ['c']],['c'])
+        (['a', 'b', ['c']], 'b', ['c'])
     ),
     
     unit:assert-equals(
@@ -307,6 +307,13 @@ declare %unit:test function test:tree-seq-transform()
 {
     unit:assert-equals(
         o:tree-seq(['a',['b']], function($n) { 'element' }),
-        ('element','element')
+        ('element','element'),
+        'replace each element by a string'
+    ),
+
+    unit:assert-equals(
+        o:tree-seq(['a',['b']], function($n) { ($n,$n) }),
+        (['a',['b']],['a',['b']],['b'],['b']),
+        'double each node'
     )
 };
