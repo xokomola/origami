@@ -11,14 +11,12 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 
 declare function ex:files($dir as xs:string)
 {
-let $ls := function($dir) { file:children($dir) }
-return
     o:xml(
         o:select(
             o:tree-seq(
-                $ls($dir),
+                file:children($dir),
                 function($n) { ends-with($n,'/') },
-                function($n) { $ls($n) }
+                file:children#1
             ),
             function($n) { not(ends-with($n,'/')) }
         ) => o:map(o:wrap(['file']))
