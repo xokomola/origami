@@ -365,7 +365,7 @@ as item()*
     return
         element { $name-resolver($tag) } {
             (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
-            namespace o { 'http://xokomola.com/xquery/origami' },
+            (: namespace o { 'http://xokomola.com/xquery/origami' }, :)
             if ($options?ns instance of map(*)) then
                 for $prefix in map:keys($options?ns)
                 let $uri := $options?ns($prefix)
