@@ -1061,6 +1061,16 @@ as item()*
         apply($handler, array:join(([$current], $ctx)))
 };
 
+declare function o:comp($fns) {
+    function($input) {
+        fold-left($fns, $input,
+              function($args, $fn) { 
+                    $fn($args) 
+              }
+        ) 
+    }
+};
+
 (: μ-node transformers :)
 
 declare function o:identity($x) { $x };
