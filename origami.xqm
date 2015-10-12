@@ -266,6 +266,7 @@ declare %private function o:doc-node($item as item())
     o:doc-node($item, map {})
 };
 
+(: TODO: how to deal with namespace QNames, name() doesn't cut it :)
 declare %private function o:doc-node($item as item(), $rules as map(*))
 as item()*
 {
@@ -276,6 +277,8 @@ as item()*
         ()
     case comment() return 
         ()
+    case attribute() return
+        map:entry(name($item), string($item))
     case element() return
         if  (name($item) = 'o:seq') then
             $item/node() ! o:doc-node(., $rules)
@@ -507,8 +510,6 @@ declare %private function o:compile-rules($rules as item()*, $options as map(*))
 as map(*)
 {
     typeswitch ($rules)
-    case empty-sequence() return
-        function($nodes) { $nodes ! o:doc-node(., map {}) }
     case array(*)+ return
         let $rules := map:merge($rules ! o:compile-rule(., ()))
         let $extractor := o:compile-stylesheet($rules)
@@ -994,6 +995,11 @@ as item()*
     )
 };
 
+declare function o:apply-rules($ctx as array(*))
+{
+    o:apply(?, $ctx)
+};
+
 declare function o:apply-element($element as array(*), $ctx as array(*))
 {
     let $tag := o:tag($element)
@@ -1285,26 +1291,21 @@ as array(*)
     o:set-handler($handler)($element)
 };
 
-declare function o:trace($node as item()*, $label as xs:string)
-{
-    (trace($node, concat($label,'x')),['x'])
-};
-
 (:~
  : Repeat the incoming nodes and feed them through the functions.
  :)
-declare function o:repeat($node as item()*, $seq as item()*, $fn as function(*))
+declare function o:repeat($nodes as item()*, $repeat-seq as item()*, $fn as function(*))
 {
-    o:repeat($seq, $fn)($node)
+    o:repeat($repeat-seq, $fn)($nodes)
 };
 
-declare function o:repeat($seq as item()*, $fn as function(*))
+declare function o:repeat($repeat-seq as item()*, $fn as function(*))
 {
     let $arity := function-arity($fn)
     return
         function($nodes as item()*) {
             fold-left(
-                $seq,
+                $repeat-seq,
                 (),
                 function($n,$i) {
                     if ($arity = 2) then

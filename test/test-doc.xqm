@@ -15,6 +15,18 @@ declare %unit:test function test:doc()
         (),
         "No document"
     ),
+
+    unit:assert-equals(
+        o:doc(attribute x { 10 }),
+        map:entry('x','10'),
+        "An attribute map entry"
+    ),
+
+    unit:assert-equals(
+        o:doc((attribute x { 10 },attribute y { 20 })),
+        (map:entry('x','10'), map:entry('y','20')),
+        "A sequence of map entries"
+    ),
     
     unit:assert-equals(
         o:doc("foo"),
