@@ -21,8 +21,8 @@ declare %unit:test function test:extract-nothing()
 
     unit:assert-equals(
         o:xform(())(<p><x y="10"/></p>),
-        (),
-        'Empty argument = nothing'
+        ['p', ['x', map { 'y': '10' }]],
+        'Empty argument = identity'
     ),
     
     unit:assert-equals(

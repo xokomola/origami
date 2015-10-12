@@ -32,12 +32,12 @@ declare %unit:test function test:filter-on-element()
     
     unit:assert-equals(
         ['p', ['p', ['x', ['y']]], ['x']] 
-            => o:select(function($n) { o:tag($n) = 'x' }),
+            => o:filter(function($n) { o:tag($n) = 'x' }),
         () 
     ),        
 
     unit:assert-equals(
-        () => o:select(function($n) { o:tag($n) = 'x' }),
+        () => o:filter(function($n) { o:tag($n) = 'x' }),
         () 
     )        
 
@@ -57,7 +57,7 @@ declare %unit:test function test:filter-on-attribute()
             
     unit:assert-equals(
         ['p', ['p', map { 'class': 'x' }, ['x', ['y', map { 'class': 'x' }]]], ['x']] 
-            => o:select(function($n) { o:attrs($n)?class = 'x' }),
+            => o:filter(function($n) { o:attrs($n)?class = 'x' }),
         () 
     )        
 };

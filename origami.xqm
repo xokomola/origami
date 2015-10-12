@@ -1,4 +1,5 @@
 xquery version "3.1";
+
 module namespace o = 'http://xokomola.com/xquery/origami';
 
 import module namespace u = 'http://xokomola.com/xquery/origami/utils' 
@@ -208,36 +209,45 @@ declare %private function o:csv-normal-form($csv)
     map:keys($csv) ! array { $csv(.) }
 };
 
-(: Origami templating :)
+(: Create Origami documents :)
 
 (:~
- : Convert XML nodes to a μ-document.
+ : Transforms input nodes using the supplied transformer to an Origami document.
+ :)
+declare function o:doc($nodes as item()*, $xform as function(item()*) as item()*)
+as item()*
+{
+    $xform($nodes)
+};
+
+(:~
+ : Converts input nodes to an Origami document.
  :)
 declare function o:doc($nodes as item()*)
 as item()*
 {
-    o:xform()($nodes)
+    $nodes ! o:doc-node(., map {})
 };
 
 (:~
- : Convert XML nodes to a μ-document and attaching transformation functions
- : to some of the element nodes.
+ : Returns a transformer function that takes input nodes and
+ : returns an origami document with the rules applied to the
+ : nodes (event handlers attached).
  :)
-declare function o:doc($nodes as item()*, $rules as item()*)
+declare function o:xform($rules as item()*, $options as map(*))
 as item()*
 {
-    o:xform($rules, map {})($nodes)
-};
-
-declare function o:doc($nodes as item()*, $rules as item()*, $options as map(*))
-as item()*
-{
-    o:xform($rules, $options)($nodes)
-};
-
-declare function o:xform()
-{
-    o:xform(map {}, map {})
+    typeswitch ($rules)
+    case empty-sequence() return
+        function($nodes) { $nodes ! o:doc-node(., map {}) }
+    case array(*)+ return
+        let $rules := map:merge($rules ! o:compile-rule(., ()))
+        let $extractor := o:compile-stylesheet($rules)
+        return o:merge-handlers($extractor, $rules, $options)
+    case map(*) return 
+        function($nodes) { $nodes ! o:doc-node(., $rules) }
+    default return 
+        function($nodes) { $nodes ! o:doc-node(., map {}) }
 };
 
 declare function o:xform($rules as item()*)
@@ -246,18 +256,9 @@ as item()*
     o:xform($rules, map {})
 };
 
-declare function o:xform($rules as item()*, $options as map(*))
-as item()*
+declare function o:xform()
 {
-    typeswitch ($rules)
-    case array(*)* return
-        let $rules := o:compile-rules($rules)
-        let $extractor := o:compile-stylesheet($rules)
-        return o:merge-handlers($extractor, $rules, $options)
-    case map(*) return 
-        function($nodes) { $nodes ! o:doc-node(., $rules) }
-    default return 
-        function($nodes) { $nodes ! o:doc-node(., map {}) }
+    o:xform((), map {})
 };
 
 declare %private function o:doc-node($item as item())
@@ -365,7 +366,7 @@ as item()*
     return
         element { $name-resolver($tag) } {
             (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
-            (: namespace o { 'http://xokomola.com/xquery/origami' }, :)
+            namespace o { 'http://xokomola.com/xquery/origami' },
             if ($options?ns instance of map(*)) then
                 for $prefix in map:keys($options?ns)
                 let $uri := $options?ns($prefix)
@@ -428,19 +429,28 @@ as attribute()*
  :)
 declare function o:stylesheet($rules as array(*)*)
 {
-    o:compile-stylesheet(o:compile-rules($rules), map {})
+    o:compile-stylesheet(o:compile-rules($rules, map {}), map {})
 };
 
 declare function o:stylesheet($rules as array(*)*, $options as map(*))
 {
-    o:compile-stylesheet(o:compile-rules($rules), $options)
+    o:compile-stylesheet(o:compile-rules($rules, $options), $options)
 };
 
-declare function o:rules($rules as array(*)*)
+declare function o:rules($rules as item()*)
 {
-    o:compile-rules($rules)
+    o:compile-rules($rules, map {})
 };
 
+declare function o:rules($rules as item()*, $options as map(*))
+{
+    o:compile-rules($rules, $options)
+};
+
+(:~
+ : Execute the extractor stylesheet and and attach the node handlers
+ : to the correct nodes as defined by the rules.
+ :)
 declare %private function o:merge-handlers($extractor, $rules, $options)
 {
     function($nodes) {
@@ -450,6 +460,10 @@ declare %private function o:merge-handlers($extractor, $rules, $options)
     }
 };
 
+(:~
+ : Given an extracted element node and adds the matching rules to it.
+ : TODO: attach attribute handlers.
+ :)
 declare %private function o:merge-handlers-on-node($rules)
 {
     function($element as array(*)) {
@@ -484,14 +498,25 @@ declare %private function o:merge-handlers-on-node($rules)
 };
 
 (:~
+ : 
  : Prepare a map that is used in a transformer to attach the correct
- : handler to the correct mu-node. Also has prepares the tail of the rule
- : to compose pipelines (?)
+ : handler to the correct mu-node.
+ : TODO: Also has prepares the tail of the rule to compose pipelines (?)
  :)
-declare %private function o:compile-rules($rules as array(*)*)
+declare %private function o:compile-rules($rules as item()*, $options as map(*))
 as map(*)
 {
-    map:merge($rules ! o:compile-rule(., ()))
+    typeswitch ($rules)
+    case empty-sequence() return
+        function($nodes) { $nodes ! o:doc-node(., map {}) }
+    case array(*)+ return
+        let $rules := map:merge($rules ! o:compile-rule(., ()))
+        let $extractor := o:compile-stylesheet($rules)
+        return o:merge-handlers($extractor, $rules, $options)
+    case map(*) return 
+        function($nodes) { $nodes ! o:doc-node(., $rules) }
+    default return 
+        function($nodes) { $nodes ! o:doc-node(., map {}) }
 };
 
 (:~
@@ -942,6 +967,7 @@ as item()*
     count(o:content($element))
 };
 
+(: TODO: in template we should be able to use o:apply with only $ctx (as a node transformer), maybe name it o:apply-rules($args) :)
 declare function o:apply($nodes as item()*)
 {
     o:apply($nodes, (), [])
@@ -953,6 +979,7 @@ as item()*
     o:apply($nodes, (), $ctx)
 };
 
+(: TODO: maybe merge $current into $ctx??? :)
 declare function o:apply($nodes as item()*, $current as array(*)?, $ctx as array(*))
 as item()*
 {
@@ -1061,7 +1088,7 @@ as item()*
         apply($handler, array:join(([$current], $ctx)))
 };
 
-declare function o:comp($fns) {
+declare function o:do($fns) {
     function($input) {
         fold-left($fns, $input,
               function($args, $fn) { 
@@ -1106,14 +1133,26 @@ declare function o:map($fn as function(item()) as item()*)
     for-each(?, $fn)
 };
 
-declare function o:select($nodes as item()*, $fn as function(item()) as xs:boolean)
+declare function o:filter($nodes as item()*, $fn as function(item()) as xs:boolean)
 {
     filter($nodes, $fn)   
 };
 
-declare function o:select($fn as function(item()) as xs:boolean)
+declare function o:filter($fn as function(item()) as xs:boolean)
 {
     filter(?, $fn)
+};
+
+declare function o:sort($input as item()*, $key as function(item()) as xs:anyAtomicType*)
+as item()*
+{
+    sort($input, $key)   
+};
+
+declare function o:sort($key as function(item()) as xs:anyAtomicType*)
+as item()*
+{
+    sort(?, $key)
 };
 
 (:~
@@ -1244,6 +1283,89 @@ declare function o:set-handler($element as array(*), $handler as array(*)?)
 as array(*)
 {
     o:set-handler($handler)($element)
+};
+
+declare function o:trace($node as item()*, $label as xs:string)
+{
+    (trace($node, concat($label,'x')),['x'])
+};
+
+(:~
+ : Repeat the incoming nodes and feed them through the functions.
+ :)
+declare function o:repeat($node as item()*, $seq as item()*, $fn as function(*))
+{
+    o:repeat($seq, $fn)($node)
+};
+
+declare function o:repeat($seq as item()*, $fn as function(*))
+{
+    let $arity := function-arity($fn)
+    return
+        function($nodes as item()*) {
+            fold-left(
+                $seq,
+                (),
+                function($n,$i) {
+                    if ($arity = 2) then
+                        ($n, $fn($nodes,$i))
+                    else
+                        (: assume the default arity = 1, otherwise let it crash :)
+                        ($n, $fn($nodes))
+                }
+            )
+        }
+};
+
+(:~
+ : Selector:
+ :
+ : - function($node) => int*|key*
+ : - int*
+ : - key*
+ : 
+ : Choices:
+ :
+ : - array: selector => int
+ : - map: selector => 
+ : - function(int*|key*) => fn(nodes)
+ :)
+declare function o:choose($selector as item()*, $choices as function(*))
+as item()*
+{
+    let $selector :=
+        typeswitch($selector)
+        case function(item()*) as item()* return 
+            $selector
+        case xs:integer* | xs:string* return 
+            function($nodes as item()*) {
+                $selector
+            }
+        default return
+            (: TODO: raise error? :)
+            ()
+    return        
+        function($nodes as item()*) {
+            $nodes ! (
+                let $node := .
+                return
+                    $selector($nodes) ! (
+                        typeswitch($choices(.))
+                        case $choice as array(*) | map(*) return
+                            $choice
+                        case $choice as function(*) return
+                            $choice($node)
+                        default $choice return
+                            $choice
+                    )
+            )
+        }
+};
+
+declare function o:choose($nodes as item()*, $selector as item()*, $choices as function(*))
+as item()*
+{
+    o:choose($selector, $choices)($nodes)
 };
 
 (:~
@@ -1438,8 +1560,7 @@ as item()*
 };
 
 (:~
- : Create a node transformer that returns a text node with
- : the space normalized string value of a node.
+ : Outputs the text value of `$nodes`.
  :)
 declare function o:text()
 as function(item()*) as item()*
@@ -1468,6 +1589,10 @@ as item()*
     o:text()($nodes)
 };
 
+(:~
+ : Create a node transformer that returns a text node with
+ : the space normalized string value of a node.
+ :)
 declare function o:ntext()
 as function(item()*) as item()*
 {
@@ -1488,9 +1613,6 @@ as function(item()*) as item()*
     }
 };
 
-(:~
- : Outputs the text value of `$nodes`.
- :)
 declare function o:ntext($nodes as item()*)
 as item()*
 {
