@@ -1834,7 +1834,7 @@ as xs:QName
 declare function o:ns-map()
 as map(*)
 {
-    o:ns-map(())
+    o:ns-map(map {})
 };
 
 (:~
@@ -1843,13 +1843,14 @@ as map(*)
  : as the argument. The latter mappings will override existing mappings in the
  : default namespace map.
  :)
-declare function o:ns-map($ns-map as map(*)?)
+declare function o:ns-map($ns-map as map(*))
 as map(*)
 {
     map:merge((
-        ($ns-map, map {})[1],
         for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
         return
             map:entry(string($ns/@prefix), string($ns/@uri))
+        ,
+        $ns-map
     ))
 };
