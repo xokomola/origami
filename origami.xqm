@@ -1,5 +1,13 @@
 xquery version "3.1";
 
+(:~
+ : Origami 0.6
+ :)
+
+(: TODO: o:content => o:children :)
+(: TODO: zippers? :)
+(: TODO: deserialize into mu (hints: e.g. @class to ('cl1','cl2') :)
+
 module namespace o = 'http://xokomola.com/xquery/origami';
 
 import module namespace u = 'http://xokomola.com/xquery/origami/utils' 
@@ -7,7 +15,7 @@ import module namespace u = 'http://xokomola.com/xquery/origami/utils'
 
 declare %private variable $o:e := xs:QName('o:element');
 declare %private variable $o:d := xs:QName('o:data');
-declare %private variable $o:ns := o:ns();
+declare %private variable $o:ns := o:ns-map();
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:data-att := '!';
 declare %private variable $o:is-element := true();
@@ -242,7 +250,7 @@ as item()*
         function($nodes) { $nodes ! o:doc-node(., map {}) }
     case array(*)+ return
         let $rules := map:merge($rules ! o:compile-rule(., ()))
-        let $extractor := o:compile-stylesheet($rules)
+        let $extractor := o:compile-stylesheet($rules, map { 'ns': $o:ns })
         return o:merge-handlers($extractor, $rules, $options)
     case map(*) return 
         function($nodes) { $nodes ! o:doc-node(., $rules) }
@@ -321,7 +329,7 @@ as item()*
 declare function o:xml($mu as item()*)
 as node()*
 {
-    o:to-xml($mu, o:qname-resolver(o:ns()), map {})
+    o:to-xml($mu, o:qname-resolver(o:ns-map()), map {})
 };
 
 (:~
@@ -334,7 +342,7 @@ as node()*
 {
     o:to-xml(
         $mu, 
-        o:qname-resolver(o:ns($options?ns), $options?default-ns), 
+        o:qname-resolver(o:ns-map($options?ns), $options?default-ns), 
         $options
     )
 };
@@ -743,158 +751,8 @@ as item()*
     )
 };
 
-(: Namespace support :)
-(:~
- : Returns a name resolver function with the HTML namespace as default.
- :)
-declare function o:html-resolver()
-as function(xs:string) as xs:QName
-{
-    o:qname(?, o:ns(), 'http://www.w3.org/1999/xhtml')
-};
-
-(:~
- : Returns a name resolver function from the default namespace map (nsmap.xml).
- :)
-declare function o:qname-resolver()
-as function(xs:string) as xs:QName
-{
-    o:qname(?, $o:ns, ())
-};
-
-(:~
- : Returns a name resolver function from the namespace map passed as it's argument.
- :)
-declare function o:qname-resolver($ns-map as map(*))
-as function(xs:string) as xs:QName
-{
-    o:qname(?, $ns-map, ())
-};
-
-(:~
- : Returns a name resolver function from the namespace map passed as it's first
- : argument and using the second argument as the default namespace.
- :)
-declare function o:qname-resolver($ns-map as map(*), $default-ns as xs:string?)
-as function(xs:string) as xs:QName
-{
-    o:qname(?, $ns-map, $default-ns)
-};
-
-(:~
- : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
- : namespace usage. The resulting map will contain a prefix/URI entry for each
- : used prefix but it will not re-binding a prefix to a different URI at
- : descendant nodes. Unused prefixes are dropped.
- : The result can be used when serializing back to XML but results may be not
- : what you expect if you pass insane XML fragments.
- :
- : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
- :)
-declare function o:ns-map-from-nodes($nodes as node()*)
-as map(*)
-{
-    map:merge((
-        for $node in reverse($nodes/descendant-or-self::*)
-        let $qname := node-name($node)
-        return (
-            for $att in $node/@*
-            let $qname := node-name($att)
-            return
-                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
-            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
-        )
-    ))
-};
-
-(:~
- : Get a namespace map from XML nodes. Will throw an exception with insane
- : namespace usage. Unused prefixes will not be dropped. However, unused prefixes
- : cannot be added to an XML fragment due to a limitation in current XPath [1].
- : In Origami XML may be built from dynamic parts which means that when a prefix
- : isn't used in the $nodes it may still be used when serializing to XML.
- :
- : [1] http://thread.gmane.org/gmane.text.xml.xsl.general.mulberrytech/54436
- :)
-declare function o:sane-ns-map-from-nodes($nodes as node()*)
-{
-    'TODO'
-};
-
-(:~
- : Returns a QName in "no namespace".
- : Throws a dynamic error FOCA0002 with a prefixed name.
- :)
-declare function o:qname($name as xs:string)
-as xs:QName
-{
-    QName((), $name)
-};
-
-(:~
- : Returns a QName from a string taking the namespace URI from the
- : namespace map passed as it's second argument.
- : Throws a dynamic error FOCA0002 with a name which is not in correct lexical form.
- : Returns a QName in a made-up namespace URI if the prefix is not defined in the
- : namespace map.
- :)
-declare function o:qname($name as xs:string, $ns-map as map(*))
-as xs:QName
-{
-    o:qname($name, $ns-map, ())
-};
-
-(:~
- : Same as o:qname#2 but uses a third argument to specify a default namespace URI.
- :)
-declare function o:qname($name as xs:string, $ns-map as map(*), $default-ns as xs:string?)
-as xs:QName
-{
-    if (contains($name, ':'))
-    then
-        let $prefix := substring-before($name,':')
-        let $local := substring-after($name, ':')
-        let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
-        return
-            if ($ns = $default-ns) then
-                QName($ns, $local)
-            else
-                QName($ns, concat($prefix, ':', $local))
-    else
-        if ($default-ns) then
-            QName($default-ns, $name)
-        else 
-            QName((), $name)
-};
-
-(:~
- : Builds a namespace map from the default namespace map provided in the
- : XML file nsmap.xml.
- :)
-declare function o:ns()
-as map(*)
-{
-    o:ns(())
-};
-
-(:~
- : Builds a namespace map from the default namespace map provided in the
- : XML file nsmap.xml and adding extra namespace mappings from a map provided
- : as the argument. The latter mappings will override existing mappings in the
- : default namespace map.
- :)
-declare function o:ns($ns-map as map(*)?)
-as map(*)
-{
-    map:merge((
-        ($ns-map, map {})[1],
-        for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
-        return
-            map:entry(string($ns/@prefix), string($ns/@uri))
-    ))
-};
-
 (: μ-node information :)
+
 declare function o:head($element as array(*)?)
 as item()*
 {
@@ -1094,6 +952,9 @@ as item()*
         apply($handler, array:join(([$current], $ctx)))
 };
 
+(:~
+ : Compose functions.
+ :)
 declare function o:do($fns) {
     function($input) {
         fold-left($fns, $input,
@@ -1177,7 +1038,7 @@ declare function o:seq($nodes as item()*)
 };
 
 (:~
- : Generic walker function that traverses the μ-node (depth-first).
+ : Generic walker function (depth-first).
  :)
 declare function o:postwalk($form as item()*, $fn as function(*))
 {
@@ -1194,7 +1055,7 @@ declare function o:postwalk($form as item()*, $fn as function(*))
 };
 
 (:~
- : Generic walker function that traverses the μ-node (breadth-first).
+ : Generic walker function (breadth-first).
  :)
 declare function o:prewalk($form as item()*, $fn as function(*))
 {
@@ -1828,11 +1689,19 @@ as function(*)
             o:doc(
                 for $node in $nodes
                 return
-                    xslt:transform(
-                        o:xml($nodes),
-                        $stylesheet,
-                        $params
-                    )
+                    try {
+                        xslt:transform(
+                            o:xml($nodes),
+                            $stylesheet,
+                            $params
+                        )
+                    } catch bxerr:BXSL0001 {
+                        error(xs:QName('o:xslt'), 
+                            'Error [' || $err:code || ']: ' 
+                            || $err:description 
+                            || '&#xa;'
+                            || serialize($stylesheet)) 
+                    }
             )
         else
             ()
@@ -1846,4 +1715,141 @@ declare function o:xslt($nodes as item()*, $stylesheet as item()*, $params as ma
 as function(*)
 {
     o:xslt($stylesheet, $params)($nodes)
+};
+
+(: Namespace support :)
+(:~
+ : Returns a name resolver function with the HTML namespace as default.
+ :)
+declare function o:html-resolver()
+as function(xs:string) as xs:QName
+{
+    o:qname(?, o:ns-map(), 'http://www.w3.org/1999/xhtml')
+};
+
+(:~
+ : Returns a name resolver function from the default namespace map (nsmap.xml).
+ :)
+declare function o:qname-resolver()
+as function(xs:string) as xs:QName
+{
+    o:qname(?, $o:ns, ())
+};
+
+(:~
+ : Returns a name resolver function from the namespace map passed as it's argument.
+ :)
+declare function o:qname-resolver($ns-map as map(*))
+as function(xs:string) as xs:QName
+{
+    o:qname(?, $ns-map, ())
+};
+
+(:~
+ : Returns a name resolver function from the namespace map passed as it's first
+ : argument and using the second argument as the default namespace.
+ :)
+declare function o:qname-resolver($ns-map as map(*), $default-ns as xs:string?)
+as function(xs:string) as xs:QName
+{
+    o:qname(?, $ns-map, $default-ns)
+};
+
+(:~
+ : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
+ : namespace usage. The resulting map will contain a prefix/URI entry for each
+ : used prefix but it will not re-bind a prefix to a different URI at
+ : descendant nodes. Unused prefixes are dropped.
+ : The result can be used when serializing back to XML but results may be not
+ : what you expect if you pass insane XML fragments.
+ :
+ : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
+ :)
+declare function o:ns-map-from-nodes($nodes as node()*)
+as map(*)
+{
+    map:merge((
+        for $node in reverse($nodes/descendant-or-self::*)
+        let $qname := node-name($node)
+        return (
+            for $att in $node/@*
+            let $qname := node-name($att)
+            return
+                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
+            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
+        )
+    ))
+};
+
+(:~
+ : Returns a QName in "no namespace".
+ : Throws a dynamic error FOCA0002 with a prefixed name.
+ :)
+declare function o:qname($name as xs:string)
+as xs:QName
+{
+    QName((), $name)
+};
+
+(:~
+ : Returns a QName from a string taking the namespace URI from the
+ : namespace map passed as it's second argument.
+ : Throws a dynamic error FOCA0002 with a name which is not in correct lexical form.
+ : Returns a QName in a made-up namespace URI if the prefix is not defined in the
+ : namespace map.
+ :)
+declare function o:qname($name as xs:string, $ns-map as map(*))
+as xs:QName
+{
+    o:qname($name, $ns-map, ())
+};
+
+(:~
+ : Same as o:qname#2 but uses a third argument to specify a default namespace URI.
+ :)
+declare function o:qname($name as xs:string, $ns-map as map(*), $default-ns as xs:string?)
+as xs:QName
+{
+    if (contains($name, ':'))
+    then
+        let $prefix := substring-before($name,':')
+        let $local := substring-after($name, ':')
+        let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
+        return
+            if ($ns = $default-ns) then
+                QName($ns, $local)
+            else
+                QName($ns, concat($prefix, ':', $local))
+    else
+        if ($default-ns) then
+            QName($default-ns, $name)
+        else 
+            QName((), $name)
+};
+
+(:~
+ : Builds a namespace map from the default namespace map provided in the
+ : XML file nsmap.xml.
+ :)
+declare function o:ns-map()
+as map(*)
+{
+    o:ns-map(())
+};
+
+(:~
+ : Builds a namespace map from the default namespace map provided in the
+ : XML file nsmap.xml and adding extra namespace mappings from a map provided
+ : as the argument. The latter mappings will override existing mappings in the
+ : default namespace map.
+ :)
+declare function o:ns-map($ns-map as map(*)?)
+as map(*)
+{
+    map:merge((
+        ($ns-map, map {})[1],
+        for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
+        return
+            map:entry(string($ns/@prefix), string($ns/@uri))
+    ))
 };
