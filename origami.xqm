@@ -328,7 +328,7 @@ as item()*
 declare function o:xml($mu as item()*)
 as node()*
 {
-    o:xml($mu, map {})
+    o:to-xml($mu, map {})
 };
 
 (:~
@@ -337,6 +337,12 @@ as node()*
  : function that translates strings into QNames.
  :)
 declare function o:xml($mu as item()*, $xform as map(*))
+as node()*
+{
+        o:to-xml($mu, $xform)
+};
+
+declare %private function o:to-xml($mu as item()*, $xform as map(*))
 as node()*
 {
     let $xform :=
@@ -350,27 +356,21 @@ as node()*
         else
             map:merge(($xform, map:entry('qname', o:qname-resolver($xform?ns))))
     return
-        o:to-xml($mu, $xform)
-};
-
-declare %private function o:to-xml($mu as item()*, $xform as map(*))
-as node()*
-{
-    $mu ! (
-        typeswitch (.)
-        case array(*) return 
-            o:to-element(., $xform)
-        case map(*) return  
-            o:to-attributes(., $xform)
-        case function(*) return 
-            ()
-        case empty-sequence() return 
-            ()
-        case node() return 
-            .
-        default return 
-            text { . }
-    )
+        $mu ! (
+            typeswitch (.)
+            case array(*) return 
+                o:to-element(., $xform)
+            case map(*) return  
+                o:to-attributes(., $xform)
+            case function(*) return 
+                ()
+            case empty-sequence() return 
+                ()
+            case node() return 
+                .
+            default return 
+                text { . }
+        )
 };
 
 declare %private function o:to-element($element as array(*), $xform as map(*))
