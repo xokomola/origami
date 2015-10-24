@@ -322,14 +322,13 @@ as item()*
         $item
 };
 
-(: "Serializing" :)
 (:~
  : Converts μ-nodes to XML nodes with the default name resolver.
  :)
 declare function o:xml($mu as item()*)
 as node()*
 {
-    o:to-xml($mu, o:qname-resolver(o:ns-map()), map {})
+    o:xml($mu, map {})
 };
 
 (:~
@@ -340,22 +339,29 @@ as node()*
 declare function o:xml($mu as item()*, $xform as map(*))
 as node()*
 {
-    o:to-xml(
-        $mu, 
-        o:qname-resolver($xform?ns), 
-        $xform
-    )
+    let $xform :=
+        if (map:contains($xform, 'ns')) then
+            $xform
+        else
+            map:merge(($xform, map:entry('ns', o:ns-map())))
+    let $xform :=
+        if (map:contains($xform, 'qname')) then
+            $xform
+        else
+            map:merge(($xform, map:entry('qname', o:qname-resolver($xform?ns))))
+    return
+        o:to-xml($mu, $xform)
 };
 
-declare %private function o:to-xml($mu as item()*, $name-resolver as function(xs:string) as xs:QName, $options as map(*))
+declare %private function o:to-xml($mu as item()*, $xform as map(*))
 as node()*
 {
     $mu ! (
         typeswitch (.)
         case array(*) return 
-            o:to-element(., $name-resolver, $options)
+            o:to-element(., $xform)
         case map(*) return  
-            o:to-attributes(., $name-resolver)
+            o:to-attributes(., $xform)
         case function(*) return 
             ()
         case empty-sequence() return 
@@ -367,46 +373,47 @@ as node()*
     )
 };
 
-declare %private function o:to-element($element as array(*), $name-resolver as function(*), $options)
+declare %private function o:to-element($element as array(*), $xform as map(*))
 as item()*
 {
     let $tag := o:tag($element)
     let $atts := o:attrs($element)
     let $content := o:content($element)
+    let $name-resolver as function(xs:string) as xs:QName := $xform?qname
     where $tag
     return
         element { $name-resolver($tag) } {
             (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
             namespace o { 'http://xokomola.com/xquery/origami' },
-            if ($options?ns instance of map(*)) then
-                for $prefix in map:keys($options?ns)
-                let $uri := $options?ns($prefix)
+            if ($xform?ns instance of map(*)) then
+                for $prefix in map:keys($xform?ns)
+                let $uri := $xform?ns($prefix)
                 where $prefix != '' and $uri != ''
                 return
                     namespace { $prefix } { $uri }
             else
                 (),
-            o:to-attributes($atts, $name-resolver),
+            o:to-attributes($atts, $xform),
             fold-left($content, (),
                 function($n, $i) {
-                    ($n, o:to-xml($i, $name-resolver, $options))
+                    ($n, o:to-xml($i, $xform))
                 }
             )
         }
 };
 
-declare %private function o:to-attributes($atts as map(*), $name-resolver as function(*))
+declare %private function o:to-attributes($atts as map(*), $xform as map(*))
 as attribute()*
 {
     map:for-each($atts,
         function($k,$v) {
             if ($k = $o:internal-att 
-                or namespace-uri-from-QName($name-resolver($k)) 
+                or namespace-uri-from-QName($xform?qname($k)) 
                 = 'http://xokomola.com/xquery/origami') then 
                 ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
-                attribute { if (contains($k,':')) then $name-resolver($k) else $k } {
+                attribute { if (contains($k,':')) then $xform?qname($k) else $k } {
                     data(
                         typeswitch ($v)
                         case array(*) return 
