@@ -334,16 +334,16 @@ as node()*
 
 (:~
  : Converts μ-nodes to XML nodes using a map of options. Currently it will
- : only use the options 'ns' whose value must be a namespace map and 'default-ns'
- : whose value must be a valide namespace URI.
+ : only use the option 'ns' whose value must be a namespace map and 'qname'
+ : function that translates strings into QNames.
  :)
-declare function o:xml($mu as item()*, $options as map(*))
+declare function o:xml($mu as item()*, $xform as map(*))
 as node()*
 {
     o:to-xml(
         $mu, 
-        o:qname-resolver(o:ns-map($options?ns), $options?default-ns), 
-        $options
+        o:qname-resolver($xform?ns), 
+        $xform
     )
 };
 
@@ -680,7 +680,7 @@ as element(*)
                 }
             )
         ],
-        map { 'ns': $options?ns, 'default-ns': 'http://www.w3.org/1999/XSL/Transform' }
+        map { 'ns': map:merge(($options?ns, map:entry('', 'http://www.w3.org/1999/XSL/Transform'))) }
     )
 };
 
@@ -1724,7 +1724,7 @@ as function(*)
 declare function o:html-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname(?, o:ns-map(), 'http://www.w3.org/1999/xhtml')
+    o:qname(?, map:merge((o:ns-map(), map:entry('','http://www.w3.org/1999/xhtml'))))
 };
 
 (:~
@@ -1733,7 +1733,7 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname(?, $o:ns, ())
+    o:qname(?, $o:ns)
 };
 
 (:~
@@ -1742,43 +1742,13 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname(?, $ns-map, ())
+    o:qname(?, $ns-map)
 };
 
-(:~
- : Returns a name resolver function from the namespace map passed as it's first
- : argument and using the second argument as the default namespace.
- :)
-declare function o:qname-resolver($ns-map as map(*), $default-ns as xs:string?)
+declare function o:qname-resolver($ns-map as map(*), $default-namespace-uri as xs:string)
 as function(xs:string) as xs:QName
 {
-    o:qname(?, $ns-map, $default-ns)
-};
-
-(:~
- : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
- : namespace usage. The resulting map will contain a prefix/URI entry for each
- : used prefix but it will not re-bind a prefix to a different URI at
- : descendant nodes. Unused prefixes are dropped.
- : The result can be used when serializing back to XML but results may be not
- : what you expect if you pass insane XML fragments.
- :
- : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
- :)
-declare function o:ns-map-from-nodes($nodes as node()*)
-as map(*)
-{
-    map:merge((
-        for $node in reverse($nodes/descendant-or-self::*)
-        let $qname := node-name($node)
-        return (
-            for $att in $node/@*
-            let $qname := node-name($att)
-            return
-                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
-            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
-        )
-    ))
+    o:qname(?, map:merge(($ns-map, map:entry('', $default-namespace-uri))))
 };
 
 (:~
@@ -1801,19 +1771,11 @@ as xs:QName
 declare function o:qname($name as xs:string, $ns-map as map(*))
 as xs:QName
 {
-    o:qname($name, $ns-map, ())
-};
-
-(:~
- : Same as o:qname#2 but uses a third argument to specify a default namespace URI.
- :)
-declare function o:qname($name as xs:string, $ns-map as map(*), $default-ns as xs:string?)
-as xs:QName
-{
     if (contains($name, ':'))
     then
         let $prefix := substring-before($name,':')
         let $local := substring-after($name, ':')
+        let $default-ns := $ns-map('')
         let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
         return
             if ($ns = $default-ns) then
@@ -1821,8 +1783,8 @@ as xs:QName
             else
                 QName($ns, concat($prefix, ':', $local))
     else
-        if ($default-ns) then
-            QName($default-ns, $name)
+        if (map:contains($ns-map,'')) then
+            QName($ns-map(''), $name)
         else 
             QName((), $name)
 };
@@ -1854,3 +1816,72 @@ as map(*)
         $ns-map
     ))
 };
+
+(:~
+ : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
+ : namespace usage. The resulting map will contain a prefix/URI entry for each
+ : used prefix but it will not re-bind a prefix to a different URI at
+ : descendant nodes. Unused prefixes are dropped.
+ : The result can be used when serializing back to XML but results may be not
+ : what you expect if you pass insane XML fragments.
+ :
+ : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
+ :)
+declare function o:ns-map-from-nodes($nodes as node()*)
+as map(*)
+{
+    map:merge((
+        for $node in reverse($nodes/descendant-or-self::*)
+        let $qname := node-name($node)
+        return (
+            for $att in $node/@*
+            let $qname := node-name($att)
+            return
+                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
+            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
+        )
+    ))
+};
+
+declare function o:ns-xform()
+as map(*)
+{
+    o:ns-xform(o:ns-map())
+};
+
+declare function o:ns-xform($nodes-or-map as item()*)
+as map(*)
+{
+    typeswitch ($nodes-or-map)
+    case map(*) return 
+        o:ns-xform(map { 'ns': $nodes-or-map }, ())
+    case node()* return
+        o:ns-xform(map {}, $nodes-or-map)
+    default return
+        map {}
+};
+
+declare function o:ns-xform($xform as map(*), $nodes as node()*)
+as map(*)
+{
+    map:merge((
+        $xform,
+        map { 'ns': map:merge(($xform?ns, o:ns-map-from-nodes($nodes))) }
+    ))
+};
+
+declare function o:default-ns-xform($xform as map(*))
+as map(*)
+{
+    o:default-ns-xform($xform, '')
+};
+
+declare function o:default-ns-xform($xform as map(*), $default-namespace-uri as xs:string)
+as map(*)
+{
+    map:merge((
+        $xform,
+        map { 'ns': map:merge(($xform?ns, map:entry('', $default-namespace-uri))) }
+    ))
+};
+
