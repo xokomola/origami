@@ -317,10 +317,10 @@ as map(*)
     o:compile-rules($rules, $options)
 };
 
-declare function o:is-doc-xform($xform as map(*))
+declare function o:is-doc-xform($xform as item()*)
 as xs:boolean
 {
-    map:contains($xform,'doc')
+    $xform instance of map(*) and map:contains($xform,'doc')
 };
 
 (:~
