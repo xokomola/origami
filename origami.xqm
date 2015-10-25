@@ -222,104 +222,105 @@ declare %private function o:csv-normal-form($csv)
 (:~
  : Transforms input nodes using the supplied transformer to an Origami document.
  :)
-declare function o:doc($nodes as item()*, $xform as function(item()*) as item()*)
-as item()*
-{
-    $xform($nodes)
-};
-
 (:~
  : Converts input nodes to an Origami document.
  :)
-declare function o:doc($nodes as item()*)
+declare function o:doc($items as item()*)
 as item()*
 {
-    $nodes ! o:doc-node(., map {})
+    o:doc($items, map {})
 };
 
-(:~
- : Returns a transformer function that takes input nodes and
- : returns an origami document with the rules applied to the
- : nodes (event handlers attached).
- :)
-declare function o:xform($rules as item()*, $options as map(*))
+declare function o:doc($nodes as item()*, $xform as item()*)
 as item()*
 {
-    typeswitch ($rules)
-    case empty-sequence() return
-        function($nodes) { $nodes ! o:doc-node(., map {}) }
-    case array(*)+ return
-        let $rules := map:merge($rules ! o:compile-rule(., ()))
-        let $extractor := o:compile-stylesheet($rules, map { 'ns': $o:ns })
-        return o:merge-handlers($extractor, $rules, $options)
-    case map(*) return 
-        function($nodes) { $nodes ! o:doc-node(., $rules) }
-    default return 
-        function($nodes) { $nodes ! o:doc-node(., map {}) }
-};
-
-declare function o:xform($rules as item()*)
-as item()*
-{
-    o:xform($rules, map {})
-};
-
-declare function o:xform()
-{
-    o:xform((), map {})
-};
-
-declare %private function o:doc-node($item as item())
-{
-    o:doc-node($item, map {})
+    let $xform := 
+        if (o:is-doc-xform($xform)) then
+            $xform
+        else
+            (: $xform is probably as set of rules so compile them :)
+            o:xform($xform)
+    return
+        $xform('!doc')($nodes)
 };
 
 (: TODO: how to deal with namespace QNames, name() doesn't cut it :)
-declare %private function o:doc-node($item as item(), $rules as map(*))
+declare %private function o:to-doc($items as item()*, $xform as map(*))
 as item()*
 {
-    typeswitch($item)
-    case document-node() return 
-        o:doc-node($item/*, $rules)
-    case processing-instruction() return 
-        ()
-    case comment() return 
-        ()
-    case attribute() return
-        map:entry(name($item), string($item))
-    case element() return
-        if  (name($item) = 'o:seq') then
-            $item/node() ! o:doc-node(., $rules)
-        else
-            array {
-                name($item),
-                if ($item/@* or map:contains($rules, name($item))) then
-                    map:merge((
-                        for $a in $item/@* except $item/@o:path
-                        return map:entry(name($a), data($a)),
-                        let $path :=
-                            if ($item[@o:path])
-                            then string($item/@o:path)
-                            else name($item)
-                        return
-                            if (map:contains($rules, $path))
-                            then map:entry($o:handler-att, $rules($path))
-                            else ()
-                    ))
-                else 
-                    (),
-                $item/node() ! o:doc-node(., $rules)
+    $items ! (
+        typeswitch(.)
+        case document-node() return 
+            o:to-doc(./*, $xform)
+        case processing-instruction() return 
+            ()
+        case comment() return 
+            ()
+        case attribute() return
+            map:entry(name(.), string(.))
+        case element() return
+            if  (name(.) = 'o:seq') then
+                ./node() ! o:to-doc(., $xform)
+            else
+                array {
+                    name(.),
+                    (: TODO: attribute transformer :)
+                    if (./@* or map:contains($xform?rules, name(.))) then
+                        map:merge((
+                            for $a in ./@* except ./@o:path
+                            return map:entry(name($a), data($a))
+                            ,
+                            let $path :=
+                                if (.[@o:path]) then 
+                                    string(./@o:path)
+                                else 
+                                    name(.)
+                            return
+                                if (map:contains($xform?rules, $path)) then
+                                    map:entry($o:handler-att, $xform?rules($path))
+                                else 
+                                    ()
+                        ))
+                    else 
+                        ()
+                    ,
+                    ./node() ! o:to-doc(., $xform)
+                }
+        case array(*) return
+            array { 
+                o:tag(.), 
+                o:attributes(.), 
+                o:content(.) ! o:to-doc(., $xform) 
             }
-    case array(*) return
-        let $tag := o:tag($item)
-        let $atts := o:attributes($item)
-        let $content := o:content($item)
-        return
-            array { $tag, $atts, $content ! o:doc-node(., $rules) }
-    case text() return
-        string($item)
-    default return 
-        $item
+        case text() return
+            string(.)
+        default return 
+            .
+    )
+};
+
+declare function o:xform()
+as map(*)
+{
+    o:xform(map {}, ())
+};
+
+declare function o:xform($rules as item()*)
+as map(*)
+{
+    o:xform($rules, o:default-ns-xform(o:ns-xform(), ''))
+};
+
+declare function o:xform($rules as item()*, $options as map(*))
+as map(*)
+{
+    o:compile-rules($rules, $options)
+};
+
+declare function o:is-doc-xform($xform as map(*))
+as xs:boolean
+{
+    map:contains($xform,'!doc')
 };
 
 (:~
@@ -328,7 +329,7 @@ as item()*
 declare function o:xml($mu as item()*)
 as node()*
 {
-    o:to-xml($mu, map {})
+    o:xml($mu, map {})
 };
 
 (:~
@@ -337,12 +338,6 @@ as node()*
  : function that translates strings into QNames.
  :)
 declare function o:xml($mu as item()*, $xform as map(*))
-as node()*
-{
-        o:to-xml($mu, $xform)
-};
-
-declare %private function o:to-xml($mu as item()*, $xform as map(*))
 as node()*
 {
     let $xform :=
@@ -356,27 +351,33 @@ as node()*
         else
             map:merge(($xform, map:entry('qname', o:qname-resolver($xform?ns))))
     return
-        $mu ! (
-            typeswitch (.)
-            case array(*) return 
-                o:to-element(., $xform)
-            case map(*) return  
-                o:to-attributes(., $xform)
-            case function(*) return 
-                ()
-            case empty-sequence() return 
-                ()
-            case node() return 
-                .
-            default return 
-                text { . }
-        )
+        o:to-xml($mu, $xform)
+};
+
+declare %private function o:to-xml($mu as item()*, $xform as map(*))
+as node()*
+{
+    $mu ! (
+        typeswitch (.)
+        case array(*) return 
+            o:to-element(., $xform)
+        case map(*) return  
+            o:to-attributes(., $xform)
+        case function(*) return 
+            ()
+        case empty-sequence() return 
+            ()
+        case node() return 
+            .
+        default return 
+            text { . }
+    )
 };
 
 declare %private function o:to-element($element as array(*), $xform as map(*))
 as item()*
 {
-    let $tag := o:tag($element)
+    let $tag := trace(o:tag($element),'E: ')
     let $atts := o:attrs($element)
     let $content := o:content($element)
     let $name-resolver as function(xs:string) as xs:QName := $xform?qname
@@ -431,45 +432,11 @@ as attribute()*
 };
 
 (:~
- : Create a template using a node sequence and a sequence of
- : template rules. If there are template rules then the
- : template accepts a single map item as context data. If there
- : are no template rules the template will not accept context
- : data.
- :)
-
-(:~
- : Create a template using a node sequence, a sequence of template
- : rules and a context function. The context function determines the
- : signature of the arguments accepted by the template. The context
- : function takes the arguments and prepares the context map for the
- : use by the template rules.
- :)
-declare function o:stylesheet($rules as array(*)*)
-{
-    o:compile-stylesheet(o:compile-rules($rules, map {}), map {})
-};
-
-declare function o:stylesheet($rules as array(*)*, $options as map(*))
-{
-    o:compile-stylesheet(o:compile-rules($rules, $options), $options)
-};
-
-declare function o:rules($rules as item()*)
-{
-    o:compile-rules($rules, map {})
-};
-
-declare function o:rules($rules as item()*, $options as map(*))
-{
-    o:compile-rules($rules, $options)
-};
-
-(:~
  : Execute the extractor stylesheet and and attach the node handlers
  : to the correct nodes as defined by the rules.
  :)
 declare %private function o:merge-handlers($extractor, $rules, $options)
+as function(*)
 {
     function($nodes) {
         o:prewalk(
@@ -524,15 +491,40 @@ declare %private function o:merge-handlers-on-node($rules)
 declare %private function o:compile-rules($rules as item()*, $options as map(*))
 as map(*)
 {
-    typeswitch ($rules)
-    case array(*)+ return
-        let $rules := map:merge($rules ! o:compile-rule(., ()))
-        let $extractor := o:compile-stylesheet($rules)
-        return o:merge-handlers($extractor, $rules, $options)
-    case map(*) return 
-        function($nodes) { $nodes ! o:doc-node(., $rules) }
-    default return 
-        function($nodes) { $nodes ! o:doc-node(., map {}) }
+    let $xftype :=
+        typeswitch ($rules)
+        case array(*)+ return
+            'xslt'
+        case map(*) return
+            'map'
+        default return
+            'default'
+    let $rules := 
+        switch ($xftype)
+        case 'xslt' return
+            trace(map:merge($rules ! o:compile-rule(., ())), 'RULES: ')
+        default return
+            $rules
+    let $extractor := 
+        if ($xftype = 'xslt') then
+            trace(o:compile-stylesheet($rules, $options), 'XSLT: ')
+        else
+            ()
+    return
+        map:merge((
+            $options,
+            if ($extractor) then map:entry('!xslt', $extractor) else (),
+            map:entry('!rules', $rules),
+            map:entry('!doc',
+                switch ($xftype)
+                case 'xslt' return
+                    o:merge-handlers($extractor, $rules, $options)
+                case 'map' return 
+                    function($nodes) { $nodes ! o:to-doc(., $options) }
+                default return 
+                    function($nodes) { $nodes ! o:to-doc(., $options) }
+            )
+        ))
 };
 
 (:~
@@ -611,12 +603,6 @@ as xs:QName {
     )
 };
 
-declare %private function o:compile-stylesheet($rules as map(*))
-as element(*)
-{
-    o:compile-stylesheet($rules, map {})
-};
-
 declare %private function o:compile-stylesheet($rules as map(*), $options as map(*))
 as element(*)
 {
@@ -687,7 +673,7 @@ as element(*)
                 }
             )
         ],
-        map { 'ns': map:merge(($options?ns, map:entry('', 'http://www.w3.org/1999/XSL/Transform'))) }
+        o:default-ns-xform($options, 'http://www.w3.org/1999/XSL/Transform')
     )
 };
 
