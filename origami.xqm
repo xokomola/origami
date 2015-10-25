@@ -234,14 +234,14 @@ as item()*
 declare function o:doc($nodes as item()*, $xform as item()*)
 as item()*
 {
-    let $xform := 
+    let $xform :=
         if (o:is-doc-xform($xform)) then
             $xform
         else
             (: $xform is probably as set of rules so compile them :)
             o:xform($xform)
     return
-        $xform('!doc')($nodes)
+        $xform?doc($nodes)
 };
 
 (: TODO: how to deal with namespace QNames, name() doesn't cut it :)
@@ -320,7 +320,7 @@ as map(*)
 declare function o:is-doc-xform($xform as map(*))
 as xs:boolean
 {
-    map:contains($xform,'!doc')
+    map:contains($xform,'doc')
 };
 
 (:~
@@ -377,7 +377,7 @@ as node()*
 declare %private function o:to-element($element as array(*), $xform as map(*))
 as item()*
 {
-    let $tag := trace(o:tag($element),'E: ')
+    let $tag := o:tag($element)
     let $atts := o:attrs($element)
     let $content := o:content($element)
     let $name-resolver as function(xs:string) as xs:QName := $xform?qname
@@ -499,28 +499,33 @@ as map(*)
             'map'
         default return
             'default'
-    let $rules := 
+    let $rules as map(*) := 
         switch ($xftype)
         case 'xslt' return
-            trace(map:merge($rules ! o:compile-rule(., ())), 'RULES: ')
+            map:merge($rules ! o:compile-rule(., ()))
         default return
             $rules
     let $extractor := 
         if ($xftype = 'xslt') then
-            trace(o:compile-stylesheet($rules, $options), 'XSLT: ')
+            o:compile-stylesheet($rules, $options)
         else
             ()
-    return
+    let $xform :=
         map:merge((
             $options,
-            if ($extractor) then map:entry('!xslt', $extractor) else (),
-            map:entry('!rules', $rules),
-            map:entry('!doc',
+            (: to support easier debugging of xforms :)
+            if ($extractor) then map:entry('xslt', $extractor) else (),
+            map:entry('rules', $rules)
+        ))
+    return
+        map:merge((
+            $xform,
+            map:entry('doc',
                 switch ($xftype)
                 case 'xslt' return
                     o:merge-handlers($extractor, $rules, $options)
                 case 'map' return 
-                    function($nodes) { $nodes ! o:to-doc(., $options) }
+                    function($nodes) { $nodes ! o:to-doc(., $xform) }
                 default return 
                     function($nodes) { $nodes ! o:to-doc(., $options) }
             )
