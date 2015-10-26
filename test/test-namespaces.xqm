@@ -199,32 +199,32 @@ declare %unit:test function test:default-ns-xform()
     )
 };
 
-declare %unit:test %unit:ignore function test:default-namespace() 
+declare %unit:test function test:default-namespace() 
 {
     let $xml := o:xml(['p'])
     return
         unit:assert-equals(namespace-uri($xml), '')
     ,
-    let $xml := o:xml(['h:p'])
+    let $xml := o:xml(['h:p'], o:ns-xform())
     return
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ,
-    let $xml := o:xml(['p'], o:qname-resolver(map {}, 'http://foobar'))
+    let $xml := o:xml(['p'], o:default-ns-xform('http://foobar'))
     return
         unit:assert-equals(namespace-uri($xml), 'http://foobar')
-    (: ,
-    let $xml := o:xml(['h:x',['p']], o:qname-resolver(o:ns-map(), 'http://foobar'))
+    ,
+    let $xml := o:xml(['h:x',['p']], o:ns-xform() => o:default-ns-xform('http://foobar'))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         (: default is set to a uri so we cannot just use $xml/p to get at the child element :)
         unit:assert-equals(namespace-uri($xml/*[1]), 'http://foobar')
     )
     ,
-    let $xml := o:xml(['h:x',['p']], o:qname-resolver(o:ns-map(), ''))
+    let $xml := o:xml(['h:x',['p']], o:ns-xform() => o:default-ns-xform(''))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         unit:assert-equals(namespace-uri($xml/p), '')
-    ) :)
+    )
 };
 
 (: TODO: default ns prefixes are present in the result :)
@@ -236,41 +236,39 @@ declare %unit:test function test:no-extra-namespaces-in-result()
       )  
 };
 
-declare %unit:test %unit:ignore function test:prefixes() 
+declare %unit:test function test:prefixes() 
 {
     let $xml := o:xml(['p'])
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
-    (:,
+    ,
     let $xml := o:xml(['h:p'])
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'h')
     ,
-    let $xml := o:xml(['p'], o:qname-resolver(o:ns-map(), 'http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['p'], o:ns-xform() => o:default-ns-xform('http://www.w3.org/1999/xhtml'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ),
-    let $xml := o:xml(['h:p'], o:qname-resolver(o:ns-map(), 'http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['h:p'], o:ns-xform() => o:default-ns-xform('http://www.w3.org/1999/xhtml'))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := o:xml(['x:p'], o:qname-resolver(o:ns-map(map { 'x': 'http://foobar' }), 'http://foobar'))
+    let $xml := o:xml(['x:p'],o:ns-xform(map { 'x': 'http://foobar' }) => o:default-ns-xform('http://foobar'))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := o:xml(['x:p'], o:qname-resolver(o:ns-map(map { 'x': 'http://foobar' })))
+    let $xml := o:xml(['x:p'], o:ns-xform(map { 'x': 'http://foobar' }))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'x')
-    :)
 };
 
 declare %unit:test function test:mixed-namespaces()
 {
-    true()
-     (: let $xml := o:xml(
+    let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:qname-resolver(o:ns-map()))
+        o:ns-xform())
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -281,7 +279,8 @@ declare %unit:test function test:mixed-namespaces()
     ),
     let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:qname-resolver(o:ns-map(), 'http://www.w3.org/2007/app'))
+        o:ns-xform() 
+        => o:default-ns-xform('http://www.w3.org/2007/app'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -292,7 +291,8 @@ declare %unit:test function test:mixed-namespaces()
     ),
     let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:qname-resolver(o:ns-map(), 'http://www.w3.org/2005/Atom'))
+        o:ns-xform() 
+        => o:default-ns-xform('http://www.w3.org/2005/Atom'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -303,7 +303,11 @@ declare %unit:test function test:mixed-namespaces()
     ),    
     let $xml := o:xml(
         ['app:foo', ['x:bar'], ['atom:bar'], ['category']], 
-        o:qname-resolver(o:ns-map(map { 'x': 'http://www.w3.org/2005/Atom' }), 'http://www.w3.org/2005/Atom'))
+        o:ns-xform(map { 
+            'x': 'http://www.w3.org/2005/Atom',
+            'atom': 'http://www.w3.org/2005/Atom',
+            'app': 'http://www.w3.org/2007/app' }) 
+        => o:default-ns-xform('http://www.w3.org/2005/Atom'))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -313,5 +317,5 @@ declare %unit:test function test:mixed-namespaces()
         unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
         unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
         unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2005/Atom')         
-    )    :)
+    )
 };
