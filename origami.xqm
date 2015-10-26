@@ -265,7 +265,7 @@ as item()*
                 array {
                     name(.),
                     (: TODO: attribute transformer :)
-                    if (./@* or map:contains($xform?rules, name(.))) then
+                    if (./@* or ($xform?rules instance of map(*) and map:contains($xform?rules, name(.)))) then
                         map:merge((
                             for $a in ./@* except ./@o:path
                             return map:entry(name($a), data($a))
@@ -276,7 +276,7 @@ as item()*
                                 else 
                                     name(.)
                             return
-                                if (map:contains($xform?rules, $path)) then
+                                if ($xform?rules instance of map(*) and map:contains($xform?rules, $path)) then
                                     map:entry($o:handler-att, $xform?rules($path))
                                 else 
                                     ()
@@ -302,7 +302,7 @@ as item()*
 declare function o:xform()
 as map(*)
 {
-    o:xform(map {}, ())
+    o:xform((), map {})
 };
 
 declare function o:xform($rules as item()*)
@@ -465,7 +465,7 @@ declare %private function o:merge-handlers-on-node($rules)
                 map:for-each($attrs,
                     function($k,$v) { if ($k = 'o:id') then () else map:entry($k,$v) }
                 ),
-                if (map:contains($rule,'handler')) then
+                if (map:contains($rule, 'handler')) then
                     map:entry($o:handler-att, $rule?handler)
                 else
                     ()                
@@ -499,7 +499,7 @@ as map(*)
             'map'
         default return
             'default'
-    let $rules as map(*) := 
+    let $rules := 
         switch ($xftype)
         case 'xslt' return
             map:merge($rules ! o:compile-rule(., ()))
@@ -515,7 +515,7 @@ as map(*)
             $options,
             (: to support easier debugging of xforms :)
             if ($extractor) then map:entry('xslt', $extractor) else (),
-            map:entry('rules', $rules)
+            if ($rules instance of map(*)) then map:entry('rules', $rules) else ()
         ))
     return
         map:merge((

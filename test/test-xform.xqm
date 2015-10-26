@@ -14,29 +14,29 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 declare %unit:test function test:extract-nothing() 
 {
     unit:assert-equals(
-        o:xform()(<p><x y="10"/></p>),
+        o:doc(<p><x y="10"/></p>, o:xform()),
         ['p', ['x', map { 'y': '10' }]],
         'No argument = identity'
     ),
 
+    (: TODO: is this the correct result? :)
     unit:assert-equals(
-        o:xform(())(<p><x y="10"/></p>),
+        o:doc(<p><x y="10"/></p>,o:xform(())),
         ['p', ['x', map { 'y': '10' }]],
         'Empty argument = identity'
     ),
     
     unit:assert-equals(
-        o:xform(['y'])(<p><x y="10"/></p>),
+        o:doc(<p><x y="10"/></p>, o:xform(['y'])),
         (),
         'If no rule matches return nothing'
-    )
-    
+    )   
 };
 
 declare %unit:test function test:extract-whole-document() 
 {
     unit:assert-equals(
-        o:xml(o:xform(['*'])(<p><x y="10"/></p>)),
+        o:xml(<p><x y="10"/></p>, o:xform(['*'])),
         <p><x y="10"/></p>,
         'Copies every element'
     )
@@ -47,51 +47,55 @@ declare %unit:test function test:extract-whole-document()
 declare %unit:test function test:extract-whole-document-with-holes() 
 {
     unit:assert-equals(
-        o:xml(o:xform(
-            ['p', ['c', ()]]
-        )(<p>
-            <x>
-                <c>
-                    <xxx/>
-                </c>
-            </x>
-            <y>
-                <c>
-                    <yyy/>
-                </c>
-            </y>
-        </p>)),
-        <p><x/><y/></p>,
+        o:doc(
+            <p>
+                <x>
+                    <c>
+                        <xxx/>
+                    </c>
+                </x>
+                <y>
+                    <c>
+                        <yyy/>
+                    </c>
+                </y>
+            </p>,
+            o:xform(['p', ['c', ()]])
+        ),
+        ["p", ["x"], ["y"]],
         'Whole document leaving out c elements'
     )
 };
 
-(:
 (:~
  : A context function will typecheck context arguments and return
  : the context that will be available in the template rules ($c).
  :)
-declare %unit:test function test:template-context-function() 
+declare %unit:test function test:context-function() 
 {
     unit:assert-equals(
-        o:apply(o:xform(
-            <p><x y="10"/></p>, 
-            ['p', function($n,$c) { ['foo', $c] }]
-        ), 12),
+        o:apply(
+          o:doc(
+            <p><x y="10"/></p>,            
+            o:xform(['p', function($n,$c) { ['foo', $c] }])
+          ), 
+          [12]
+        ),
         ['foo', 12],
         "One argument template"
     ),
     
     unit:assert-equals(
-        o:apply(o:xform(
+        o:apply(
+          o:doc(
             <p><x y="10"/></p>, 
-            ['p', function($n,$c) { <foo>{ $c }</foo> }]
-        ), 12),
+            o:xform(['p', function($n,$c) { <foo>{ $c }</foo> }])
+          ),
+          [12]
+        ),
         <foo>12</foo>,
         "One argument template producing XML element node")
 };
-
-:)
 
 declare variable $test:html :=
     <html>
@@ -152,7 +156,7 @@ declare variable $test:html-no-lists :=
 
 declare function test:xf($rules)
 {
-    o:xml(o:xform($rules)($test:html))
+    o:xml(o:doc($test:html, o:xform($rules)))
 };
 
 declare %unit:test function test:copy-whole-page() 
@@ -210,16 +214,21 @@ declare %unit:test function test:remove-all-but-first()
 declare %unit:test function test:list-handler()
 {
     unit:assert-equals(
-        o:xml(o:apply(o:xform(
-            ['ol', o:wrap(['list']),
-                ['li[1]'], ['li', ()]
-            ]
-        )(
-            <ol>
-                <li>item 1</li>
-                <li>item 2</li>
-            </ol>
-        ))),
+        o:xml(
+            o:apply(
+                o:doc(   
+                    <ol>
+                        <li>item 1</li>
+                        <li>item 2</li>
+                    </ol>,
+                    o:xform(
+                        ['ol', o:wrap(['list']),
+                            ['li[1]'], ['li', ()]
+                        ]
+                    )
+                )
+            )
+        ),
         <list>
             <ol>
                 <li>item 1</li>
