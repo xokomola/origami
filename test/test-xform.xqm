@@ -67,6 +67,14 @@ declare %unit:test function test:extract-whole-document-with-holes()
     )
 };
 
+declare %unit:test function test:implicit-xform()
+{
+      unit:assert-equals(
+        o:xml(o:doc(<x/>,['x'])),
+        <x/>
+      )  
+};
+
 (:~
  : A context function will typecheck context arguments and return
  : the context that will be available in the template rules ($c).
@@ -76,7 +84,7 @@ declare %unit:test function test:context-function()
     unit:assert-equals(
         o:apply(
           o:doc(
-            <p><x y="10"/></p>,            
+            <x><p><y/></p></x>,
             o:xform(['p', function($n,$c) { ['foo', $c] }])
           ), 
           [12]
@@ -88,12 +96,12 @@ declare %unit:test function test:context-function()
     unit:assert-equals(
         o:apply(
           o:doc(
-            <p><x y="10"/></p>, 
-            o:xform(['p', function($n,$c) { <foo>{ $c }</foo> }])
+            <x><p><y/></p></x>,
+            o:xform(['p', function($n,$a,$b) { <foo>{ $a,$b }</foo> }])
           ),
-          [12]
+          [12,13]
         ),
-        <foo>12</foo>,
+        <foo>12 13</foo>,
         "One argument template producing XML element node")
 };
 

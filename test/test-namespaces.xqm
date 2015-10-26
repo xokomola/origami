@@ -223,6 +223,15 @@ declare %unit:test %unit:ignore function test:default-namespace()
     ) :)
 };
 
+(: TODO: default ns prefixes are present in the result :)
+declare %unit:test function test:no-extra-namespaces-in-result()
+{
+      unit:assert-equals(
+        in-scope-prefixes(o:xml(['x'])),
+        ('xml')
+      )  
+};
+
 declare %unit:test %unit:ignore function test:prefixes() 
 {
     let $xml := o:xml(['p'])

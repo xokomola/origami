@@ -344,7 +344,7 @@ as node()*
         if (map:contains($xform, 'ns')) then
             $xform
         else
-            map:merge(($xform, map:entry('ns', o:ns-map())))
+            map:merge(($xform, map:entry('ns', map {})))
     let $xform :=
         if (map:contains($xform, 'qname')) then
             $xform
@@ -384,8 +384,7 @@ as item()*
     where $tag
     return
         element { $name-resolver($tag) } {
-            (: namespace μ { 'http://xokomola.com/xquery/origami/mu' }, :)
-            namespace o { 'http://xokomola.com/xquery/origami' },
+            (: namespace o { 'http://xokomola.com/xquery/origami' }, :)
             if ($xform?ns instance of map(*)) then
                 for $prefix in map:keys($xform?ns)
                 let $uri := $xform?ns($prefix)
