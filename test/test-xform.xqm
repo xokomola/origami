@@ -1,10 +1,7 @@
 xquery version "3.1";
 
 (:~
- : Tests for o:apply.
- :
- : In most tests o:xml is used to convert the mu-document to XML. This makes
- : it much easier to read. So, strictly, this is not a unit-test any more.
+ : Tests for o:xform()
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
@@ -67,6 +64,10 @@ declare %unit:test function test:extract-whole-document-with-holes()
     )
 };
 
+(:~
+ : When the second argument of o:doc is not an xform it is implicitly converted 
+ : into one.
+ :)
 declare %unit:test function test:implicit-xform()
 {
       unit:assert-equals(
@@ -76,8 +77,8 @@ declare %unit:test function test:implicit-xform()
 };
 
 (:~
- : A context function will typecheck context arguments and return
- : the context that will be available in the template rules ($c).
+ : A context function will typecheck context arguments and return the context 
+ : that will be available in the template rules ($c).
  :)
 declare %unit:test function test:context-function() 
 {
@@ -90,7 +91,7 @@ declare %unit:test function test:context-function()
           [12]
         ),
         ['foo', 12],
-        "One argument template"
+        'One argument template'
     ),
     
     unit:assert-equals(
@@ -102,7 +103,7 @@ declare %unit:test function test:context-function()
           [12,13]
         ),
         <foo>12 13</foo>,
-        "One argument template producing XML element node")
+        'One argument template producing XML element node')
 };
 
 declare variable $test:html :=
@@ -183,7 +184,11 @@ declare %unit:test function test:extract-lists()
         test:xf(
             ['ol']
         ),
-        ($test:html//ol[@id='list-1'], $test:html//ol[@id='list-2'], $test:html//ol[@id='list-3']),
+        (
+            $test:html//ol[@id='list-1'], 
+            $test:html//ol[@id='list-2'], 
+            $test:html//ol[@id='list-3']
+        ),
         'Take all lists in order'
     ),
     unit:assert-equals(

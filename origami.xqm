@@ -6,7 +6,7 @@ xquery version "3.1";
 
 (: TODO: o:content => o:children :)
 (: TODO: zippers? :)
-(: TODO: deserialize into mu (hints: e.g. @class to ('cl1','cl2') :)
+(: TODO: deserialize into mu (hints: e.g. @class to ('cl1', 'cl2') :)
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
@@ -20,7 +20,7 @@ declare %private variable $o:handler-att := '@';
 declare %private variable $o:data-att := '!';
 declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
-declare %private variable $o:internal-att := ($o:data-att,$o:handler-att);
+declare %private variable $o:internal-att := ($o:data-att, $o:handler-att);
 
 (: Reading from external entities :)
 
@@ -148,13 +148,13 @@ as item()?
 declare function o:parse-json($text as xs:string*)
 as item()?
 {
-    parse-json(string-join($text,''))
+    parse-json(string-join($text, ''))
 };
 
 declare function o:parse-json($text as xs:string*, $options as map(xs:string, item()))
 as item()?
 {
-    parse-json(string-join($text,''), $options?($o:json-options))
+    parse-json(string-join($text, ''), $options?($o:json-options))
 };
 
 declare %private variable $o:json-options :=
@@ -198,7 +198,7 @@ as array(*)*
 {
     o:csv-normal-form(
         csv:parse(
-            string-join($text,'&#10;'), 
+            string-join($text, '&#10;'), 
             map:merge((u:select-keys($options, $o:csv-options), map { 'format': 'map' }))
         )
     )
@@ -320,7 +320,7 @@ as map(*)
 declare function o:is-doc-xform($xform as item()*)
 as xs:boolean
 {
-    $xform instance of map(*) and map:contains($xform,'doc')
+    $xform instance of map(*) and map:contains($xform, 'doc')
 };
 
 (:~
@@ -406,14 +406,14 @@ declare %private function o:to-attributes($atts as map(*), $xform as map(*))
 as attribute()*
 {
     map:for-each($atts,
-        function($k,$v) {
+        function($k, $v) {
             if ($k = $o:internal-att 
                 or namespace-uri-from-QName($xform?qname($k)) 
                 = 'http://xokomola.com/xquery/origami') then 
                 ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
-                attribute { if (contains($k,':')) then $xform?qname($k) else $k } {
+                attribute { if (contains($k, ':')) then $xform?qname($k) else $k } {
                     data(
                         typeswitch ($v)
                         case array(*) return 
@@ -455,14 +455,14 @@ declare %private function o:merge-handlers-on-node($rules)
         let $attrs := o:attrs($element)
         let $content := o:content($element)
         let $rule := 
-            if (map:contains($attrs,'o:id')) then 
+            if (map:contains($attrs, 'o:id')) then 
                 $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
             else
                 map {} 
         let $merged-attributes :=
             map:merge((
                 map:for-each($attrs,
-                    function($k,$v) { if ($k = 'o:id') then () else map:entry($k,$v) }
+                    function($k, $v) { if ($k = 'o:id') then () else map:entry($k, $v) }
                 ),
                 if (map:contains($rule, 'handler')) then
                     map:entry($o:handler-att, $rule?handler)
@@ -585,7 +585,7 @@ as item()*
         return
             typeswitch ($rule)
             case array(*) return 
-                o:compile-rule($rule, ($context,$head))
+                o:compile-rule($rule, ($context, $head))
             case map(*) return 
                 ()
             case function(*) return 
@@ -603,7 +603,7 @@ declare %private function o:mode($paths as xs:string*)
 as xs:QName {
     QName(
         'http://xokomola.com/xquery/origami',
-        concat('_', xs:hexBinary(hash:md5(string-join($paths,' * '))))
+        concat('_', xs:hexBinary(hash:md5(string-join($paths, ' * '))))
     )
 };
 
@@ -631,7 +631,7 @@ as element(*)
             ['template', map { 'match': 'text()' }],
             map:for-each($rules,
                 function($hash, $rule) {
-                    let $xpath := translate($rule?xpath, "&quot;","'")
+                    let $xpath := translate($rule?xpath, "&quot;", "'")
                     let $context := $rule?context
                     let $mode := $rule?mode
                     let $op := $rule?op
@@ -648,7 +648,7 @@ as element(*)
                                 ['copy',
                                     ['attribute', map { 'name': 'o:id' }, $hash ],
                                     (: for debugging :)
-                                    ['attribute', map { 'name': 'o:path' }, string-join(($context,$xpath),' * ') ],                                    
+                                    ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],                                    
                                     ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
                                 ]
                             else
@@ -730,7 +730,7 @@ as item()*
         case map(*) return
             map:merge(
                 map:for-each(.,
-                    function($a,$b) {
+                    function($a, $b) {
                         map:entry(
                             concat(o:handler-att, $a), 
                             o:to-json($b, $name-resolver)
@@ -1028,7 +1028,7 @@ declare function o:seq($nodes as item()*)
         if (. instance of array(*)) then
             .?*
         else if (. instance of map(*)) then
-            map:for-each(., function($k,$v) { ($k,$v) })
+            map:for-each(., function($k, $v) { ($k, $v) })
         else 
             .
     )
@@ -1165,9 +1165,9 @@ declare function o:repeat($repeat-seq as item()*, $fn as function(*))
             fold-left(
                 $repeat-seq,
                 (),
-                function($n,$i) {
+                function($n, $i) {
                     if ($arity = 2) then
-                        ($n, $fn($nodes,$i))
+                        ($n, $fn($nodes, $i))
                     else
                         (: assume the default arity = 1, otherwise let it crash :)
                         ($n, $fn($nodes))
@@ -1468,7 +1468,7 @@ as function(item()*) as item()*
                 default return 
                     string(.)
             )
-        ,''))
+        , ''))
     }
 };
 
@@ -1516,11 +1516,11 @@ as function(item()*) as item()*
         let $atts :=
             map:merge((
                 map:for-each(o:attrs($element),
-                    function($k,$v) {
+                    function($k, $v) {
                         if ($k = $remove-atts) then 
                             () 
                         else 
-                            map:entry($k,$v)
+                            map:entry($k, $v)
                     }
                 )
             ))
@@ -1563,7 +1563,7 @@ as function(item()*) as item()*
                         string-join(
                             distinct-values(
                                 tokenize(
-                                    string-join(($atts?class,$names),' '), '\s+')), ' ')
+                                    string-join(($atts?class, $names), ' '), '\s+')), ' ')
                     )
                 )),
                 o:content($element)
@@ -1592,14 +1592,14 @@ as function(item()*) as item()*
 {
    function($element as array(*)) {
         let $atts := o:attrs($element)
-        let $classes := tokenize($atts?class,'\s+')
+        let $classes := tokenize($atts?class, '\s+')
         let $new-classes :=
             for $class in $classes
             where not($class = $names)
             return $class
         let $new-atts :=
             if (count($new-classes) = 0) then
-                map:remove($atts,'class')
+                map:remove($atts, 'class')
             else
                 map:merge((
                     $atts,
@@ -1721,7 +1721,7 @@ as function(*)
 declare function o:html-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname(?, map:merge((o:ns-map(), map:entry('','http://www.w3.org/1999/xhtml'))))
+    o:qname(?, map:merge((o:ns-map(), map:entry('', 'http://www.w3.org/1999/xhtml'))))
 };
 
 (:~
@@ -1770,7 +1770,7 @@ as xs:QName
 {
     if (contains($name, ':'))
     then
-        let $prefix := substring-before($name,':')
+        let $prefix := substring-before($name, ':')
         let $local := substring-after($name, ':')
         let $default-ns := $ns-map('')
         let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
@@ -1780,7 +1780,7 @@ as xs:QName
             else
                 QName($ns, concat($prefix, ':', $local))
     else
-        if (map:contains($ns-map,'')) then
+        if (map:contains($ns-map, '')) then
             QName($ns-map(''), $name)
         else 
             QName((), $name)
@@ -1806,7 +1806,7 @@ declare function o:ns-map($ns-map as map(*))
 as map(*)
 {
     map:merge((
-        for $ns in doc(concat(file:base-dir(),'/nsmap.xml'))/nsmap/*
+        for $ns in doc(concat(file:base-dir(), '/nsmap.xml'))/nsmap/*
         return
             map:entry(string($ns/@prefix), string($ns/@uri))
         ,
@@ -1834,8 +1834,8 @@ as map(*)
             for $att in $node/@*
             let $qname := node-name($att)
             return
-                map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname)),
-            map:entry((prefix-from-QName($qname),'')[1], namespace-uri-from-QName($qname))
+                map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname)),
+            map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname))
         )
     ))
 };
@@ -1849,28 +1849,33 @@ as map(*)
 declare function o:ns-xform($nodes-or-map as item()*)
 as map(*)
 {
-    typeswitch ($nodes-or-map)
-    case map(*) return 
-        o:ns-xform(map { 'ns': $nodes-or-map }, ())
-    case node()* return
-        o:ns-xform(map {}, $nodes-or-map)
-    default return
-        map {}
+    o:ns-xform(map {}, $nodes-or-map)
 };
 
-declare function o:ns-xform($xform as map(*), $nodes as node()*)
+declare function o:ns-xform($xform as map(*), $nodes-or-map as item()*)
 as map(*)
 {
     map:merge((
         $xform,
-        map { 'ns': map:merge(($xform?ns, o:ns-map-from-nodes($nodes))) }
+        map { 'ns': 
+            map:merge((
+                $xform?ns,
+                typeswitch ($nodes-or-map)
+                case map(*) return 
+                    $nodes-or-map
+                case node()* return
+                    o:ns-map-from-nodes($nodes-or-map)
+                default return
+                    map {}
+            )) 
+        }
     ))
 };
 
-declare function o:default-ns-xform($xform as map(*))
+declare function o:default-ns-xform($default-namespace-uri as xs:string)
 as map(*)
 {
-    o:default-ns-xform($xform, '')
+    o:default-ns-xform(map {}, $default-namespace-uri)
 };
 
 declare function o:default-ns-xform($xform as map(*), $default-namespace-uri as xs:string)

@@ -13,22 +13,26 @@ declare %unit:test function test:ns-map()
     let $ns := o:ns-map()
     return
         unit:assert-equals($ns?html,'http://www.w3.org/1999/xhtml',
-            "XHTML namespace is in default namespace map"),
+            'XHTML namespace is in default namespace map'
+        ),
 
     let $ns := o:ns-map()
     return
         unit:assert-equals($ns?x,(),
-            "X namespace is not in default namespace map"),
+            'X namespace is not in default namespace map'
+        ),
 
     let $ns := o:ns-map(map { 'x': 'foobar' })
     return
         unit:assert-equals($ns?x,'foobar',
-            "X namespace is in the namespace map"),
+            'X namespace is in the namespace map'
+        ),
 
     let $ns := o:ns-map(map { 'html': 'foobar' })
     return
         unit:assert-equals($ns?html,'foobar',
-            "XHTML is redefined in the namespace map")
+            'XHTML is redefined in the namespace map'
+        )
 };
 
 (:~
@@ -100,7 +104,7 @@ declare %unit:test function test:normal-xml()
     unit:assert-equals(
         o:ns-map-from-nodes($test:sane),
         map { '': 'foo', 'x': 'bar' },
-        "A sane XML document."
+        'A sane XML document.'
     )
 };
 
@@ -109,7 +113,7 @@ declare %unit:test function test:sane-xml()
     unit:assert-equals(
         o:ns-map-from-nodes($test:sane),
         map { '': 'foo', 'x': 'bar' },
-        "A sane XML document."
+        'A sane XML document.'
     )
 };
 
@@ -118,27 +122,27 @@ declare %unit:test function test:insane-xml()
     unit:assert-equals(
         o:ns-map-from-nodes($test:neurotic),
         map { 'x': 'foo' },
-        "A neurotic XML maps the same namespace prefix to two different namespace URIs
-         at different points."
+        'A neurotic XML maps the same namespace prefix to two different 
+         namespace URIs at different points.'
     ),
     
     unit:assert-equals(
         o:ns-map-from-nodes($test:borderline),
         map { 'x': 'foo', 'y': 'foo' },
-        "A borderline XML maps two different namespace prefixes to the same namespace
-        URI."
+        'A borderline XML maps two different namespace prefixes to the same 
+        namespace URI.'
     ),
 
     unit:assert-equals(
         o:ns-map-from-nodes($test:psychotic),
         map { 'x': 'foo', 'y': 'foo' },
-        "A psychotic XML maps two different URIs to the same prefix."
+        'A psychotic XML maps two different URIs to the same prefix.'
     ),
 
     unit:assert-equals(
         o:ns-map-from-nodes($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
-        "A mixture of insanity."
+        'A mixture of insanity.'
     )
 };
 
@@ -149,7 +153,7 @@ declare %unit:test function test:ns-xform()
         unit:assert-equals(
             $xf?ns?html,
             'http://www.w3.org/1999/xhtml',
-            "Transformer has XHTML namespace URI"
+            'Transformer has XHTML namespace URI'
         ),
         
     let $xf := o:ns-xform($test:sane)
@@ -157,7 +161,7 @@ declare %unit:test function test:ns-xform()
         unit:assert-equals(
             $xf?ns,
             map { '': 'foo', 'x': 'bar' },
-            "Transformer has sane XML namespace map"
+            'Transformer has sane XML namespace map'
         ),
 
     let $xf := o:ns-xform(o:ns-xform(), $test:sane)
@@ -165,17 +169,17 @@ declare %unit:test function test:ns-xform()
         unit:assert-equals(
             $xf?ns?html,
             'http://www.w3.org/1999/xhtml',
-            "Transformer is composed of default namespaces and XML namespaces"
+            'Transformer is composed of default namespaces and XML namespaces'
         ),
         unit:assert-equals(
             $xf?ns?x,
             'bar',
-            "Transformer has bar namespace"
+            'Transformer has bar namespace'
         ),
         unit:assert-equals(
             $xf?ns(''),
             'foo',
-            "Transformer has foo namespace"
+            'Transformer has foo namespace'
         )
     )
 };
@@ -185,13 +189,13 @@ declare %unit:test function test:default-ns-xform()
     unit:assert-equals(
         o:default-ns-xform(map {}, 'foo')?ns(''),
         'foo',
-        "Default namespace foo"
+        'Default namespace foo'
     ),
 
     unit:assert-equals(
         o:default-ns-xform(o:ns-xform(), 'bar')?ns(''),
         'bar',
-        "Default namespace foo"
+        'Default namespace foo'
     )
 };
 
