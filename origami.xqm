@@ -1,18 +1,15 @@
 xquery version "3.1";
 
 (:~
- : Origami 0.6
+ : Origami - a micro-templating library for XQuery 3.1
  :)
-
-(: TODO: o:content => o:children :)
-(: TODO: zippers? :)
-(: TODO: deserialize into mu (hints: e.g. @class to ('cl1', 'cl2') :)
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
 import module namespace u = 'http://xokomola.com/xquery/origami/utils' 
     at 'utils.xqm';
 
+declare %private variable $o:version := '0.6';
 declare %private variable $o:e := xs:QName('o:element');
 declare %private variable $o:d := xs:QName('o:data');
 declare %private variable $o:ns := o:ns-map();
@@ -244,7 +241,6 @@ as item()*
         $xform?doc($nodes)
 };
 
-(: TODO: how to deal with namespace QNames, name() doesn't cut it :)
 declare %private function o:to-doc($items as item()*, $xform as map(*))
 as item()*
 {
@@ -264,7 +260,6 @@ as item()*
             else
                 array {
                     name(.),
-                    (: TODO: attribute transformer :)
                     if (./@* or ($xform?rules instance of map(*) and map:contains($xform?rules, name(.)))) then
                         map:merge((
                             for $a in ./@* except ./@o:path
@@ -290,7 +285,7 @@ as item()*
             array { 
                 o:tag(.), 
                 o:attributes(.), 
-                o:content(.) ! o:to-doc(., $xform) 
+                o:children(.) ! o:to-doc(., $xform) 
             }
         case text() return
             string(.)
@@ -379,7 +374,7 @@ as item()*
 {
     let $tag := o:tag($element)
     let $atts := o:attrs($element)
-    let $content := o:content($element)
+    let $content := o:children($element)
     let $name-resolver as function(xs:string) as xs:QName := $xform?qname
     where $tag
     return
@@ -446,14 +441,13 @@ as function(*)
 
 (:~
  : Given an extracted element node and adds the matching rules to it.
- : TODO: attach attribute handlers.
  :)
 declare %private function o:merge-handlers-on-node($rules)
 {
     function($element as array(*)) {
         let $tag := o:tag($element)
         let $attrs := o:attrs($element)
-        let $content := o:content($element)
+        let $content := o:children($element)
         let $rule := 
             if (map:contains($attrs, 'o:id')) then 
                 $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
@@ -485,7 +479,6 @@ declare %private function o:merge-handlers-on-node($rules)
  : 
  : Prepare a map that is used in a transformer to attach the correct
  : handler to the correct mu-node.
- : TODO: Also has prepares the tail of the rule to compose pipelines (?)
  :)
 declare %private function o:compile-rules($rules as item()*, $options as map(*))
 as map(*)
@@ -721,7 +714,7 @@ as item()*
         case array(*) return
             let $tag := o:tag(.)
             let $atts := o:attributes(.)
-            let $children := o:content(.)
+            let $children := o:children(.)
             return
                 map:entry(
                     $tag, 
@@ -774,7 +767,7 @@ as xs:string?
         () 
 };
 
-declare function o:content($element as item()?)
+declare function o:children($element as item()?)
 as item()*
 {
     if (exists($element)
@@ -820,10 +813,9 @@ as map(*)
 declare function o:size($element as array(*)?)
 as item()*
 {
-    count(o:content($element))
+    count(o:children($element))
 };
 
-(: TODO: in template we should be able to use o:apply with only $ctx (as a node transformer), maybe name it o:apply-rules($args) :)
 declare function o:apply($nodes as item()*)
 {
     o:apply($nodes, (), [])
@@ -835,7 +827,6 @@ as item()*
     o:apply($nodes, (), $ctx)
 };
 
-(: TODO: maybe merge $current into $ctx??? :)
 declare function o:apply($nodes as item()*, $current as array(*)?, $ctx as array(*))
 as item()*
 {
@@ -861,7 +852,7 @@ declare function o:apply-element($element as array(*), $ctx as array(*))
     let $handler := o:handler($element)
     let $ctx := o:context($element, $ctx)
     let $atts := o:apply-attributes($element, $ctx)
-    let $content := o:content($element)
+    let $content := o:children($element)
     return
         if (exists($handler)) then
             o:apply-handler(
@@ -983,7 +974,7 @@ declare function o:tree-seq($nodes, $is-branch as function(*), $children as func
             $children(.) 
         else
             .,
-        o:tree-seq(o:content(.), $is-branch, $children)
+        o:tree-seq(o:children(.), $is-branch, $children)
     )
 };
 
@@ -1092,7 +1083,7 @@ as function(*)
         array {
             o:tag($element),
             map:merge((o:attrs($element), map { $o:handler-att: $handler })),
-            o:content($element)
+            o:children($element)
         }
     }
 };
@@ -1135,7 +1126,7 @@ as function(*)
         array {
             o:tag($element),
             map:merge((o:attrs($element), map { $o:data-att: $data })),
-            o:content($element)
+            o:children($element)
         }
     }
 };
@@ -1201,7 +1192,6 @@ as item()*
                 $selector
             }
         default return
-            (: TODO: raise error? :)
             ()
     return        
         function($nodes as item()*) {
@@ -1299,7 +1289,7 @@ as function(item()*) as item()*
         $content ! (
             typeswitch(.)
             case array(*) return 
-                o:content(.)
+                o:children(.)
             default return 
                 .
         )
@@ -1382,7 +1372,7 @@ declare function o:insert-after($append as item()*)
 as function(item()*) as item()*
 {
    function($mu as array(*)) {
-        array { o:tag($mu), o:attributes($mu), o:content($mu), $append }
+        array { o:tag($mu), o:attributes($mu), o:children($mu), $append }
     }
 };
 
@@ -1404,7 +1394,7 @@ declare function o:insert-before($prepend as item()*)
 as function(item()*) as item()*
 {
    function($mu as array(*)) {
-        array { o:tag($mu), o:attributes($mu), $prepend, o:content($mu) }
+        array { o:tag($mu), o:attributes($mu), $prepend, o:children($mu) }
     }
 };
 
@@ -1430,7 +1420,7 @@ as function(item()*) as item()*
             case map(*) return 
                 ()
             case array(*) return 
-                o:text(o:content(.))
+                o:text(o:children(.))
             case function(*) return 
                 ()
             default return 
@@ -1462,7 +1452,7 @@ as function(item()*) as item()*
                 case map(*) return 
                     ()
                 case array(*) return 
-                    o:ntext(o:content(.))
+                    o:ntext(o:children(.))
                 case function(*) return 
                     ()
                 default return 
@@ -1489,7 +1479,7 @@ as function(item()*) as item()*
         array {
             o:tag($node),
             map:merge((o:attributes($node), $attributes)),
-            o:content($node)
+            o:children($node)
         }
     }
 };
@@ -1531,7 +1521,7 @@ as function(item()*) as item()*
                     () 
                 else 
                     $atts,
-                o:content($element)
+                o:children($element)
             }
     }
 };
@@ -1566,7 +1556,7 @@ as function(item()*) as item()*
                                     string-join(($atts?class, $names), ' '), '\s+')), ' ')
                     )
                 )),
-                o:content($element)
+                o:children($element)
             }
     }
 };
@@ -1612,7 +1602,7 @@ as function(item()*) as item()*
                     () 
                 else 
                     $new-atts,
-                o:content($element)
+                o:children($element)
             }
     }
 };
@@ -1652,7 +1642,7 @@ as function(item()*) as item()*
                 array {
                     $new-name,
                     o:attributes($node),
-                    o:content($node)
+                    o:children($node)
                 }
             else
                 $node
