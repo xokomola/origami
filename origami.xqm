@@ -758,40 +758,48 @@ as item()*
     tail($element?*)
 };
 
-declare function o:tag($element as item()?)
-as xs:string?
+declare function o:tag($nodes as item()*)
+as xs:string*
 {
-    if ($element instance of array(*)) then 
-        array:head($element) 
-    else 
-        () 
+    $nodes ! (
+        if (. instance of array(*)) then 
+            array:head(.) 
+        else 
+            ()
+    )
 };
 
-declare function o:children($element as item()?)
+(:~
+ : Return child nodes of a mu-element as a sequence.
+ :)
+declare function o:children($nodes as item()*)
 as item()*
 {
-    if (exists($element)
-        and $element instance of array(*)
-        and array:size($element) > 0) then
-        let $c := array:tail($element)
-        return
-            if (array:size($c) > 0 and array:head($c) instance of map(*)) then 
-                array:tail($c)?*
-            else 
-                $c?*
-    else 
-        ()
+    $nodes ! (
+        if (. instance of array(*)
+            and array:size(.) > 0) then
+            let $c := array:tail(.)
+            return
+                if (array:size($c) > 0 and array:head($c) instance of map(*)) then 
+                    array:tail($c)?*
+                else 
+                    $c?*
+        else
+            ()
+    )
 };
 
-declare function o:attributes($element as array(*)?)
-as map(*)?
+declare function o:attributes($nodes as item()*)
+as map(*)*
 {
-    if (exists($element)
-        and array:size($element) > 1 
-        and $element?2 instance of map(*)) then 
-        $element?2
-    else 
-        ()
+    $nodes ! (
+        if (. instance of array(*)
+            and array:size(.) > 1 
+            and .?2 instance of map(*)) then 
+            .?2
+        else 
+            ()
+    )
 };
 
 (:~
@@ -801,10 +809,10 @@ as map(*)?
  : you can use both o:attrs($e)?foo as well as o:attributes($e)?foo because
  : ()?foo will work just like map{}?foo.
  :)
-declare function o:attrs($element as array(*)?)
-as map(*)
+declare function o:attrs($nodes as item()*)
+as map(*)*
 {
-    (o:attributes($element), map {})[1]
+    $nodes ! (o:attributes(.), map {})[1]
 };
 
 (:~
