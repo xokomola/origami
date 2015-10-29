@@ -289,9 +289,13 @@ as item()*
               o:children(.) ! o:to-doc(., $xform) 
           }
         case text() return
-          string(.)
+            if (string-length(normalize-space(.)) = 0) then
+                (: remove whitespace only nodes :)
+                ()
+            else
+                string(.)
         default return 
-          .
+            .
     )
 };
 
