@@ -290,10 +290,11 @@ as item()*
           }
         case text() return
             if (string-length(normalize-space(.)) = 0) then
-                (: remove whitespace only nodes :)
                 ()
             else
-                string(.)
+                let $txt := normalize-space(concat('|',.,'|'))
+                return
+                    substring($txt,2,string-length($txt)-2)
         default return 
             .
     )
