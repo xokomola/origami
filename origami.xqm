@@ -237,6 +237,7 @@ as item()*
         else
             (: $xform is probably as set of rules so compile them :)
             o:xform($xform)
+    let $x := trace($xform?doc,'X: ')
     return
         $xform?doc($nodes)
 };
@@ -244,53 +245,54 @@ as item()*
 declare %private function o:to-doc($items as item()*, $xform as map(*))
 as item()*
 {
+        
     $items ! (
         typeswitch(.)
         case document-node() return 
-            o:to-doc(./*, $xform)
+          o:to-doc(./*, $xform)
         case processing-instruction() return 
-            ()
+          ()
         case comment() return 
-            ()
+          ()
         case attribute() return
-            map:entry(name(.), string(.))
+          map:entry(name(.), string(.))
         case element() return
-            if  (name(.) = 'o:seq') then
-                ./node() ! o:to-doc(., $xform)
-            else
-                array {
-                    name(.),
-                    if (./@* or ($xform?rules instance of map(*) and map:contains($xform?rules, name(.)))) then
-                        map:merge((
-                            for $a in ./@* except ./@o:path
-                            return map:entry(name($a), data($a))
-                            ,
-                            let $path :=
-                                if (.[@o:path]) then 
-                                    string(./@o:path)
-                                else 
-                                    name(.)
-                            return
-                                if ($xform?rules instance of map(*) and map:contains($xform?rules, $path)) then
-                                    map:entry($o:handler-att, $xform?rules($path))
-                                else 
-                                    ()
-                        ))
-                    else 
-                        ()
-                    ,
-                    ./node() ! o:to-doc(., $xform)
-                }
+          if  (name(.) = 'o:seq') then
+              ./node() ! o:to-doc(., $xform)
+          else
+              array {
+                  name(.),
+                  if (./@* or ($xform?rules instance of map(*) and map:contains($xform?rules, name(.)))) then
+                      map:merge((
+                          for $a in ./@* except ./@o:path
+                          return map:entry(name($a), data($a))
+                          ,
+                          let $path :=
+                              if (.[@o:path]) then 
+                                  string(./@o:path)
+                              else 
+                                  name(.)
+                          return
+                              if ($xform?rules instance of map(*) and map:contains($xform?rules, $path)) then
+                                  map:entry($o:handler-att, $xform?rules($path))
+                              else 
+                                  ()
+                      ))
+                  else 
+                      ()
+                  ,
+                  ./node() ! o:to-doc(., $xform)
+              }
         case array(*) return
-            array { 
-                o:tag(.), 
-                o:attributes(.), 
-                o:children(.) ! o:to-doc(., $xform) 
-            }
+          array { 
+              o:tag(.), 
+              o:attributes(.), 
+              o:children(.) ! o:to-doc(., $xform) 
+          }
         case text() return
-            string(.)
+          string(.)
         default return 
-            .
+          .
     )
 };
 
@@ -432,17 +434,18 @@ as attribute()*
 declare %private function o:merge-handlers($extractor, $rules, $options)
 as function(*)
 {
-    function($nodes) {
+    function($nodes as item()*) {
         o:prewalk(
-            o:xslt($extractor, $options)($nodes), 
-            o:merge-handlers-on-node($rules))
+            o:xslt($extractor)($nodes), 
+            o:merge-handlers-on-node($rules)
+        )
     }
 };
 
 (:~
  : Given an extracted element node and adds the matching rules to it.
  :)
-declare %private function o:merge-handlers-on-node($rules)
+declare function o:merge-handlers-on-node($rules as map(*))
 {
     function($element as array(*)) {
         let $tag := o:tag($element)
@@ -608,7 +611,8 @@ as element(*)
             map:merge((
                 map:entry('version', '1.0')
             )),
-            ['output', map { 'method': 'xml' }],
+            ['output', map { 'method': 'xml', 'indent': 'no' }],
+            (: ['strip-space', map { 'elements': '*' }], :)
             ['template', map { 'match': '/' }, 
                 ['o:seq',
                     map:for-each($rules,

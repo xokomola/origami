@@ -135,3 +135,14 @@ declare %unit:test function test:doc-rules()
     )
 
 };
+
+declare function test:dir($p) { concat(file:base-dir(), string-join($p,'/')) };
+declare function test:html($f) { test:dir(('html',$f)) };
+
+declare %unit:test function test:whitespace()
+{
+    unit:assert-equals(
+        o:doc(o:read-html(test:html('test004.html'))),
+        <html/>
+    )
+};
