@@ -237,7 +237,6 @@ as item()*
         else
             (: $xform is probably as set of rules so compile them :)
             o:xform($xform)
-    let $x := trace($xform?doc,'X: ')
     return
         $xform?doc($nodes)
 };
@@ -612,7 +611,7 @@ as element(*)
                 map:entry('version', '1.0')
             )),
             ['output', map { 'method': 'xml', 'indent': 'no' }],
-            (: ['strip-space', map { 'elements': '*' }], :)
+            ['strip-space', map { 'elements': '*' }],
             ['template', map { 'match': '/' }, 
                 ['o:seq',
                     map:for-each($rules,
