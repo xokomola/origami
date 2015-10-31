@@ -225,7 +225,7 @@ declare %private function o:csv-normal-form($csv)
 declare function o:doc($items as item()*)
 as item()*
 {
-    o:doc($items, map {})
+    o:to-doc($items, map {})
 };
 
 declare function o:doc($nodes as item()*, $builder as item()*)
@@ -247,46 +247,53 @@ as item()*
     $items ! (
         typeswitch(.)
         case document-node() return 
-          o:to-doc(./*, $builder)
+            o:to-doc(./*, $builder)
         case processing-instruction() return 
-          ()
+            ()
         case comment() return 
-          ()
+            ()
         case attribute() return
-          map:entry(name(.), string(.))
+            map:entry(name(.), string(.))
         case element() return
-          if  (name(.) = 'o:seq') then
+            if  (name(.) = 'o:seq') then
+                ./node() ! o:to-doc(., $builder)
+            else
+            array {
+                name(.),
+                if (./@* or ($builder?rules instance of map(*) and map:contains($builder?rules, name(.)))) then
+                  map:merge((
+                      for $a in ./@* except ./@o:path
+                      return map:entry(name($a), data($a))
+                      ,
+                      let $path :=
+                          if (.[@o:path]) then 
+                              string(./@o:path)
+                          else 
+                              name(.)
+                      return
+                          if ($builder?rules instance of map(*) and map:contains($builder?rules, $path)) then
+                              map:entry($o:handler-att, o:prepare-handler($builder?rules($path)))
+                          else 
+                              ()
+                  ))
+              else 
+                  ()
+              ,
               ./node() ! o:to-doc(., $builder)
-          else
-              array {
-                  name(.),
-                  if (./@* or ($builder?rules instance of map(*) and map:contains($builder?rules, name(.)))) then
-                      map:merge((
-                          for $a in ./@* except ./@o:path
-                          return map:entry(name($a), data($a))
-                          ,
-                          let $path :=
-                              if (.[@o:path]) then 
-                                  string(./@o:path)
-                              else 
-                                  name(.)
-                          return
-                              if ($builder?rules instance of map(*) and map:contains($builder?rules, $path)) then
-                                  map:entry($o:handler-att, $builder?rules($path))
-                              else 
-                                  ()
-                      ))
-                  else 
-                      ()
-                  ,
-                  ./node() ! o:to-doc(., $builder)
-              }
+            }
         case array(*) return
-          array { 
-              o:tag(.), 
-              o:attributes(.), 
-              o:children(.) ! o:to-doc(., $builder) 
-          }
+            if (o:is-handler(.)) then
+                o:prepare-handler(.)
+            else
+                array { 
+                    o:tag(.), 
+                    o:attributes(.), 
+                    o:children(.) ! o:to-doc(., $builder) 
+                }
+        (: NOTE: this is probably an error as free floating maps are not valide, maybe raise error? :)
+        case map(*) return .
+        case function(*) return
+            o:prepare-handler(.)
         case text() return
             if (string-length(normalize-space(.)) = 0) then
                 ()
@@ -430,6 +437,46 @@ as attribute()*
     )
 };
 
+declare function o:prepare-handler($handler as item())
+{
+    typeswitch ($handler)
+    case array(*) return
+        o:compile-handler(array:head($handler), array:tail($handler))
+    case map(*) return 
+        error(xs:QName('o:invalid-handler'), "A map is not a valid handler")
+    case function(*) return
+        o:compile-handler($handler, [])
+    default return 
+        error(xs:QName('o:invalid-hander'), "Unrecognized handler type")
+};
+
+(:~
+ : Wrap handlers with in-place args and return a handler function.
+ :)
+declare function o:compile-handler($handler as function(*), $args as array(*))
+as function(*)
+{
+    let $arity := function-arity($handler)
+    return
+        switch ($arity)
+        case 0 return
+            function($node as array(*), $data as array(*)) {
+                $handler()
+            }
+        case 1 return
+            function($node as array(*), $data as array(*)) {
+                $handler($node)
+            }
+        case 2 return
+            function($node as array(*), $data as array(*)) {
+                $handler($node, array:join(($args,$data)))
+            }
+        default return
+            function($node as array(*), $data as array(*)) {
+                apply($handler,array:join(($args,$data)))
+            }
+};
+
 (:~
  : Execute the extractor stylesheet and and attach the node handlers
  : to the correct nodes as defined by the rules.
@@ -465,7 +512,7 @@ declare function o:merge-handlers-on-node($rules as map(*))
                     function($k, $v) { if ($k = 'o:id') then () else map:entry($k, $v) }
                 ),
                 if (map:contains($rule, 'handler')) then
-                    map:entry($o:handler-att, $rule?handler)
+                    map:entry($o:handler-att, o:prepare-handler($rule?handler))
                 else
                     ()                
             ))
@@ -759,21 +806,16 @@ as item()*
         ()
 };
 
-declare function o:tail($element as array(*)?)
+declare function o:tail($mu as array(*))
 as item()*
 {
-    tail($element?*)
+    tail($mu?*)
 };
 
-declare function o:tag($nodes as item()*)
-as xs:string*
+declare function o:tag($mu as array(*))
+as item()
 {
-    $nodes ! (
-        if (. instance of array(*)) then 
-            array:head(.) 
-        else 
-            ()
-    )
+    $mu?*[1]
 };
 
 (:~
@@ -833,55 +875,48 @@ as item()*
 
 declare function o:apply($nodes as item()*)
 {
-    o:apply($nodes, (), [])
+    o:apply($nodes, [], [])
 };
 
 declare function o:apply($nodes as item()*, $ctx as array(*))
 as item()*
 {
-    o:apply($nodes, (), $ctx)
+    o:apply($nodes, [], $ctx)
 };
 
-declare function o:apply($nodes as item()*, $current as array(*)?, $ctx as array(*))
+declare function o:apply($nodes as item()*, $current as array(*), $data as array(*))
 as item()*
 {
     $nodes ! (
-        switch (o:is-element-or-handler(.))
-        case $o:is-element return 
-            o:apply-element(., $ctx)
-        case $o:is-handler return 
-            o:apply-handler(., $current, $ctx)
-        default return 
-            .
+        typeswitch (.)
+        case array(*) return o:apply-element(., $data)
+        (: NOTE: maps can be handlers, like a switch on element tag :)
+        case map(*) return o:apply-handler(., o:tag($current), $data)
+        case function(*) return o:apply-handler(., $current, $data)
+        default return .
     )
 };
 
-declare function o:apply-rules($ctx as array(*))
+declare function o:apply-rules($data as array(*))
 {
-    o:apply(?, $ctx)
+    o:apply(?, $data)
 };
 
-declare function o:apply-element($element as array(*), $ctx as array(*))
+declare function o:apply-element($element as array(*), $data as array(*))
 {
     let $tag := o:tag($element)
     let $handler := o:handler($element)
-    let $ctx := o:context($element, $ctx)
-    let $atts := o:apply-attributes($element, $ctx)
+    let $atts := o:apply-attributes($element, $data)
     let $content := o:children($element)
+    let $element := array { $tag, $atts, $content }
     return
         if (exists($handler)) then
-            o:apply-handler(
-                $handler, 
-                array { $tag, $atts, $content },
-                $ctx
-            )
+            o:apply-handler($handler, $element, $data)
         else
-            array { $tag, $atts, 
-                o:apply($content, $element, $ctx) 
-            }
+            o:insert($element, o:apply($content, $element, $data))
 };
 
-declare function o:apply-attributes($element as array(*), $ctx as item()*)
+declare function o:apply-attributes($element as array(*), $data as item()*)
 {
     let $atts :=
         map:merge((
@@ -895,7 +930,7 @@ declare function o:apply-attributes($element as array(*), $ctx as item()*)
                             $att-name,
                             switch (o:is-element-or-handler($att-value))
                             case $o:is-handler return 
-                                o:apply-handler($att-value, $element, $ctx)
+                                o:apply-handler($att-value, $element, $data)
                             default return 
                                 $att-value
                         )
@@ -946,13 +981,10 @@ as xs:boolean? {
         ()
 };
 
-declare function o:apply-handler($handler as item(), $current as array(*)?, $ctx as array(*))
+declare function o:apply-handler($handler as item(), $owner as array(*)?, $data as array(*))
 as item()*
 {
-    if ($handler instance of array(*)) then
-        apply(array:head($handler), array:join(([$current], array:tail($handler), $ctx)))
-    else 
-        apply($handler, array:join(([$current], $ctx)))
+    $handler($owner, $data)
 };
 
 (:~
@@ -972,19 +1004,42 @@ declare function o:do($fns) {
 
 declare function o:identity($x) { $x };
 
-declare function o:tree-seq($nodes)
+(:~
+ : Returns a sequence even if the argument is an array or a map.
+ :)
+
+declare function o:seq()
 {
-    o:tree-seq($nodes, o:is-element#1, o:identity#1)
+    function($mu as item()*) {
+        $mu ! (
+            if (. instance of array(*)) then
+                .?*
+            else if (. instance of map(*)) then
+                map:for-each(., function($k, $v) { ($k, $v) })
+            else 
+                .
+        )
+    }
 };
 
-declare function o:tree-seq($nodes, $children as function(*))
+declare function o:seq($mu as item()*)
 {
-    o:tree-seq($nodes, o:is-element#1, $children)
+    o:seq()($mu)
 };
 
-declare function o:tree-seq($nodes, $is-branch as function(*), $children as function(*))
+declare function o:tree-seq($mu)
 {
-    $nodes ! ( 
+    o:tree-seq($mu, o:is-element#1, o:identity#1)
+};
+
+declare function o:tree-seq($mu, $children as function(*))
+{
+    o:tree-seq($mu, o:is-element#1, $children)
+};
+
+declare function o:tree-seq($mu, $is-branch as function(*), $children as function(*))
+{
+    $mu ! ( 
         if ($is-branch(.)) then
             $children(.) 
         else
@@ -1023,21 +1078,6 @@ declare function o:sort($key as function(item()) as xs:anyAtomicType*)
 as item()*
 {
     sort(?, $key)
-};
-
-(:~
- : Returns a sequence even if the argument is an array.
- :)
-declare function o:seq($nodes as item()*)
-{
-    $nodes ! (
-        if (. instance of array(*)) then
-            .?*
-        else if (. instance of map(*)) then
-            map:for-each(., function($k, $v) { ($k, $v) })
-        else 
-            .
-    )
 };
 
 (:~
@@ -1080,6 +1120,13 @@ declare function o:prewalk($form as item()*, $fn as function(*))
     )
 };
 
+declare function o:is-handler($element as array(*))
+as xs:boolean
+{
+    let $tag := o:tag($element)
+    return $tag instance of function(*) and not($tag instance of array(*))
+};
+
 declare function o:has-handler($element as array(*))
 as xs:boolean
 {
@@ -1091,68 +1138,19 @@ declare function o:handler($element as array(*))
     o:attrs($element)($o:handler-att)
 };
 
-declare function o:set-handler($handler as array(*)?)
-as function(*)
-{
-    function($element as array(*)) {
-        array {
-            o:tag($element),
-            map:merge((o:attrs($element), map { $o:handler-att: $handler })),
-            o:children($element)
-        }
-    }
-};
-
-declare function o:context($element as array(*)?)
-{
-    o:context($element, [])
-};
-
-(:~
- : Make a new context. Replacing head of $ctx with $element.
- :)
-declare function o:context($element as array(*)?, $ctx as array(*))
-{
-    let $arg-handler := o:attrs($element)($o:data-att)
-    return
-        typeswitch ($arg-handler)
-        case empty-sequence() return 
-            $ctx
-        case array(*) return 
-            $arg-handler
-        case map(*) return 
-            [$arg-handler]
-        case function(*) return 
-            [apply($arg-handler, array:join(([$element], $ctx)))] 
-        default return 
-            [$arg-handler]
-};
-
-declare function o:set-data($element as array(*), $data as item()*)
-as function(*)
-{
-    o:set-data($data)($element)
-};
-
-declare function o:set-data($data as item()*)
-as function(*)
-{
-    function($element as array(*)) {
-        array {
-            o:tag($element),
-            map:merge((o:attrs($element), map { $o:data-att: $data })),
-            o:children($element)
-        }
-    }
-};
-
 (:~
  : Replace the child nodes of `$element` with `$content`.
  :)
-declare function o:set-handler($element as array(*), $handler as array(*)?)
+declare function o:set-handler($element as array(*), $handler as function(*)?)
 as array(*)
 {
     o:set-handler($handler)($element)
+};
+
+declare function o:set-handler($handler as function(*)?)
+as function(*)
+{
+    o:set-attr(map { $o:handler-att: o:prepare-handler($handler) })
 };
 
 (:~

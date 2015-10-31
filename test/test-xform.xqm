@@ -91,7 +91,7 @@ declare %unit:test function test:context-function()
           [12]
         ),
         ['foo', 12],
-        'One argument template'
+        "One argument template"
     ),
     
     unit:assert-equals(
@@ -103,7 +103,7 @@ declare %unit:test function test:context-function()
           [12,13]
         ),
         <foo>12 13</foo>,
-        'One argument template producing XML element node')
+        "One argument template producing XML element node")
 };
 
 declare variable $test:html :=
