@@ -86,7 +86,7 @@ declare %unit:test function test:context-function()
         o:apply(
           o:doc(
             <x><p><y/></p></x>,
-            o:builder(['p', function($n,$c) { ['foo', $c] }])
+            o:builder(['p', function($n,$c) { ['foo', $c?1] }])
           ), 
           [12]
         ),

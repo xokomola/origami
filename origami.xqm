@@ -19,6 +19,10 @@ declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
 declare %private variable $o:internal-att := ($o:data-att, $o:handler-att);
 
+(: errors :)
+declare %private variable $o:err-invalid-handler := xs:QName('o:invalid-handler');
+declare %private variable $o:err-xslt := xs:QName('o:xslt');
+
 (: Reading from external entities :)
 
 declare function o:read-xml($uri as xs:string)
@@ -263,7 +267,11 @@ as item()*
                 if (./@* or ($builder?rules instance of map(*) and map:contains($builder?rules, name(.)))) then
                   map:merge((
                       for $a in ./@* except ./@o:path
-                      return map:entry(name($a), data($a))
+                      return 
+                        map:entry(
+                            name($a), 
+                            data($a)
+                        )
                       ,
                       let $path :=
                           if (.[@o:path]) then 
@@ -287,7 +295,15 @@ as item()*
             else
                 array { 
                     o:tag(.), 
-                    o:attributes(.), 
+                    map:for-each(
+                        o:attrs(.),
+                        function($k,$v) {
+                            if (o:is-handler($v)) then
+                                map:entry($k, o:prepare-handler($v))
+                            else
+                                map:entry($k, $v)
+                        }
+                    ), 
                     o:children(.) ! o:to-doc(., $builder) 
                 }
         (: NOTE: this is probably an error as free floating maps are not valide, maybe raise error? :)
@@ -437,44 +453,42 @@ as attribute()*
     )
 };
 
-declare function o:prepare-handler($handler as item())
+declare %private function o:prepare-handler($handler as item())
 {
     typeswitch ($handler)
     case array(*) return
         o:compile-handler(array:head($handler), array:tail($handler))
     case map(*) return 
-        error(xs:QName('o:invalid-handler'), "A map is not a valid handler")
+        error($o:err-invalid-handler, "A map is not a valid handler")
     case function(*) return
         o:compile-handler($handler, [])
     default return 
-        error(xs:QName('o:invalid-hander'), "Unrecognized handler type")
+        error($o:err-invalid-handler, "Unrecognized handler type")
 };
 
 (:~
  : Wrap handlers with in-place args and return a handler function.
  :)
-declare function o:compile-handler($handler as function(*), $args as array(*))
+declare %private function o:compile-handler($handler as function(*), $args as array(*))
 as function(*)
 {
-    let $arity := function-arity($handler)
-    return
-        switch ($arity)
-        case 0 return
-            function($node as array(*), $data as array(*)) {
-                $handler()
-            }
-        case 1 return
-            function($node as array(*), $data as array(*)) {
-                $handler($node)
-            }
-        case 2 return
-            function($node as array(*), $data as array(*)) {
-                $handler($node, array:join(($args,$data)))
-            }
-        default return
-            function($node as array(*), $data as array(*)) {
-                apply($handler,array:join(($args,$data)))
-            }
+    switch (function-arity($handler))
+    case 0 return
+        function($node as array(*), $data as array(*)) {
+            $handler()
+        }
+    case 1 return
+        function($node as array(*), $data as array(*)) {
+            $handler($node)
+        }
+    case 2 return
+        function($node as array(*), $data as array(*)) {
+            $handler($node, array:join(($args,$data)))
+        }
+    default return
+        function($node as array(*), $data as array(*)) {
+            apply($handler,array:join(([$node],$args,$data)))
+        }
 };
 
 (:~
@@ -1161,6 +1175,7 @@ declare function o:repeat($nodes as item()*, $repeat-seq as item()*, $fn as func
     o:repeat($repeat-seq, $fn)($nodes)
 };
 
+(: TODO: revise this now we only have to deal with prepared handlers :)
 declare function o:repeat($repeat-seq as item()*, $fn as function(*))
 {
     let $arity := function-arity($fn)
@@ -1696,7 +1711,7 @@ as function(*)
                             $params
                         )
                     } catch bxerr:BXSL0001 {
-                        error(xs:QName('o:xslt'), 
+                        error($o:err-xslt, 
                             'Error [' || $err:code || ']: ' 
                             || $err:description 
                             || '&#xa;'

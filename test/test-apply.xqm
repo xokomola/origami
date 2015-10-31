@@ -16,8 +16,8 @@ declare %unit:test function test:attribute-handler-default()
     unit:assert-equals(
         o:xml(o:apply(
             ['x', map { 
-                'a': function($e, $x, $y) { 
-                    $x + $y 
+                'a': function($owner, $data as array(xs:integer)) { 
+                    $data?1 + $data?2
                 } 
             }],
             [2,4]
@@ -30,13 +30,13 @@ declare %unit:test function test:attribute-handler-default()
 declare %unit:test function test:attribute-handler-custom() 
 {
     unit:assert-equals(
-        o:xml(o:apply(
+        o:xml(o:apply(o:doc(
             ['x', map { 
-                'a': [ function($e, $x, $y) { 
-                    $x + $y 
-                }, 2,4 ]
+                'a': [ function($owner, $data as array(xs:integer)) { 
+                    $data?1 + $data?2 
+                }, 2,4]
             }]
-        )),
+        ))),
         <x a="6"/>,
         'Attribute handler with arguments'
     )
@@ -48,8 +48,8 @@ declare %unit:test function test:content-handler-default()
         o:xml(
             o:apply(
                 ['ul', 
-                    function($e, $n) { 
-                        for $i in 1 to $n
+                    function($owner, $data) { 
+                        for $i in 1 to $data?1
                         return ['li', concat('item ', $i)] 
                     }
                 ],
@@ -73,14 +73,14 @@ declare %unit:test function test:content-handler-custom()
      :)
     unit:assert-equals(
         o:xml(
-            o:apply(
+            o:apply(o:doc(
                 ['ul', 
-                    [ function($e,$x) { 
-                        for $i in 1 to $x 
+                    [ function($owner, $data) { 
+                        for $i in 1 to $data?1
                         return ['li', concat('item ', $i)] 
                     }, 3 ]
                 ]
-            )
+            ))
         ),
         <ul>
             <li>item 1</li>
@@ -95,14 +95,15 @@ declare %unit:test function test:content-handler-custom()
      :)
     unit:assert-equals(
         o:xml(
-            o:apply(
+            o:apply(o:doc(
                 ['ul', 
-                    [ function($e,$x) { 
-                        for $i in 1 to $x 
+                    (: NOTE: $data or $data?1 both work!!! :)
+                    [ function($node, $data) { 
+                        for $i in 1 to $data
                         return element li { concat('item ', $i) } 
                     }, 3 ]
                 ]
-            )
+            ))
         ),
         <ul>
             <li>item 1</li>
@@ -144,18 +145,18 @@ declare %unit:test function test:nested-apply-table()
         o:xml(
             o:apply(
                 ['table',
-                    function($e, $rows, $cols) {
-                        for $i in 1 to $rows
+                    function($node, $data) {
+                        for $i in 1 to $data?1
                         return
                             o:apply(
                                 ['tr', 
-                                    function($e, $cols) {
-                                        for $j in 1 to $cols
+                                    function($node, $data) {
+                                        for $j in 1 to $data?1
                                         return
                                             ['td', concat('item ',$i,',',$j)]
                                     }
                                 ],
-                                [$cols]
+                                [$data?2]
                             )
                     }
                 ], 

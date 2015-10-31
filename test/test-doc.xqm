@@ -113,27 +113,51 @@ declare %unit:test function test:doc-data()
 declare %unit:test function test:doc-rules()
 {
     unit:assert-equals(
-        o:doc(<test:foo bar="10"/>, 
+        o:apply(o:doc(<test:foo bar="10"/>, 
             o:builder(
-                map { 'test:foo': 'a-function' }
+                map { 'test:foo': function() { 'foo' } }
             )
-        ),
-        ['test:foo', map { 'bar': '10', '@': 'a-function'}],
+        )),
+        'foo',
         "Element handler"
     ),
     
     unit:assert-equals(
-        o:doc(<test:foo bar="10"><p/><x/></test:foo>, 
+        o:apply(o:doc(<test:foo bar="10"><p/><x/></test:foo>, 
             o:builder(
-                map { 'test:foo': 'a-function', 'x': 'another-function' }
+                map { 
+                  'test:foo': function($n) { o:apply($n => o:insert-after('bar')) }, 
+                  'x': function() { 'foo' } }
             )
-        ),
-        ['test:foo', map { 'bar': '10', '@': 'a-function'},
-          ['p'], ['x', map { '@': 'another-function'}]
-        ],
-        "Element handler nested"
+        )),
+        ['test:foo', map { 'bar': '10' }, ['p'], 'foo', 'bar'],
+        "Rules"
     )
 
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler") 
+function test:a-string-is-not-a-valid-handler()
+{
+    unit:assert(
+        o:doc(<test:foo bar="10"/>, 
+            o:builder(
+                map { 'test:foo': 'foo' }
+            )
+        )
+    )  
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler") 
+function test:a-map-is-not-a-valid-handler()
+{
+    unit:assert(
+        o:doc(<test:foo bar="10"/>, 
+            o:builder(
+                map { 'test:foo': map {} }
+            )
+        )
+    )  
 };
 
 declare function test:dir($p) { concat(file:base-dir(), string-join($p,'/')) };
@@ -143,6 +167,80 @@ declare %unit:test function test:whitespace()
 {
     unit:assert-equals(
         o:doc(o:read-html(test:html('test004.html'))),
-        <html/>
+        [
+          "html",
+          map {
+            "lang": "en"
+          },
+          [
+            "head",
+            [
+              "meta",
+              map {
+                "charset": "utf-8"
+              }
+            ],
+            [
+              "title",
+              "title"
+            ]
+          ],
+          [
+            "body",
+            [
+              "p",
+              "Hellö ",
+              [
+                "b",
+                "world"
+              ],
+              "! "
+            ]
+          ]
+        ]
+    )
+};
+
+declare %unit:test function test:component-0-no-data() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function() { 'hello' }]
+        )),
+        ['foo', 'hello'],
+        "Zero arity component, behaves like o:insert"
+    )
+};
+
+declare %unit:test function test:component-0-data-is-ignored() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function() { 'hello' }]
+        ), ['foobar']),
+        ['foo', 'hello'],
+        "Data is ignored as the handler doesn't use it."
+    )
+};
+
+declare %unit:test function test:component-1-no-data() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function($n) { $n => o:insert('hello') }]
+        )),
+        ['foo', ['foo', 'hello']],
+        "One arity component, only passes in the node"
+    )
+};
+
+declare %unit:test function test:component-1-data-is-ignored() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function($n) { $n => o:insert('hello') }]
+        ), ['foobar']),
+        ['foo', ['foo', 'hello']],
+        "One arity component, only passes in the node, data is always ignored"
     )
 };

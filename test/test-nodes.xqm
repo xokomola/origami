@@ -81,35 +81,21 @@ declare %unit:test function test:children()
 declare %unit:test function test:tag() 
 {
     unit:assert-equals(
-        o:tag(()),
-        (),
-        "No element"
-    ),
-    
-    unit:assert-equals(
         o:tag(['x']),
         'x',
         "Simple element"
     ),
 
     unit:assert-equals(
-        o:tag(1),
-        (),
-        "Not an element"
+        o:tag([1,2]),
+        1,
+        "Tag isnt picky about elements"
     ),
-
-    unit:assert-equals(
-        o:tag((['x'],['y'])),
-        ('x','y'),
-        "Multiple elements"
-    ),
-
-    unit:assert-equals(
-        o:tag((['x'],1,2,['y'])),
-        ('x','y'),
-        "Multiple elements mixed content"
+    
+    unit:assert(
+        o:tag([function($n){'foo'},2]) instance of function(*),
+        "A handler looks like an element"
     )
-
 };
 
 declare %unit:test function test:attributes() 
