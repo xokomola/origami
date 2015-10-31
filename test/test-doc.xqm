@@ -114,7 +114,7 @@ declare %unit:test function test:doc-rules()
 {
     unit:assert-equals(
         o:doc(<test:foo bar="10"/>, 
-            o:xform(
+            o:builder(
                 map { 'test:foo': 'a-function' }
             )
         ),
@@ -124,7 +124,7 @@ declare %unit:test function test:doc-rules()
     
     unit:assert-equals(
         o:doc(<test:foo bar="10"><p/><x/></test:foo>, 
-            o:xform(
+            o:builder(
                 map { 'test:foo': 'a-function', 'x': 'another-function' }
             )
         ),

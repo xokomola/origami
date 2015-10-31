@@ -1,7 +1,7 @@
 xquery version "3.1";
 
 (:~
- : Tests for o:xform()
+ : Tests for o:builder()
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
@@ -11,20 +11,20 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 declare %unit:test function test:extract-nothing() 
 {
     unit:assert-equals(
-        o:doc(<p><x y="10"/></p>, o:xform()),
+        o:doc(<p><x y="10"/></p>, o:builder()),
         ['p', ['x', map { 'y': '10' }]],
         'No argument = identity'
     ),
 
     (: TODO: is this the correct result? :)
     unit:assert-equals(
-        o:doc(<p><x y="10"/></p>,o:xform(())),
+        o:doc(<p><x y="10"/></p>,o:builder(())),
         ['p', ['x', map { 'y': '10' }]],
         'Empty argument = identity'
     ),
     
     unit:assert-equals(
-        o:doc(<p><x y="10"/></p>, o:xform(['y'])),
+        o:doc(<p><x y="10"/></p>, o:builder(['y'])),
         (),
         'If no rule matches return nothing'
     )   
@@ -33,7 +33,7 @@ declare %unit:test function test:extract-nothing()
 declare %unit:test function test:extract-whole-document() 
 {
     unit:assert-equals(
-        o:xml(<p><x y="10"/></p>, o:xform(['*'])),
+        o:xml(<p><x y="10"/></p>, o:builder(['*'])),
         <p><x y="10"/></p>,
         'Copies every element'
     )
@@ -57,7 +57,7 @@ declare %unit:test function test:extract-whole-document-with-holes()
                     </c>
                 </y>
             </p>,
-            o:xform(['p', ['c', ()]])
+            o:builder(['p', ['c', ()]])
         ),
         ["p", ["x"], ["y"]],
         'Whole document leaving out c elements'
@@ -65,10 +65,10 @@ declare %unit:test function test:extract-whole-document-with-holes()
 };
 
 (:~
- : When the second argument of o:doc is not an xform it is implicitly converted 
+ : When the second argument of o:doc is not a builder it is implicitly converted 
  : into one.
  :)
-declare %unit:test function test:implicit-xform()
+declare %unit:test function test:implicit-builder()
 {
       unit:assert-equals(
         o:xml(o:doc(<x/>,['x'])),
@@ -86,7 +86,7 @@ declare %unit:test function test:context-function()
         o:apply(
           o:doc(
             <x><p><y/></p></x>,
-            o:xform(['p', function($n,$c) { ['foo', $c] }])
+            o:builder(['p', function($n,$c) { ['foo', $c] }])
           ), 
           [12]
         ),
@@ -98,7 +98,7 @@ declare %unit:test function test:context-function()
         o:apply(
           o:doc(
             <x><p><y/></p></x>,
-            o:xform(['p', function($n,$a,$b) { <foo>{ $a,$b }</foo> }])
+            o:builder(['p', function($n,$a,$b) { <foo>{ $a,$b }</foo> }])
           ),
           [12,13]
         ),
@@ -165,7 +165,7 @@ declare variable $test:html-no-lists :=
 
 declare function test:xf($rules)
 {
-    o:xml(o:doc($test:html, o:xform($rules)))
+    o:xml(o:doc($test:html, o:builder($rules)))
 };
 
 declare %unit:test function test:copy-whole-page() 
@@ -234,7 +234,7 @@ declare %unit:test function test:list-handler()
                         <li>item 1</li>
                         <li>item 2</li>
                     </ol>,
-                    o:xform(
+                    o:builder(
                         ['ol', o:wrap(['list']),
                             ['li[1]'], ['li', ()]
                         ]

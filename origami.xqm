@@ -228,27 +228,26 @@ as item()*
     o:doc($items, map {})
 };
 
-declare function o:doc($nodes as item()*, $xform as item()*)
+declare function o:doc($nodes as item()*, $builder as item()*)
 as item()*
 {
-    let $xform :=
-        if (o:is-doc-xform($xform)) then
-            $xform
+    let $builder :=
+        if (o:is-doc-builder($builder)) then
+            $builder
         else
-            (: $xform is probably as set of rules so compile them :)
-            o:xform($xform)
+            o:builder($builder)
     return
-        $xform?doc($nodes)
+        $builder?doc($nodes)
 };
 
-declare %private function o:to-doc($items as item()*, $xform as map(*))
+declare %private function o:to-doc($items as item()*, $builder as map(*))
 as item()*
 {
         
     $items ! (
         typeswitch(.)
         case document-node() return 
-          o:to-doc(./*, $xform)
+          o:to-doc(./*, $builder)
         case processing-instruction() return 
           ()
         case comment() return 
@@ -257,11 +256,11 @@ as item()*
           map:entry(name(.), string(.))
         case element() return
           if  (name(.) = 'o:seq') then
-              ./node() ! o:to-doc(., $xform)
+              ./node() ! o:to-doc(., $builder)
           else
               array {
                   name(.),
-                  if (./@* or ($xform?rules instance of map(*) and map:contains($xform?rules, name(.)))) then
+                  if (./@* or ($builder?rules instance of map(*) and map:contains($builder?rules, name(.)))) then
                       map:merge((
                           for $a in ./@* except ./@o:path
                           return map:entry(name($a), data($a))
@@ -272,21 +271,21 @@ as item()*
                               else 
                                   name(.)
                           return
-                              if ($xform?rules instance of map(*) and map:contains($xform?rules, $path)) then
-                                  map:entry($o:handler-att, $xform?rules($path))
+                              if ($builder?rules instance of map(*) and map:contains($builder?rules, $path)) then
+                                  map:entry($o:handler-att, $builder?rules($path))
                               else 
                                   ()
                       ))
                   else 
                       ()
                   ,
-                  ./node() ! o:to-doc(., $xform)
+                  ./node() ! o:to-doc(., $builder)
               }
         case array(*) return
           array { 
               o:tag(.), 
               o:attributes(.), 
-              o:children(.) ! o:to-doc(., $xform) 
+              o:children(.) ! o:to-doc(., $builder) 
           }
         case text() return
             if (string-length(normalize-space(.)) = 0) then
@@ -300,28 +299,28 @@ as item()*
     )
 };
 
-declare function o:xform()
+declare function o:builder()
 as map(*)
 {
-    o:xform((), map {})
+    o:builder((), map {})
 };
 
-declare function o:xform($rules as item()*)
+declare function o:builder($rules as item()*)
 as map(*)
 {
-    o:xform($rules, o:default-ns-xform(o:ns-xform(), ''))
+    o:builder($rules, o:default-ns-builder(o:ns-builder(), ''))
 };
 
-declare function o:xform($rules as item()*, $options as map(*))
+declare function o:builder($rules as item()*, $options as map(*))
 as map(*)
 {
     o:compile-rules($rules, $options)
 };
 
-declare function o:is-doc-xform($xform as item()*)
+declare %private function o:is-doc-builder($builder as item()*)
 as xs:boolean
 {
-    $xform instance of map(*) and map:contains($xform, 'doc')
+    $builder instance of map(*) and map:contains($builder, 'doc')
 };
 
 (:~
@@ -338,32 +337,32 @@ as node()*
  : only use the option 'ns' whose value must be a namespace map and 'qname'
  : function that translates strings into QNames.
  :)
-declare function o:xml($mu as item()*, $xform as map(*))
+declare function o:xml($mu as item()*, $builder as map(*))
 as node()*
 {
-    let $xform :=
-        if (map:contains($xform, 'ns')) then
-            $xform
+    let $builder :=
+        if (map:contains($builder, 'ns')) then
+            $builder
         else
-            map:merge(($xform, map:entry('ns', map {})))
-    let $xform :=
-        if (map:contains($xform, 'qname')) then
-            $xform
+            map:merge(($builder, map:entry('ns', map {})))
+    let $builder :=
+        if (map:contains($builder, 'qname')) then
+            $builder
         else
-            map:merge(($xform, map:entry('qname', o:qname-resolver($xform?ns))))
+            map:merge(($builder, map:entry('qname', o:qname-resolver($builder?ns))))
     return
-        o:to-xml($mu, $xform)
+        o:to-xml($mu, $builder)
 };
 
-declare %private function o:to-xml($mu as item()*, $xform as map(*))
+declare %private function o:to-xml($mu as item()*, $builder as map(*))
 as node()*
 {
     $mu ! (
         typeswitch (.)
         case array(*) return 
-            o:to-element(., $xform)
+            o:to-element(., $builder)
         case map(*) return  
-            o:to-attributes(., $xform)
+            o:to-attributes(., $builder)
         case function(*) return 
             ()
         case empty-sequence() return 
@@ -375,46 +374,46 @@ as node()*
     )
 };
 
-declare %private function o:to-element($element as array(*), $xform as map(*))
+declare %private function o:to-element($element as array(*), $builder as map(*))
 as item()*
 {
     let $tag := o:tag($element)
     let $atts := o:attrs($element)
     let $content := o:children($element)
-    let $name-resolver as function(xs:string) as xs:QName := $xform?qname
+    let $name-resolver as function(xs:string) as xs:QName := $builder?qname
     where $tag
     return
         element { $name-resolver($tag) } {
             (: namespace o { 'http://xokomola.com/xquery/origami' }, :)
-            if ($xform?ns instance of map(*)) then
-                for $prefix in map:keys($xform?ns)
-                let $uri := $xform?ns($prefix)
+            if ($builder?ns instance of map(*)) then
+                for $prefix in map:keys($builder?ns)
+                let $uri := $builder?ns($prefix)
                 where $prefix != '' and $uri != ''
                 return
                     namespace { $prefix } { $uri }
             else
                 (),
-            o:to-attributes($atts, $xform),
+            o:to-attributes($atts, $builder),
             fold-left($content, (),
                 function($n, $i) {
-                    ($n, o:to-xml($i, $xform))
+                    ($n, o:to-xml($i, $builder))
                 }
             )
         }
 };
 
-declare %private function o:to-attributes($atts as map(*), $xform as map(*))
+declare %private function o:to-attributes($atts as map(*), $builder as map(*))
 as attribute()*
 {
     map:for-each($atts,
         function($k, $v) {
             if ($k = $o:internal-att 
-                or namespace-uri-from-QName($xform?qname($k)) 
+                or namespace-uri-from-QName($builder?qname($k)) 
                 = 'http://xokomola.com/xquery/origami') then 
                 ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
-                attribute { if (contains($k, ':')) then $xform?qname($k) else $k } {
+                attribute { if (contains($k, ':')) then $builder?qname($k) else $k } {
                     data(
                         typeswitch ($v)
                         case array(*) return 
@@ -509,22 +508,22 @@ as map(*)
             o:compile-stylesheet($rules, $options)
         else
             ()
-    let $xform :=
+    let $builder :=
         map:merge((
             $options,
-            (: to support easier debugging of xforms :)
+            (: to support easier debugging of builders :)
             if ($extractor) then map:entry('xslt', $extractor) else (),
             if ($rules instance of map(*)) then map:entry('rules', $rules) else ()
         ))
     return
         map:merge((
-            $xform,
+            $builder,
             map:entry('doc',
                 switch ($xftype)
                 case 'xslt' return
                     o:merge-handlers($extractor, $rules, $options)
                 case 'map' return 
-                    function($nodes) { $nodes ! o:to-doc(., $xform) }
+                    function($nodes) { $nodes ! o:to-doc(., $builder) }
                 default return 
                     function($nodes) { $nodes ! o:to-doc(., $options) }
             )
@@ -678,7 +677,7 @@ as element(*)
                 }
             )
         ],
-        o:default-ns-xform($options, 'http://www.w3.org/1999/XSL/Transform')
+        o:default-ns-builder($options, 'http://www.w3.org/1999/XSL/Transform')
     )
 };
 
@@ -1846,26 +1845,26 @@ as map(*)
     ))
 };
 
-declare function o:ns-xform()
+declare function o:ns-builder()
 as map(*)
 {
-    o:ns-xform(o:ns-map())
+    o:ns-builder(o:ns-map())
 };
 
-declare function o:ns-xform($nodes-or-map as item()*)
+declare function o:ns-builder($nodes-or-map as item()*)
 as map(*)
 {
-    o:ns-xform(map {}, $nodes-or-map)
+    o:ns-builder(map {}, $nodes-or-map)
 };
 
-declare function o:ns-xform($xform as map(*), $nodes-or-map as item()*)
+declare function o:ns-builder($builder as map(*), $nodes-or-map as item()*)
 as map(*)
 {
     map:merge((
-        $xform,
+        $builder,
         map { 'ns': 
             map:merge((
-                $xform?ns,
+                $builder?ns,
                 typeswitch ($nodes-or-map)
                 case map(*) return 
                     $nodes-or-map
@@ -1878,18 +1877,18 @@ as map(*)
     ))
 };
 
-declare function o:default-ns-xform($default-namespace-uri as xs:string)
+declare function o:default-ns-builder($default-namespace-uri as xs:string)
 as map(*)
 {
-    o:default-ns-xform(map {}, $default-namespace-uri)
+    o:default-ns-builder(map {}, $default-namespace-uri)
 };
 
-declare function o:default-ns-xform($xform as map(*), $default-namespace-uri as xs:string)
+declare function o:default-ns-builder($builder as map(*), $default-namespace-uri as xs:string)
 as map(*)
 {
     map:merge((
-        $xform,
-        map { 'ns': map:merge(($xform?ns, map:entry('', $default-namespace-uri))) }
+        $builder,
+        map { 'ns': map:merge(($builder?ns, map:entry('', $default-namespace-uri))) }
     ))
 };
 
