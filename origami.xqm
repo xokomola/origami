@@ -22,7 +22,7 @@ declare %private variable $o:internal-att := ($o:data-att, $o:handler-att);
 (: errors :)
 declare %private variable $o:err-invalid-handler := xs:QName('o:invalid-handler');
 declare %private variable $o:err-xslt := xs:QName('o:xslt');
-
+declare %private variable $o:err-unwellformed := xs:QName('o:unwellformed');
 (: Reading from external entities :)
 
 declare function o:read-xml($uri as xs:string)
@@ -293,21 +293,29 @@ as item()*
             if (o:is-handler(.)) then
                 o:prepare-handler(.)
             else
-                array { 
-                    o:tag(.), 
-                    map:for-each(
-                        o:attrs(.),
-                        function($k,$v) {
-                            if (o:is-handler($v)) then
-                                map:entry($k, o:prepare-handler($v))
-                            else
-                                map:entry($k, $v)
+                let $tag := o:tag(.)
+                return
+                    if ($tag instance of xs:string) then
+                        array { 
+                            $tag, 
+                            map:for-each(
+                                o:attrs(.),
+                                function($k,$v) {
+                                    if ($k instance of xs:string) then
+                                        if (o:is-handler($v)) then
+                                            map:entry($k, o:prepare-handler($v))
+                                        else
+                                            map:entry($k, $v)
+                                    else
+                                        error($o:err-unwellformed, "Attribute name must be a string", $k)
+                                }
+                            ), 
+                            o:children(.) ! o:to-doc(., $builder) 
                         }
-                    ), 
-                    o:children(.) ! o:to-doc(., $builder) 
-                }
-        (: NOTE: this is probably an error as free floating maps are not valide, maybe raise error? :)
-        case map(*) return .
+                    else
+                        error($o:err-unwellformed, "Element tag must be a string", $tag)
+        case map(*) return
+            error($o:err-unwellformed, "Map found in non-attribute position", .)
         case function(*) return
             o:prepare-handler(.)
         case text() return
@@ -1134,11 +1142,15 @@ declare function o:prewalk($form as item()*, $fn as function(*))
     )
 };
 
-declare function o:is-handler($element as array(*))
+declare function o:is-handler($maybe-h as item())
 as xs:boolean
 {
-    let $tag := o:tag($element)
-    return $tag instance of function(*) and not($tag instance of array(*))
+    let $h := 
+        if ($maybe-h instance of array(*)) then
+            o:tag($maybe-h)
+        else
+            $maybe-h
+    return $h instance of function(*) and not($h instance of array(*))
 };
 
 declare function o:has-handler($element as array(*))
@@ -1905,3 +1917,65 @@ as map(*)
     ))
 };
 
+declare %private function o:handler-repr($h as item())
+as item()
+{
+    if ($h instance of array(*)) then
+        array { o:function-repr(array:head($h)), array:tail($h)?* }
+    else
+        o:function-repr($h)
+};
+
+declare %private function o:function-repr($fn as function(*))
+as xs:string
+{
+    concat((function-name($fn),'fn#')[1], function-arity($fn))  
+};
+
+(:~
+ : Renders a representation of a document where all functions
+ : are shown with a string representation.
+ : This can be used for inspection and in tests. Function items
+ : cannot be atomized or compared.
+ :)
+declare function o:doc-repr($mu)
+{
+    o:prewalk(
+        $mu,
+        function($n) {
+            if (o:is-handler($n)) then
+                o:handler-repr($n)
+            else
+                let $tag := o:tag($n)
+                let $attrs := o:attributes($n)
+                let $attrs :=
+                    if (exists($attrs)) then
+                        map:merge((
+                            map:for-each(
+                                o:attrs($n),
+                                function($k,$v) {
+                                    if (o:is-handler($v)) then
+                                        map:entry($k, o:handler-repr($v))
+                                    else
+                                        map:entry($k, $v)
+                                }
+                            )
+                        ))
+                    else
+                        ()
+                let $children := o:children($n)
+                return
+                    [
+                        $tag, 
+                        $attrs, 
+                        (: need to get repr of inline functions which are not visited by walker :)
+                        for $child in $children 
+                        return 
+                            if (o:is-handler($child)) then 
+                                o:handler-repr($child) 
+                            else 
+                                $child
+                    ]
+        }
+    )
+};

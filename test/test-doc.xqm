@@ -1,7 +1,7 @@
 xquery version "3.1";
 
 (:~
- : Tests for μ-documents
+ : o:doc tests
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
@@ -95,18 +95,72 @@ declare %unit:test function test:doc()
     )
 };
 
-declare %unit:test function test:doc-data()
+declare %unit:test function test:doc-repr()
 {
     unit:assert-equals(
-        o:doc(['a', 10]),
-        ['a', 10],
-        "Arrays are not changed"
+        o:doc-repr(['foo', function($n,$d) {1}, 'a', 10]),
+        ['foo', 'fn#2','a',10],
+        "Inline handler"
     ),
 
     unit:assert-equals(
+        o:doc-repr(['foo', [function($n,$d) {1}, 'a',10]]),
+        ['foo', ['fn#2','a',10]],
+        "Inline handler with arguments"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(['foo', map { '@': function($n,$d) {1}}, "bar"]),
+        ['foo', map { '@': "fn#2" }, "bar"],
+        "Element handler"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(['foo', map { '@': [function($n,$d) {1},1,2,3]}, "bar"]),
+        ['foo', map { '@': ["fn#2",1,2,3] }, "bar"],
+        "Element handler with arguments"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(['foo', map { 'x': function($n,$d) {1}}, "bar"]),
+        ['foo', map { 'x': "fn#2" }, "bar"],
+        "Attribute handler"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(['foo', map { 'x': [function($n,$d) {1},1,2,3]}, "bar"]),
+        ['foo', map { 'x': ["fn#2",1,2,3] }, "bar"],
+        "Attribute handler"
+    )
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") 
+function test:unwellformed-tag-not-a-string()
+{
+    unit:assert-equals(
+        o:doc([10, 10]),
+        (),
+        "First item of an element node must be a string"
+    )
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") 
+function test:unwellformed-attribute-name-not-a-string()
+{
+    unit:assert-equals(
+        o:doc(["foo", map { 1: 'bar'}]),
+        (),
+        "Attribute name must be a string"
+    )
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") 
+function test:unwellformed-map-in-attribute-position()
+{
+    unit:assert-equals(
         o:doc(map { 'a': 10, 'b': '20' }),
-        map { 'a': 10, 'b': '20' },
-        "Maps are not changed"
+        (),
+        "Maps are only allowed in attribute position"
     )
 };
 

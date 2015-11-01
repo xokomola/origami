@@ -11,4 +11,3 @@ as map(*)
         return map:entry($k, $map($k))
     ))
 };
-
