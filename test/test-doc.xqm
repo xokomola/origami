@@ -17,18 +17,6 @@ declare %unit:test function test:doc()
     ),
 
     unit:assert-equals(
-        o:doc(attribute x { 10 }),
-        map:entry('x','10'),
-        "An attribute map entry"
-    ),
-
-    unit:assert-equals(
-        o:doc((attribute x { 10 },attribute y { 20 })),
-        (map:entry('x','10'), map:entry('y','20')),
-        "A sequence of map entries"
-    ),
-    
-    unit:assert-equals(
         o:doc("foo"),
         "foo",
         "Simple string node"
@@ -98,19 +86,19 @@ declare %unit:test function test:doc()
 declare %unit:test function test:doc-repr()
 {
     unit:assert-equals(
-        o:doc-repr(['foo', function($n,$d) {1}, 'a', 10]),
+        o:doc-repr(['foo', function($n,$d){1}, 'a', 10]),
         ['foo', 'fn#2','a',10],
         "Inline handler"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', [function($n,$d) {1}, 'a',10]]),
+        o:doc-repr(['foo', [function($n,$d){1}, 'a',10]]),
         ['foo', ['fn#2','a',10]],
         "Inline handler with arguments"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { '@': function($n,$d) {1}}, "bar"]),
+        o:doc-repr(['foo', map { '@': function($n,$d){1}}, "bar"]),
         ['foo', map { '@': "fn#2" }, "bar"],
         "Element handler"
     ),
@@ -122,7 +110,7 @@ declare %unit:test function test:doc-repr()
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { 'x': function($n,$d) {1}}, "bar"]),
+        o:doc-repr(['foo', map { 'x': function($n,$d){1}}, "bar"]),
         ['foo', map { 'x': "fn#2" }, "bar"],
         "Attribute handler"
     ),
@@ -130,7 +118,17 @@ declare %unit:test function test:doc-repr()
     unit:assert-equals(
         o:doc-repr(['foo', map { 'x': [function($n,$d) {1},1,2,3]}, "bar"]),
         ['foo', map { 'x': ["fn#2",1,2,3] }, "bar"],
-        "Attribute handler"
+        "Attribute handler with arguments"
+    )
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") 
+function test:unwellformed-free-attributes()
+{
+    unit:assert-equals(
+        o:doc(attribute x { 10 }),
+        (),
+        "Free attribute nodes are not supported"
     )
 };
 
@@ -164,30 +162,50 @@ function test:unwellformed-map-in-attribute-position()
     )
 };
 
-declare %unit:test function test:doc-rules()
+declare %unit:test function test:doc-builder-add-handlers()
 {
     unit:assert-equals(
-        o:apply(o:doc(<test:foo bar="10"/>, 
-            o:builder(
-                map { 'test:foo': function() { 'foo' } }
+        o:doc-repr(
+            o:doc(
+                <test:foo bar="10"/>, 
+                o:builder(
+                    map { 'test:foo': function(){1} }
+                )
             )
-        )),
-        'foo',
-        "Element handler"
+        ),
+        ['test:foo', map { 'bar': '10', '@': 'fn#2' }],
+        "Element handler (0-arity handlers are wrapped in 2-arity handlers"
     ),
     
     unit:assert-equals(
-        o:apply(o:doc(<test:foo bar="10"><p/><x/></test:foo>, 
-            o:builder(
-                map { 
-                  'test:foo': function($n) { o:apply($n => o:insert-after('bar')) }, 
-                  'x': function() { 'foo' } }
+        o:doc-repr(
+            o:doc(
+                <test:foo bar="10"><p/><x/></test:foo>, 
+                o:builder(
+                    map { 
+                        'test:foo': function(){1}, 
+                        'x': function(){1} 
+                    }
+                )
             )
-        )),
-        ['test:foo', map { 'bar': '10' }, ['p'], 'foo', 'bar'],
-        "Rules"
+        ),
+        ['test:foo', map { 'bar': '10', '@': 'fn#2' }, ['p'], ['x', map { '@': 'fn#2' }]],
+        "Multiple element handlers"
+    ),
+    
+    unit:assert-equals(
+        o:doc-repr(
+            o:doc(
+                <test:foo bar="10"/>, 
+                o:builder(
+                    map { '@bar': function(){1} }
+                )
+            )
+        ),
+        ['test:foo', map { 'bar': 'fn#2' }],
+        "Attribute handler"
     )
-
+    
 };
 
 declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler") 

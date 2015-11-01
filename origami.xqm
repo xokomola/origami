@@ -244,90 +244,189 @@ as item()*
         $builder?doc($nodes)
 };
 
-declare %private function o:to-doc($items as item()*, $builder as map(*))
+declare %private function o:to-doc($nodes as item()*, $builder as map(*))
 as item()*
 {
-        
-    $items ! (
-        typeswitch(.)
-        case document-node() return 
-            o:to-doc(./*, $builder)
-        case processing-instruction() return 
+    let $rules :=
+        if ($builder?rules instance of map(*)) then
+            $builder?rules
+        else
             ()
-        case comment() return 
-            ()
-        case attribute() return
-            map:entry(name(.), string(.))
-        case element() return
-            if  (name(.) = 'o:seq') then
-                ./node() ! o:to-doc(., $builder)
-            else
-            array {
-                name(.),
-                if (./@* or ($builder?rules instance of map(*) and map:contains($builder?rules, name(.)))) then
-                  map:merge((
-                      for $a in ./@* except ./@o:path
-                      return 
-                        map:entry(
-                            name($a), 
-                            data($a)
-                        )
-                      ,
-                      let $path :=
-                          if (.[@o:path]) then 
-                              string(./@o:path)
-                          else 
-                              name(.)
-                      return
-                          if ($builder?rules instance of map(*) and map:contains($builder?rules, $path)) then
-                              map:entry($o:handler-att, o:prepare-handler($builder?rules($path)))
-                          else 
-                              ()
-                  ))
-              else 
-                  ()
-              ,
-              ./node() ! o:to-doc(., $builder)
-            }
-        case array(*) return
-            if (o:is-handler(.)) then
-                o:prepare-handler(.)
-            else
-                let $tag := o:tag(.)
-                return
-                    if ($tag instance of xs:string) then
-                        array { 
-                            $tag, 
-                            map:for-each(
-                                o:attrs(.),
-                                function($k,$v) {
-                                    if ($k instance of xs:string) then
-                                        if (o:is-handler($v)) then
-                                            map:entry($k, o:prepare-handler($v))
-                                        else
-                                            map:entry($k, $v)
-                                    else
-                                        error($o:err-unwellformed, "Attribute name must be a string", $k)
-                                }
-                            ), 
-                            o:children(.) ! o:to-doc(., $builder) 
-                        }
-                    else
-                        error($o:err-unwellformed, "Element tag must be a string", $tag)
-        case map(*) return
-            error($o:err-unwellformed, "Map found in non-attribute position", .)
-        case function(*) return
-            o:prepare-handler(.)
-        case text() return
-            if (string-length(normalize-space(.)) = 0) then
+    return            
+        $nodes ! (
+            typeswitch(.)
+            case document-node() return 
+                o:to-doc(./*, $builder)
+            case processing-instruction() return 
                 ()
+            case comment() return 
+                ()
+            case attribute() return
+                error($o:err-unwellformed, "Standalone attribute nodes are not supported", .)
+            case element() return
+                if  (name(.) = 'o:seq') then
+                    ./node() ! o:to-doc(., $builder)
+                else
+                    let $attrs := 
+                        map:merge((
+                            for $att in ./@*
+                            return map:entry(name($att), data($att))
+                        ))
+                    let $attrs :=
+                        if (exists($rules)) then
+                            (: add current element tag to map :)
+                            o:merge-handlers(
+                                map:merge(($attrs, map:entry($o:handler-att, name(.)))), 
+                                $rules
+                            )
+                        else
+                            $attrs
+                    return
+                        array { 
+                            name(.), 
+                            if (map:size($attrs) > 0) then $attrs else (),
+                            ./node() ! o:to-doc(., $builder) 
+                        }
+            case array(*) return
+                if (o:is-handler(.)) then
+                    o:prepare-handler(.)
+                else
+                    let $tag := o:tag(.)
+                    return
+                        if ($tag instance of xs:string) then
+                            let $attrs :=
+                                map:merge((
+                                    map:for-each(
+                                        o:attrs(.),
+                                        function($k,$v) {
+                                            if ($k instance of xs:string) then
+                                                if (o:is-handler($v)) then
+                                                    map:entry($k, o:prepare-handler($v))
+                                                else
+                                                    map:entry($k, $v)
+                                            else
+                                                error($o:err-unwellformed, "Attribute name must be a string", $k)
+                                        }
+                                    )
+                                ))
+                            let $attrs :=
+                                if (exists($rules)) then
+                                    (: add current element tag to map :)
+                                    o:merge-handlers(
+                                        map:merge(($attrs, map:entry($o:handler-att, name(.)))), 
+                                        $rules
+                                    )
+                                else
+                                    $attrs
+                            return
+                                array { 
+                                    $tag, 
+                                    if (map:size($attrs) > 0) then $attrs else(),
+                                    o:children(.) ! o:to-doc(., $builder) 
+                                }
+                        else
+                            error($o:err-unwellformed, "Element tag must be a string", $tag)
+            case map(*) return
+                error($o:err-unwellformed, "Map found in non-attribute position", .)
+            case function(*) return
+                o:prepare-handler(.)
+            case text() return
+                o:normalize-text-node(.)
+            default return .
+        )
+};
+
+declare %private function o:merge-handlers($attrs as map(*), $rules as map(*))
+{
+    map:merge((
+        map:for-each(
+            $attrs,
+            function($name,$value) {
+                switch($name)
+                case $o:handler-att return
+                    if (map:contains($rules, $value)) then
+                        map:entry($o:handler-att, o:prepare-handler($rules($value)))
+                    else
+                        ()
+                default return
+                    let $tag-attr-selector := concat($rules($o:handler-att),'@',$name)
+                    let $attr-selector := concat('@',$name)
+                    return
+                        if (map:contains($rules, $tag-attr-selector)) then
+                            map:entry($name, o:prepare-handler($rules($tag-attr-selector)))
+                        else if (map:contains($rules, $attr-selector)) then
+                            map:entry($name, o:prepare-handler($rules($attr-selector)))
+                        else
+                            map:entry($name, $value)
+            }
+        )
+    ))
+};
+
+(:~
+ : Execute the extractor stylesheet and and attach the node handlers
+ : to the correct nodes as defined by the rules.
+ :)
+declare %private function o:merge-handlers($extractor, $rules, $options)
+as function(*)
+{
+    function($nodes as item()*) {
+        o:prewalk(
+            o:xslt($extractor)($nodes), 
+            o:merge-handlers-on-node($rules)
+        )
+    }
+};
+
+(:~
+ : Given an extracted element node and adds the matching rules to it.
+ :)
+declare function o:merge-handlers-on-node($rules as map(*))
+{
+    function($element as array(*)) {
+        let $tag := o:tag($element)
+        let $attrs := o:attrs($element)
+        let $content := o:children($element)
+        let $rule := 
+            if (map:contains($attrs, 'o:id')) then 
+                $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
             else
-                let $txt := normalize-space(concat('|',.,'|'))
-                return
-                    substring($txt,2,string-length($txt)-2)
-        default return 
-            .
-    )
+                map {} 
+        let $merged-attributes :=
+            map:merge((
+                map:for-each($attrs,
+                    function($k, $v) { if ($k = ('o:id','o:path')) then () else map:entry($k, $v) }
+                ),
+                if (map:contains($rule, 'handler')) then
+                    map:entry($o:handler-att, o:prepare-handler($rule?handler))
+                else
+                    ()                
+            ))
+        return
+            array { 
+                $tag, 
+                if (map:size($merged-attributes) > 0) then 
+                    $merged-attributes 
+                else 
+                    (), 
+                $content 
+            }
+    }
+};
+
+(:~
+ : Ensure spurious whitespace text nodes are filtered out.
+ : When XML is parsed it may contain a lot of whitespace nodes.
+ : This cleans it up a little.
+ :)
+declare %private function o:normalize-text-node($node as text())
+{
+    if (string-length(normalize-space($node)) = 0) then
+        ()
+    else
+        let $normalized := normalize-space(concat('|', $node, '|'))
+        return
+            substring($normalized,2,string-length($normalized)-2)
 };
 
 declare function o:builder()
@@ -476,6 +575,8 @@ declare %private function o:prepare-handler($handler as item())
 
 (:~
  : Wrap handlers with in-place args and return a handler function.
+ : Multiple calls to o:doc will not wrap already prepared handlers so it's
+ : safe to call o:doc on an already processed document.
  :)
 declare %private function o:compile-handler($handler as function(*), $args as array(*))
 as function(*)
@@ -490,64 +591,14 @@ as function(*)
             $handler($node)
         }
     case 2 return
-        function($node as array(*), $data as array(*)) {
-            $handler($node, array:join(($args,$data)))
-        }
-    default return
-        function($node as array(*), $data as array(*)) {
-            apply($handler,array:join(([$node],$args,$data)))
-        }
-};
-
-(:~
- : Execute the extractor stylesheet and and attach the node handlers
- : to the correct nodes as defined by the rules.
- :)
-declare %private function o:merge-handlers($extractor, $rules, $options)
-as function(*)
-{
-    function($nodes as item()*) {
-        o:prewalk(
-            o:xslt($extractor)($nodes), 
-            o:merge-handlers-on-node($rules)
-        )
-    }
-};
-
-(:~
- : Given an extracted element node and adds the matching rules to it.
- :)
-declare function o:merge-handlers-on-node($rules as map(*))
-{
-    function($element as array(*)) {
-        let $tag := o:tag($element)
-        let $attrs := o:attrs($element)
-        let $content := o:children($element)
-        let $rule := 
-            if (map:contains($attrs, 'o:id')) then 
-                $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
-            else
-                map {} 
-        let $merged-attributes :=
-            map:merge((
-                map:for-each($attrs,
-                    function($k, $v) { if ($k = 'o:id') then () else map:entry($k, $v) }
-                ),
-                if (map:contains($rule, 'handler')) then
-                    map:entry($o:handler-att, o:prepare-handler($rule?handler))
-                else
-                    ()                
-            ))
-        return
-            array { 
-                $tag, 
-                if (map:size($merged-attributes) > 0) then 
-                    $merged-attributes 
-                else 
-                    (), 
-                $content 
+        if (array:size($args) = 0) then
+            $handler
+        else
+            function($node as array(*), $data as array(*)) {
+                $handler($node, array:join(($args,$data)))
             }
-    }
+    default return
+        error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
 };
 
 (:~

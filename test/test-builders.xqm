@@ -92,18 +92,20 @@ declare %unit:test function test:context-function()
         ),
         ['foo', 12],
         "One argument template"
-    ),
+    )
     
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler") 
+function test:invalid-handler()
+{
     unit:assert-equals(
-        o:apply(
-          o:doc(
+        o:doc(
             <x><p><y/></p></x>,
-            o:builder(['p', function($n,$a,$b) { <foo>{ $a,$b }</foo> }])
-          ),
-          [12,13]
+            o:builder(['p', function($n,$a,$b) {1}])
         ),
-        <foo>12 13</foo>,
-        "One argument template producing XML element node")
+        (),
+        "Handlers with arity > 2 are not supported")
 };
 
 declare variable $test:html :=
