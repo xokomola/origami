@@ -12,7 +12,7 @@ import module namespace u = 'http://xokomola.com/xquery/origami/utils'
 declare %private variable $o:version := '0.6';
 declare %private variable $o:e := xs:QName('o:element');
 declare %private variable $o:d := xs:QName('o:data');
-declare %private variable $o:ns := o:ns-map();
+declare %private variable $o:ns := o:ns-default-map();
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:data-att := '!';
 declare %private variable $o:is-element := true();
@@ -514,7 +514,6 @@ as item()*
     where $tag
     return
         element { $name-resolver($tag) } {
-            (: namespace o { 'http://xokomola.com/xquery/origami' }, :)
             if ($builder?ns instance of map(*)) then
                 for $prefix in map:keys($builder?ns)
                 let $uri := $builder?ns($prefix)
@@ -1927,7 +1926,7 @@ as xs:QName
         let $prefix := substring-before($name, ':')
         let $local := substring-after($name, ':')
         let $default-ns := $ns-map('')
-        let $ns := ($ns-map($prefix), concat('ns:prefix:', $prefix))[1]
+        let $ns := ($ns-map($prefix), $o:ns('prefix'), concat('ns:prefix:', $prefix))[1]
         return
             if ($ns = $default-ns) then
                 QName($ns, $local)
@@ -1960,11 +1959,17 @@ declare function o:ns-map($ns-map as map(*))
 as map(*)
 {
     map:merge((
+        map { 'o': 'http://xokomola.com/xquery/origami' },
+        $ns-map
+    ))
+};
+
+declare function o:ns-default-map()
+{
+    map:merge((
         for $ns in doc(concat(file:base-dir(), '/nsmap.xml'))/nsmap/*
         return
             map:entry(string($ns/@prefix), string($ns/@uri))
-        ,
-        $ns-map
     ))
 };
 
