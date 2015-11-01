@@ -1211,14 +1211,12 @@ as xs:boolean
     map:contains(o:attrs($element), $o:handler-att)
 };
 
+(: TODO: really needed? only returns element handler :)
 declare function o:handler($element as array(*))
 {
     o:attrs($element)($o:handler-att)
 };
 
-(:~
- : Replace the child nodes of `$element` with `$content`.
- :)
 declare function o:set-handler($element as array(*), $handler as function(*)?)
 as array(*)
 {
@@ -1229,6 +1227,80 @@ declare function o:set-handler($handler as function(*)?)
 as function(*)
 {
     o:set-attr(map { $o:handler-att: o:prepare-handler($handler) })
+};
+
+declare function o:remove-handler($element as array(*))
+as array(*)
+{
+    o:remove-handler()($element)
+};
+
+(: TODO: verify function(*)? what when handler is ()? :)
+declare function o:remove-handler()
+as function(*)
+{
+    o:remove-attr($o:handler-att)
+};
+
+declare function o:set-attr-handlers($element as array(*), $handlers as map(xs:string, function(*)))
+as array(*)
+{
+    o:set-attr-handlers($handlers)($element)
+};
+
+declare function o:set-attr-handlers($handlers as map(xs:string, function(*)))
+as function(*)
+{
+    function($element as array(*)) {
+        array {
+            o:tag($element),
+            map:merge((
+                map:for-each(
+                    o:attrs($element),
+                    function($name,$value) {
+                        map:entry($name, 
+                            if (map:contains($handlers,$name)) then
+                                o:prepare-handler($handlers($name))
+                            else
+                                $value
+                        )
+                    }
+                )
+            )),
+            o:children($element)
+        }
+    }
+};
+
+declare function o:remove-attr-handlers($element as array(*))
+as array(*)
+{
+    o:remove-attr-handlers()($element)
+};
+
+declare function o:remove-attr-handlers()
+as function(*)
+{
+    function($element as array(*)) {
+        let $attrs :=
+            map:merge((
+                map:for-each(
+                    o:attrs($element),
+                    function($name,$value) {
+                        if (o:is-handler($value)) then
+                            ()
+                        else
+                            map:entry($name,$value)
+                    }
+                )
+            ))
+        return        
+            array { 
+                o:tag($element),
+                if (map:size($attrs) > 0) then $attrs else (),
+                o:children($element) 
+            }
+    }
 };
 
 (:~
