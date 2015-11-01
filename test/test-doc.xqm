@@ -196,13 +196,39 @@ declare %unit:test function test:doc-builder-add-handlers()
     unit:assert-equals(
         o:doc-repr(
             o:doc(
-                <test:foo bar="10"/>, 
+                <test:foo bar="10"><foo bar="20"/></test:foo>, 
                 o:builder(
                     map { '@bar': function(){1} }
                 )
             )
         ),
-        ['test:foo', map { 'bar': 'fn#2' }],
+        ['test:foo', map { 'bar': 'fn#2' }, ['foo', map { 'bar': 'fn#2'}]],
+        "Attribute handler"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(
+            o:doc(
+                <test:foo bar="10"><foo bar="20"/></test:foo>, 
+                o:builder(
+                    map { 'test:foo@bar': function(){1} }
+                )
+            )
+        ),
+        ['test:foo', map { 'bar': 'fn#2' }, ['foo', map { 'bar': '20'}]],
+        "Attribute handler"
+    ),
+
+    unit:assert-equals(
+        o:doc-repr(
+            o:doc(
+                <test:foo bar="10"><foo bar="20"/></test:foo>, 
+                o:builder(
+                    map { 'foo@bar': function(){1} }
+                )
+            )
+        ),
+        ['test:foo', map { 'bar': '10' }, ['foo', map { 'bar': 'fn#2'}]],
         "Attribute handler"
     )
     
@@ -270,49 +296,5 @@ declare %unit:test function test:whitespace()
             ]
           ]
         ]
-    )
-};
-
-declare %unit:test function test:component-0-no-data() 
-{
-    unit:assert-equals(
-        o:apply(o:doc(
-            ['foo', function() { 'hello' }]
-        )),
-        ['foo', 'hello'],
-        "Zero arity component, behaves like o:insert"
-    )
-};
-
-declare %unit:test function test:component-0-data-is-ignored() 
-{
-    unit:assert-equals(
-        o:apply(o:doc(
-            ['foo', function() { 'hello' }]
-        ), ['foobar']),
-        ['foo', 'hello'],
-        "Data is ignored as the handler doesn't use it."
-    )
-};
-
-declare %unit:test function test:component-1-no-data() 
-{
-    unit:assert-equals(
-        o:apply(o:doc(
-            ['foo', function($n) { $n => o:insert('hello') }]
-        )),
-        ['foo', ['foo', 'hello']],
-        "One arity component, only passes in the node"
-    )
-};
-
-declare %unit:test function test:component-1-data-is-ignored() 
-{
-    unit:assert-equals(
-        o:apply(o:doc(
-            ['foo', function($n) { $n => o:insert('hello') }]
-        ), ['foobar']),
-        ['foo', ['foo', 'hello']],
-        "One arity component, only passes in the node, data is always ignored"
     )
 };

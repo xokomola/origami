@@ -32,8 +32,8 @@ declare %unit:test function test:attribute-handler-custom()
     unit:assert-equals(
         o:xml(o:apply(o:doc(
             ['x', map { 
-                'a': [ function($owner, $data as array(xs:integer)) { 
-                    $data?1 + $data?2 
+                'a': [ function($owner, $data as xs:integer*) { 
+                    sum($data)
                 }, 2,4]
             }]
         ))),
@@ -76,7 +76,7 @@ declare %unit:test function test:content-handler-custom()
             o:apply(o:doc(
                 ['ul', 
                     [ function($owner, $data) { 
-                        for $i in 1 to $data?1
+                        for $i in 1 to $data
                         return ['li', concat('item ', $i)] 
                     }, 3 ]
                 ]
@@ -191,4 +191,49 @@ declare %unit:test function test:nested-apply-table()
                 [3,2]
             )    
     :)
+};
+
+
+declare %unit:test function test:component-0-no-data() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function(){ 'foo' }]
+        )),
+        ['foo', 'foo'],
+        "Inline handler"
+    )
+};
+
+declare %unit:test function test:component-0-data-is-ignored() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function() { 'hello' }]
+        ), ['foobar']),
+        ['foo', 'hello'],
+        "Data is ignored as the handler doesn't use it."
+    )
+};
+
+declare %unit:test function test:component-1-no-data() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function($n) { $n => o:insert('hello') }]
+        )),
+        ['foo', ['foo', 'hello']],
+        "One arity component, only passes in the node"
+    )
+};
+
+declare %unit:test function test:component-1-data-is-ignored() 
+{
+    unit:assert-equals(
+        o:apply(o:doc(
+            ['foo', function($n) { $n => o:insert('hello') }]
+        ), ['foobar']),
+        ['foo', ['foo', 'hello']],
+        "One arity component, only passes in the node, data is always ignored"
+    )
 };

@@ -313,7 +313,7 @@ as item()*
                                 if (exists($rules)) then
                                     (: add current element tag to map :)
                                     o:merge-handlers(
-                                        map:merge(($attrs, map:entry($o:handler-att, name(.)))), 
+                                        map:merge(($attrs, map:entry($o:handler-att, $tag))), 
                                         $rules
                                     )
                                 else
@@ -349,7 +349,7 @@ declare %private function o:merge-handlers($attrs as map(*), $rules as map(*))
                     else
                         ()
                 default return
-                    let $tag-attr-selector := concat($rules($o:handler-att),'@',$name)
+                    let $tag-attr-selector := concat($attrs($o:handler-att),'@',$name)
                     let $attr-selector := concat('@',$name)
                     return
                         if (map:contains($rules, $tag-attr-selector)) then
@@ -583,19 +583,19 @@ as function(*)
 {
     switch (function-arity($handler))
     case 0 return
-        function($node as array(*), $data as array(*)) {
+        function($node as array(*), $data as item()*) {
             $handler()
         }
     case 1 return
-        function($node as array(*), $data as array(*)) {
+        function($node as array(*), $data as item()*) {
             $handler($node)
         }
     case 2 return
         if (array:size($args) = 0) then
             $handler
         else
-            function($node as array(*), $data as array(*)) {
-                $handler($node, array:join(($args,$data)))
+            function($node as array(*), $data as item()*) {
+                $handler($node, ($args?*, $data))
             }
     default return
         error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
@@ -948,34 +948,33 @@ as item()*
 
 declare function o:apply($nodes as item()*)
 {
-    o:apply($nodes, [], [])
+    o:apply($nodes, [], ())
 };
 
-declare function o:apply($nodes as item()*, $ctx as array(*))
+declare function o:apply($nodes as item()*, $data as item()*)
 as item()*
 {
-    o:apply($nodes, [], $ctx)
+    o:apply($nodes, [], $data)
 };
 
-declare function o:apply($nodes as item()*, $current as array(*), $data as array(*))
+declare function o:apply($nodes as item()*, $current as array(*), $data as item()*)
 as item()*
 {
     $nodes ! (
         typeswitch (.)
         case array(*) return o:apply-element(., $data)
-        (: NOTE: maps can be handlers, like a switch on element tag :)
-        case map(*) return o:apply-handler(., o:tag($current), $data)
+        case map(*) return .
         case function(*) return o:apply-handler(., $current, $data)
         default return .
     )
 };
 
-declare function o:apply-rules($data as array(*))
+declare function o:apply-rules($data as item()*)
 {
     o:apply(?, $data)
 };
 
-declare function o:apply-element($element as array(*), $data as array(*))
+declare function o:apply-element($element as array(*), $data as item()*)
 {
     let $tag := o:tag($element)
     let $handler := o:handler($element)
@@ -1017,6 +1016,7 @@ declare function o:apply-attributes($element as array(*), $data as item()*)
 declare function o:is-element($node as item()?)
 as xs:boolean
 {
+    (: NOTE: typeswitch is faster than instance of check :)
     typeswitch($node)
     case array(*)
     return true()
@@ -1026,7 +1026,8 @@ as xs:boolean
 
 (: returns true if this is an element, false if this is a handler or nil it is neither :)
 declare function o:is-element-or-handler($node as item()?)
-as xs:boolean? {
+as xs:boolean? 
+{
     typeswitch ($node)
     case array(*)
     return
@@ -1054,7 +1055,7 @@ as xs:boolean? {
         ()
 };
 
-declare function o:apply-handler($handler as item(), $owner as array(*)?, $data as array(*))
+declare function o:apply-handler($handler as item(), $owner as array(*)?, $data as item()*)
 as item()*
 {
     $handler($owner, $data)
