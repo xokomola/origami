@@ -6,20 +6,20 @@ xquery version "3.1";
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
+declare %private variable $o:origami-ns := 'http://xokomola.com/xquery/origami';
 declare %private variable $o:version := '0.6';
-declare %private variable $o:e := xs:QName('o:element');
-declare %private variable $o:d := xs:QName('o:data');
 declare %private variable $o:ns := o:ns-default-map();
 declare %private variable $o:handler-att := '@';
-declare %private variable $o:data-att := '!';
 declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
-declare %private variable $o:internal-att := ($o:data-att, $o:handler-att);
+declare %private variable $o:internal-att := ($o:handler-att);
 
 (: errors :)
 declare %private variable $o:err-invalid-handler := xs:QName('o:invalid-handler');
-declare %private variable $o:err-xslt := xs:QName('o:xslt');
+declare %private variable $o:err-invalid-rule := xs:QName('o:invalid-rule');
+declare %private variable $o:err-xslt := xs:QName('o:xslt-error');
 declare %private variable $o:err-unwellformed := xs:QName('o:unwellformed');
+
 (: Reading from external entities :)
 
 declare function o:read-xml($uri as xs:string)
@@ -53,14 +53,14 @@ declare variable $o:xml-options :=
  :
  : For options see: http://docs.basex.org/wiki/Parsers#TagSoup_Options
  :)
-declare function  o:read-html($uri as xs:string)
-as document-node()?
+declare function  o:read-html($uri as xs:string?)
+as element()
 {
     o:read-html($uri, map { 'lines': false() })   
 };
 
-declare function o:read-html($uri as xs:string, $options as map(xs:string, item()))
-as document-node()?
+declare function o:read-html($uri as xs:string?, $options as map(xs:string, item()))
+as element()
 {
     o:parse-html(o:read-text($uri, map:merge(($options, map { 'lines': false() }))), $options)
 };
@@ -71,15 +71,15 @@ as document-node()?
  : We can also just pass in a seq of strings.
  :)
 declare function o:parse-html($text as xs:string*)
-as document-node()?
+as element()
 {
-    html:parse(string-join($text, ''))
+    html:parse(string-join($text, ''))/*
 };
 
 declare function o:parse-html($text as xs:string*, $options as map(xs:string, item()))
-as document-node()?
+as element()
 {
-    html:parse(string-join($text, ''), o:select-keys($options, $o:html-options))
+    html:parse(string-join($text, ''), o:select-keys($options, $o:html-options))/*
 };
 
 (:~
@@ -99,13 +99,13 @@ declare %private variable $o:html-options :=
  : - lines: true() or false()
  : - encoding
  :)
-declare function o:read-text($uri as xs:string)
+declare function o:read-text($uri as xs:string?)
 as xs:string*
 {
     o:read-text($uri, map { })
 };
 
-declare function o:read-text($uri as xs:string, $options as map(xs:string, item()))
+declare function o:read-text($uri as xs:string?, $options as map(xs:string, item()))
 as xs:string*
 {
     let $parse-into-lines := ($options?lines, true())[1]
@@ -218,9 +218,6 @@ declare %private function o:csv-normal-form($csv)
 (: Create Origami documents :)
 
 (:~
- : Transforms input nodes using the supplied transformer to an Origami document.
- :)
-(:~
  : Converts input nodes to an Origami document.
  :)
 declare function o:doc($items as item()*)
@@ -272,7 +269,7 @@ as item()*
                     let $attrs :=
                         if (exists($rules)) then
                             (: add current element tag to map :)
-                            o:merge-handlers(
+                            o:bind-node-handlers(
                                 map:merge(($attrs, map:entry($o:handler-att, name(.)))), 
                                 $rules
                             )
@@ -309,7 +306,7 @@ as item()*
                             let $attrs :=
                                 if (exists($rules)) then
                                     (: add current element tag to map :)
-                                    o:merge-handlers(
+                                    o:bind-node-handlers(
                                         map:merge(($attrs, map:entry($o:handler-att, $tag))), 
                                         $rules
                                     )
@@ -333,7 +330,8 @@ as item()*
         )
 };
 
-declare %private function o:merge-handlers($attrs as map(*), $rules as map(*))
+declare %private function o:bind-node-handlers($attrs as map(*), $rules as map(*))
+as map(*)
 {
     map:merge((
         map:for-each(
@@ -346,8 +344,8 @@ declare %private function o:merge-handlers($attrs as map(*), $rules as map(*))
                     else
                         ()
                 default return
-                    let $tag-attr-selector := concat($attrs($o:handler-att),'@',$name)
-                    let $attr-selector := concat('@',$name)
+                    let $tag-attr-selector := concat($attrs($o:handler-att), '@', $name)
+                    let $attr-selector := concat('@', $name)
                     return
                         if (map:contains($rules, $tag-attr-selector)) then
                             map:entry($name, o:prepare-handler($rules($tag-attr-selector)))
@@ -364,13 +362,13 @@ declare %private function o:merge-handlers($attrs as map(*), $rules as map(*))
  : Execute the extractor stylesheet and and attach the node handlers
  : to the correct nodes as defined by the rules.
  :)
-declare %private function o:merge-handlers($extractor, $rules, $options)
+declare %private function o:bind-xslt-handlers($extractor, $rules, $options)
 as function(*)
 {
     function($nodes as item()*) {
         o:prewalk(
             o:xslt($extractor)($nodes), 
-            o:merge-handlers-on-node($rules)
+            o:bind-handlers-to-node($rules)
         )
     }
 };
@@ -378,7 +376,8 @@ as function(*)
 (:~
  : Given an extracted element node and adds the matching rules to it.
  :)
-declare function o:merge-handlers-on-node($rules as map(*))
+declare function o:bind-handlers-to-node($rules as map(*))
+as function(*)
 {
     function($element as array(*)) {
         let $tag := o:tag($element)
@@ -386,7 +385,7 @@ declare function o:merge-handlers-on-node($rules as map(*))
         let $content := o:children($element)
         let $rule := 
             if (map:contains($attrs, 'o:id')) then 
-                $rules(QName('http://xokomola.com/xquery/origami', $attrs('o:id'))) 
+                $rules(QName($o:origami-ns, $attrs('o:id'))) 
             else
                 map {} 
         let $merged-attributes :=
@@ -444,7 +443,7 @@ as map(*)
     o:compile-rules($rules, $options)
 };
 
-declare %private function o:is-doc-builder($builder as item()*)
+declare %private function o:is-doc-builder($builder as item())
 as xs:boolean
 {
     $builder instance of map(*) and map:contains($builder, 'doc')
@@ -534,8 +533,7 @@ as attribute()*
     map:for-each($atts,
         function($k, $v) {
             if ($k = $o:internal-att 
-                or namespace-uri-from-QName($builder?qname($k)) 
-                = 'http://xokomola.com/xquery/origami') then 
+                or namespace-uri-from-QName($builder?qname($k)) = $o:origami-ns) then 
                 ()
             else
                 (: should not add default ns to attributes if name has no prefix :)
@@ -615,29 +613,29 @@ as function(*)
 declare %private function o:compile-rules($rules as item()*, $options as map(*))
 as map(*)
 {
-    let $xftype :=
+    let $type :=
         typeswitch ($rules)
         case array(*)+ return
             'xslt'
-        case map(*) return
+        case map(*)+ return
             'map'
         default return
             'default'
     let $rules := 
-        switch ($xftype)
+        switch ($type)
         case 'xslt' return
             map:merge($rules ! o:compile-rule(., ()))
         default return
             $rules
     let $extractor := 
-        if ($xftype = 'xslt') then
+        if ($type = 'xslt') then
             o:compile-stylesheet($rules, $options)
         else
             ()
     let $builder :=
         map:merge((
             $options,
-            (: to support easier debugging of builders :)
+            (: TODO: remove before release, to support easier debugging of builders :)
             if ($extractor) then map:entry('xslt', $extractor) else (),
             if ($rules instance of map(*)) then map:entry('rules', $rules) else ()
         ))
@@ -645,9 +643,9 @@ as map(*)
         map:merge((
             $builder,
             map:entry('doc',
-                switch ($xftype)
+                switch ($type)
                 case 'xslt' return
-                    o:merge-handlers($extractor, $rules, $options)
+                    o:bind-xslt-handlers($extractor, $rules, $options)
                 case 'map' return 
                     function($nodes) { $nodes ! o:to-doc(., $builder) }
                 default return 
@@ -664,6 +662,7 @@ declare %private function o:compile-rule($rule as array(*), $context as xs:strin
 as item()*
 {
     let $head := array:head($rule)
+    let $head := if ($head instance of xs:string) then $head else error($o:err-invalid-rule, 'A rule must start with a string', $rule)
     let $hash := o:mode(($context, $head))
     let $mode := o:mode($context)
     let $tail := array:tail($rule)
@@ -711,10 +710,6 @@ as item()*
             typeswitch ($rule)
             case array(*) return 
                 o:compile-rule($rule, ($context, $head))
-            case map(*) return 
-                ()
-            case function(*) return 
-                () (: for now :)
             default return 
                 ()
     )
@@ -727,10 +722,7 @@ as item()*
 declare %private function o:mode($paths as xs:string*)
 as xs:QName 
 {
-    QName(
-        'http://xokomola.com/xquery/origami',
-        concat('_', xs:hexBinary(hash:md5(string-join($paths, ' * '))))
-    )
+    QName($o:origami-ns, concat('_', xs:hexBinary(hash:md5(string-join($paths, ' * ')))))
 };
 
 declare %private function o:compile-stylesheet($rules as map(*), $options as map(*))
@@ -1967,7 +1959,7 @@ declare function o:ns-map($ns-map as map(*))
 as map(*)
 {
     map:merge((
-        map { 'o': 'http://xokomola.com/xquery/origami' },
+        map { 'o': $o:origami-ns },
         $ns-map
     ))
 };
@@ -2123,7 +2115,7 @@ declare function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
 as map(*)
 {
     map:merge((
-        for $k in map:keys(($map,map {})[1])
+        for $k in map:keys(($map, map {})[1])
         where $k = $keys
         return map:entry($k, $map($k))
     ))
