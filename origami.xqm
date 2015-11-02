@@ -367,10 +367,58 @@ as function(*)
 {
     function($nodes as item()*) {
         o:prewalk(
-            o:xslt($extractor)($nodes), 
-            o:bind-handlers-to-node($rules)
+            o:prewalk(
+                o:xslt($extractor)($nodes), 
+                o:bind-handlers-to-node($rules)
+            ),
+            o:merge-node-handlers#1
         )
     }
+};
+
+(:~
+ : Attribute and text handlers are attached to pseudo elements (o:attribute and o:text).
+ : This merges them with the original element node (attribute node handlers) or turns
+ : them into inline handlers (text node handlers)
+ :)
+declare %private function o:merge-node-handlers($e) 
+as item()
+{
+  let $tag := o:tag($e)
+  return
+    if ($tag = 'o:text') then
+      o:attrs($e)('@')
+    else
+      let $attrs := o:attributes($e)
+      let $children := o:children($e) 
+      let $attrs :=
+        fold-left(
+            $children,
+            $attrs,
+            function($result,$child) {
+              if (o:is-element($child) and o:tag($child) = 'o:attribute') then
+                map:merge(($result, map:entry(o:attrs($child)?name, o:attrs($child)('@'))))
+              else
+                $result
+            }
+        )
+      let $children :=
+        fold-left(
+            $children,
+            (),
+            function($result,$child) {
+              if (o:is-element($child) and o:tag($child) = 'o:attribute') then
+                ()
+              else
+                ($result,$child)
+            }
+        )    
+      return
+        array {
+          $tag,
+          $attrs,
+          $children
+        }
 };
 
 (:~
@@ -770,7 +818,7 @@ as element(*)
                                         ]
                                     ],
                                     ['when', map { 'test': 'count(.|../@*)=count(../@*)' },
-                                        ['o:attribute',
+                                        ['o:attribute', map { 'name': '{name(.)}' },
                                             ['attribute', map { 'name': 'o:id' }, $hash ],
                                             ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ]                                    
                                         ]
