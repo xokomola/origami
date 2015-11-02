@@ -44,7 +44,7 @@ as document-node()?
 declare function o:read-xml($uri as xs:string, $options as map(xs:string, item()))
 as document-node()?
 {
-    fetch:xml($uri, o:select-keys($options, $o:xml-options))
+    fetch:xml($uri, u:select-keys($options, $o:xml-options))
 };
 
 declare variable $o:xml-options :=
@@ -82,7 +82,7 @@ as document-node()?
 declare function o:parse-html($text as xs:string*, $options as map(xs:string, item()))
 as document-node()?
 {
-    html:parse(string-join($text, ''), o:select-keys($options, $o:html-options))
+    html:parse(string-join($text, ''), u:select-keys($options, $o:html-options))
 };
 
 (:~
@@ -134,7 +134,7 @@ as item()?
 declare function o:read-json($uri as xs:string, $options as map(xs:string, item()))
 as item()?
 {
-    json-doc($uri, o:select-keys($options, $o:xml-options))
+    json-doc($uri, u:select-keys($options, $o:xml-options))
 };
 
 (:~
@@ -200,7 +200,7 @@ as array(*)*
     o:csv-normal-form(
         csv:parse(
             string-join($text, '&#10;'), 
-            map:merge((o:select-keys($options, $o:csv-options), map { 'format': 'map' }))
+            map:merge((u:select-keys($options, $o:csv-options), map { 'format': 'map' }))
         )
     )
 };
@@ -2118,16 +2118,4 @@ declare function o:doc-repr($mu)
                     ]
         }
     )
-};
-
-(: utility functions :)
-
-declare function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
-as map(*)
-{
-    map:merge((
-        for $k in map:keys(($map,map {})[1])
-        where $k = $keys
-        return map:entry($k, $map($k))
-    ))
 };
