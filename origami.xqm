@@ -6,9 +6,6 @@ xquery version "3.1";
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
-import module namespace u = 'http://xokomola.com/xquery/origami/utils' 
-    at 'utils.xqm';
-
 declare %private variable $o:version := '0.6';
 declare %private variable $o:e := xs:QName('o:element');
 declare %private variable $o:d := xs:QName('o:data');
