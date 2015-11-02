@@ -580,24 +580,34 @@ declare %private function o:prepare-handler($handler as item())
 declare %private function o:compile-handler($handler as function(*), $args as array(*))
 as function(*)
 {
-    switch (function-arity($handler))
-    case 0 return
-        function($node as array(*), $data as item()*) {
-            $handler()
-        }
-    case 1 return
-        function($node as array(*), $data as item()*) {
-            $handler($node)
-        }
-    case 2 return
-        if (array:size($args) = 0) then
-            $handler
-        else
-            function($node as array(*), $data as item()*) {
-                $handler($node, ($args?*, $data))
+    if (o:is-handler($args)) then
+        (: a handler as argument is for preparing the arguments for the handler itself :)
+        (: TODO: put a stricter typecheck on the arg handler function. It must return an array for apply :)
+        if (function-arity(array:head($args) = 2)) then
+            function  ($node as array(*), $data as item()*) {
+                apply($handler, array:head($args)($data))
             }
-    default return
-        error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
+        else
+            error($o:err-invalid-handler, 'Argument handler must be of arity 2', $args)
+    else
+        switch (function-arity($handler))
+        case 0 return
+            function($node as array(*), $data as item()*) {
+                $handler()
+            }
+        case 1 return
+            function($node as array(*), $data as item()*) {
+                $handler($node)
+            }
+        case 2 return
+            if (array:size($args) = 0) then
+                $handler
+            else
+                function($node as array(*), $data as item()*) {
+                    $handler($node, ($args?*, $data))
+                }
+        default return
+            error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
 };
 
 (:~
@@ -718,7 +728,8 @@ as item()*
  :) 
 
 declare %private function o:mode($paths as xs:string*)
-as xs:QName {
+as xs:QName 
+{
     QName(
         'http://xokomola.com/xquery/origami',
         concat('_', xs:hexBinary(hash:md5(string-join($paths, ' * '))))
@@ -1197,7 +1208,7 @@ declare function o:is-handler($maybe-h as item())
 as xs:boolean
 {
     let $h := 
-        if ($maybe-h instance of array(*)) then
+        if ($maybe-h instance of array(*) and array:size($maybe-h) > 0) then
             o:tag($maybe-h)
         else
             $maybe-h
