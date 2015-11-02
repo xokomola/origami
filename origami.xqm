@@ -761,11 +761,27 @@ as element(*)
                                     map:entry('mode', $mode)
                             )),
                             if ($op = 'copy') then
-                                ['copy',
-                                    ['attribute', map { 'name': 'o:id' }, $hash ],
-                                    (: for debugging :)
-                                    ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],                                    
-                                    ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
+                                ['choose',
+                                    ['when', map { 'test': 'self::text()' },
+                                        ['o:text',
+                                            ['attribute', map { 'name': 'o:id' }, $hash ],
+                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],
+                                            ['value-of', map { 'select': '.' }]
+                                        ]
+                                    ],
+                                    ['when', map { 'test': 'count(.|../@*)=count(../@*)' },
+                                        ['o:attribute',
+                                            ['attribute', map { 'name': 'o:id' }, $hash ],
+                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ]                                    
+                                        ]
+                                    ],
+                                    ['when', map { 'test': 'self::*' },
+                                        ['copy',
+                                            ['attribute', map { 'name': 'o:id' }, $hash ],
+                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],                                    
+                                            ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
+                                        ]
+                                    ]
                                 ]
                             else
                                 ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
@@ -795,17 +811,6 @@ as element(*)
         ],
         o:default-ns-builder($options, 'http://www.w3.org/1999/XSL/Transform')
     )
-};
-
-declare %private function o:identity-transform()
-as array(*)+
-{
-    ['template', map { 'priority': -10, 'match': '@*|*' },
-        ['copy',
-            ['apply-templates', map { 'select': '*|@*|text()' }]
-        ]
-    ],
-    ['template', map { 'match': 'processing-instruction()|comment()' }]
 };
 
 (:~
