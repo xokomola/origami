@@ -576,11 +576,11 @@ declare %private function o:compile-handler($handler as function(*), $args as ar
 as function(*)
 {
     if (o:is-handler($args)) then
-        (: a handler as argument is for preparing the arguments for the handler itself :)
+        (: allow functions with arity > 2 only if a second arg handler is provided that returns an array (an adapter basically) :)
         (: TODO: put a stricter typecheck on the arg handler function. It must return an array for apply :)
-        if (function-arity(array:head($args) = 2)) then
+        if (function-arity(array:head($args)) = 2) then
             function  ($node as array(*), $data as item()*) {
-                apply($handler, array:head($args)($data))
+                apply($handler, array:head($args)($node, $data))
             }
         else
             error($o:err-invalid-handler, 'Argument handler must be of arity 2', $args)
@@ -667,15 +667,10 @@ as item()*
     let $mode := o:mode($context)
     let $tail := array:tail($rule)
     let $handler := 
-        if (array:size($tail) > 0) then 
-            typeswitch(array:head($tail))
-            case map(*) return 
-                ()
-            case array(*) return 
-                ()
-            case function(*) return 
+        if (array:size($tail) > 0) then
+            if (o:is-handler(array:head($tail))) then
                 array:head($tail)
-            default return 
+            else
                 ()
         else 
             ()
@@ -688,7 +683,9 @@ as item()*
             'remove'
     let $rules := 
         if (array:size($tail) > 0 
-            and array:head($tail) instance of empty-sequence()) then
+            and 
+                (array:head($tail) instance of empty-sequence()
+                 or exists($handler))) then
             array:tail($tail) 
         else 
             $tail
@@ -1193,7 +1190,7 @@ declare function o:prewalk($form as item()*, $fn as function(*))
     )
 };
 
-declare function o:is-handler($maybe-h as item())
+declare function o:is-handler($maybe-h as item()?)
 as xs:boolean
 {
     let $h := 
