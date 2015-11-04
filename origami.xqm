@@ -1298,6 +1298,58 @@ as item()*
     sort(?, $key)
 };
 
+declare function o:select($steps as array(*))
+as function(*)
+{
+    function($nodes as item()*) {
+        o:select-nodes($nodes, $steps, $steps)
+    }
+};
+
+declare function o:select($nodes as array(*)*, $steps as array(*))
+as function(*)
+{
+    o:select($steps)($nodes)
+};
+
+declare %private function o:select-nodes($nodes as item()*, $steps as array(*), $all-steps as array(*))
+as item()*
+{
+    let $step := array:head($steps)
+    let $element-nodes :=
+        for $node in $nodes
+        where o:is-element($node)
+        return $node
+    let $matched-nodes := trace(
+        typeswitch ($step)
+        case xs:string return
+            for $element in $element-nodes
+            where o:tag($element) = $step
+            return $element
+        case xs:integer+ return
+            for $istep in $step
+            return
+                for $element in $element-nodes[$istep]
+                return $element
+        default return ()
+        ,'MATCHED: ')
+    return (
+        if (exists($matched-nodes)) then
+            if (array:size(array:tail($steps)) = 0) then
+                $matched-nodes
+            else
+                for $element in $matched-nodes
+                return
+                    o:select-nodes($element, trace(array:tail($steps),'TRYING: '), $all-steps)
+        else
+            ()
+        ,
+        for $element in $element-nodes
+        return
+            o:select-nodes(o:children($element), $all-steps, $all-steps)
+    )
+};
+
 (:~
  : Generic walker function (depth-first).
  :)

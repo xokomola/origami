@@ -395,22 +395,18 @@ declare %unit:test function test:table-extractions-6()
 declare %unit:test function test:table-extractions-7()
 {
     unit:assert-equals(
-        test:extract-table(['table', ['td|th', ['text()', ()]]]),
+        test:extract-table(['table', ['td|th', ['*', (), ['text()']]]]),
         <table>
             <tr x="foo" class="odd">
-                <th>
-                    <b/>
-                </th>
-                <th/>
+                <th>hello !</th>
+                <th>foobar</th>
             </tr>
             <tr class="even" y="bar">
-                <td>
-                    <b/>
-                </td>
-                <td/>
+                <td>bla </td>
+                <td>foobar</td>
             </tr>
         </table>
         ,
-        'Clear inline markup inside the cells (more difficult)'
+        'Clear inline markup inside the cells'
     )
 };
