@@ -260,4 +260,157 @@ declare %unit:test function test:list-handler()
         'Add list handler'
     )
 };
- 
+
+declare variable $test:html-table :=
+  <html>
+    <body>
+      <p>This is a table</p>
+      <table>
+        <tr class="odd" x="foo">
+          <th>hello <b>world</b>!</th>
+          <th>foobar</th>
+        </tr>
+        <tr class="even" y="bar">
+          <td>bla <b>bla</b></td>
+          <td>foobar</td>
+        </tr>
+      </table>
+    </body>
+  </html>;
+
+declare function test:extract-table($rules)
+{
+    o:xml(
+        o:apply(
+            o:doc(
+                $test:html-table,
+                $rules
+            )
+        )
+    )
+};
+
+declare %unit:test function test:table-extractions-1()
+{
+    unit:assert-equals(
+        test:extract-table(['table']),
+        $test:html-table//table,
+        'Extract the table'
+    )
+};
+
+declare %unit:test function test:table-extractions-2()
+{
+    unit:assert-equals(
+        test:extract-table(['td|th']),
+        $test:html-table//(td|th),
+        'Extract the table cells (td and th) directly'
+    ),
+    
+    unit:assert-equals(
+        test:extract-table(['table', (), ['tr', (), ['td|th']]]),
+        $test:html-table//(td|th),
+        'Extract the table cells (td and th) in proper context'
+    )
+};
+
+declare %unit:test function test:table-extractions-3()
+{
+    unit:assert-equals(
+        test:extract-table(['table', ['@*', ()]]),
+        <table>
+            <tr>
+                <th>hello <b>world</b>!</th>
+                <th>foobar</th>
+            </tr>
+            <tr>
+                <td>bla <b>bla</b></td>
+                <td>foobar</td>
+            </tr>
+        </table>
+        ,
+        'Extract the table but remove all attributes'
+    ),
+    
+    unit:assert-equals(
+        test:extract-table(['table', ['@*[name(.) != "class"]', ()]]),
+        <table>
+            <tr class="odd">
+                <th>hello <b>world</b>!</th>
+                <th>foobar</th>
+            </tr>
+            <tr class="even">
+                <td>bla <b>bla</b></td>
+                <td>foobar</td>
+            </tr>
+        </table>
+        ,
+        'Extract the table but remove some attributes'
+    )
+
+};
+
+declare %unit:test %unit:ignore function test:table-extractions-4()
+{
+    unit:assert-equals(
+        test:extract-table((['tr[th]'],['tr[td]'])),
+        ($test:html-table//tr[th], $test:html-table//tr[td]),
+        'Header and data row separately (FIXME: root rules are in undefined order 
+         so results come back in undefined order as well'
+    )
+};
+
+declare %unit:test function test:table-extractions-5()
+{
+    unit:assert-equals(
+        test:extract-table((['table', (), ['tr[th]'],['tr[td]']])),
+        ($test:html-table//tr[th], $test:html-table//tr[td]),
+        'The same example as in test:table-extractions-4 but worked around the issue'
+    )
+};
+
+declare %unit:test function test:table-extractions-6()
+{
+    unit:assert-equals(
+        test:extract-table(['table', ['td|th', ['text()', ()]]]),
+        <table>
+            <tr x="foo" class="odd">
+                <th>
+                    <b/>
+                </th>
+                <th/>
+            </tr>
+            <tr class="even" y="bar">
+                <td>
+                    <b/>
+                </td>
+                <td/>
+            </tr>
+        </table>
+        ,
+        'Remove all text nodes from the table cells'
+    )
+};
+
+declare %unit:test function test:table-extractions-7()
+{
+    unit:assert-equals(
+        test:extract-table(['table', ['td|th', ['text()', ()]]]),
+        <table>
+            <tr x="foo" class="odd">
+                <th>
+                    <b/>
+                </th>
+                <th/>
+            </tr>
+            <tr class="even" y="bar">
+                <td>
+                    <b/>
+                </td>
+                <td/>
+            </tr>
+        </table>
+        ,
+        'Clear inline markup inside the cells (more difficult)'
+    )
+};
