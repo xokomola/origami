@@ -76,6 +76,14 @@ declare %unit:test function test:implicit-builder()
       )  
 };
 
+declare %unit:test function test:implicit-builder-multiple-rules()
+{
+      unit:assert-equals(
+        o:xml(o:doc(<x/>,(['x'],['y']))),
+        <x/>
+      )  
+};
+
 (:~
  : A context function will typecheck context arguments and return the context 
  : that will be available in the template rules ($c).

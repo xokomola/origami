@@ -491,7 +491,7 @@ as map(*)
     o:compile-rules($rules, $options)
 };
 
-declare %private function o:is-doc-builder($builder as item())
+declare %private function o:is-doc-builder($builder as item()*)
 as xs:boolean
 {
     $builder instance of map(*) and map:contains($builder, 'doc')
@@ -775,24 +775,34 @@ as element(*)
 {
     o:xml(
         ['stylesheet', 
-            map:merge((
-                map:entry('version', '1.0')
-            )),
-            ['output', map { 'method': 'xml', 'indent': 'no' }],
-            ['strip-space', map { 'elements': '*' }],
-            ['template', map { 'match': '/' }, 
+            map { 'version': '1.0' },
+            ['output', 
+                map { 
+                    'method': 'xml', 
+                    'indent': 'no' 
+                }
+            ],
+            ['strip-space', 
+                map { 'elements': '*' }
+            ],
+            ['template', 
+                map { 'match': '/' }, 
                 ['o:seq',
                     map:for-each($rules,
                         function($hash, $rule) {
                             if (empty($rule?context)) then
-                                ['apply-templates']
+                                ['apply-templates', 
+                                    map { 'mode': concat('root', $hash) }
+                                ]
                             else
                                 ()
                         }
                     )
                 ]
             ], 
-            ['template', map { 'match': 'text()' }],
+            ['template', 
+                map { 'match': 'text()' }
+            ],
             map:for-each($rules,
                 function($hash, $rule) {
                     let $xpath := translate($rule?xpath, "&quot;", "'")
@@ -804,53 +814,137 @@ as element(*)
                             map:merge((
                                 map:entry('match', $xpath),
                                 if (empty($context)) then 
-                                    ()
+                                    map { 'mode': concat('root', $hash) }
                                 else
                                     map:entry('mode', $mode)
                             )),
                             if ($op = 'copy') then
                                 ['choose',
-                                    ['when', map { 'test': 'self::text()' },
+                                    ['when', 
+                                        map { 'test': 'self::text()' },
                                         ['o:text',
-                                            ['attribute', map { 'name': 'o:id' }, $hash ],
-                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],
-                                            ['value-of', map { 'select': '.' }]
+                                            ['attribute', 
+                                                map { 'name': 'o:id' }, 
+                                                $hash 
+                                            ],
+                                            ['attribute', 
+                                                map { 'name': 'o:path' }, 
+                                                string-join(($context, $xpath), ' * ') 
+                                            ],
+                                            ['value-of', 
+                                                map { 'select': '.' }
+                                            ]
                                         ]
                                     ],
-                                    ['when', map { 'test': 'count(.|../@*)=count(../@*)' },
-                                        ['o:attribute', map { 'name': '{name(.)}' },
-                                            ['attribute', map { 'name': 'o:id' }, $hash ],
-                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ]                                    
+                                    ['when', 
+                                        map { 'test': 'count(.|../@*)=count(../@*)' },
+                                        ['o:attribute', 
+                                            map { 'name': '{name(.)}' },
+                                            ['attribute', 
+                                                map { 'name': 'o:id' }, 
+                                                $hash 
+                                            ],
+                                            ['attribute', 
+                                                map { 'name': 'o:path' }, 
+                                                string-join(($context, $xpath), ' * ') 
+                                            ]                                    
                                         ]
                                     ],
-                                    ['when', map { 'test': 'self::*' },
+                                    ['when', 
+                                        map { 'test': 'self::*' },
                                         ['copy',
-                                            ['attribute', map { 'name': 'o:id' }, $hash ],
-                                            ['attribute', map { 'name': 'o:path' }, string-join(($context, $xpath), ' * ') ],                                    
-                                            ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
+                                            ['attribute', 
+                                                map { 'name': 'o:id' }, 
+                                                $hash 
+                                            ],
+                                            ['attribute', 
+                                                map { 'name': 'o:path' }, 
+                                                string-join(($context, $xpath), ' * ') 
+                                            ],                                    
+                                            ['apply-templates', 
+                                                map { 'select': 'node()|@*', 'mode': $hash }
+                                            ]
                                         ]
                                     ]
                                 ]
                             else
-                                ['apply-templates', map { 'select': 'node()|@*', 'mode': $hash }]
+                                ['apply-templates', 
+                                    map { 
+                                        'select': 'node()|@*', 
+                                        'mode': $hash 
+                                    }
+                                ]
                         ]
                 }
             ),
             map:for-each($rules,
                 function($mode, $rule) {
+                    if (empty($rule?context)) then
+                        (
+                            ['template', 
+                                map { 
+                                    'match': 'text()|processing-instruction()|comment()', 
+                                    'mode': concat('root',$mode) 
+                                }
+                            ],
+                            ['template', 
+                                map { 
+                                    'priority': -10, 'match': '@*|*', 
+                                    'mode': concat('root',$mode) 
+                                },
+                                ['apply-templates', 
+                                    map { 
+                                        'select': '*|@*|text()', 
+                                        'mode': concat('root',$mode) 
+                                    }
+                                ]
+                            ]
+                        )
+                    else
+                        ()
+                    ,
                     if ($rule?op = 'remove') then 
                         (
-                            ['template', map { 'match': 'text()|processing-instruction()|comment()', 'mode': $mode }],
-                            ['template', map { 'priority': -10, 'match': '@*|*', 'mode': $mode },
-                                ['apply-templates', map { 'select': '*|@*|text()', 'mode': $mode }]
+                            ['template', 
+                                map { 
+                                    'match': 'text()|processing-instruction()|comment()', 
+                                    'mode': $mode 
+                                }
+                            ],
+                            ['template', 
+                                map { 
+                                    'priority': -10, 'match': '@*|*', 
+                                    'mode': $mode 
+                                },
+                                ['apply-templates', 
+                                    map { 
+                                        'select': '*|@*|text()', 
+                                        'mode': $mode 
+                                    }
+                                ]
                             ]
                         )
                     else 
                         (
-                            ['template', map { 'match': 'processing-instruction()|comment()', 'mode': $mode }],                
-                            ['template', map { 'priority': -10, 'match': '@*|*', 'mode': $mode },
+                            ['template', 
+                                map { 
+                                    'match': 'processing-instruction()|comment()', 
+                                    'mode': $mode 
+                                }
+                            ],                
+                            ['template', 
+                                map { 
+                                    'priority': -10, 
+                                    'match': '@*|*', 
+                                    'mode': $mode 
+                                },
                                 ['copy',
-                                    ['apply-templates', map { 'select': '*|@*|text()', 'mode': $mode }]
+                                    ['apply-templates', 
+                                        map { 
+                                            'select': '*|@*|text()', 
+                                            'mode': $mode 
+                                        }
+                                    ]
                                 ]
                             ]
                         )
