@@ -383,7 +383,7 @@ as function(*)
  : them into inline handlers (text node handlers)
  :)
 declare %private function o:merge-node-handlers($e) 
-as item()
+as item()?
 {
   let $tag := o:tag($e)
   return
