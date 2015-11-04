@@ -76,7 +76,7 @@ declare %unit:test function test:implicit-builder()
       )  
 };
 
-declare %unit:test function test:implicit-builder-multiple-rules()
+declare %unit:test function test:implicit-builder-multiple-root-rules()
 {
       unit:assert-equals(
         o:xml(o:doc(<x/>,(['x'],['y']))),

@@ -10,6 +10,7 @@ declare %private variable $o:origami-ns := 'http://xokomola.com/xquery/origami';
 declare %private variable $o:version := '0.6';
 declare %private variable $o:ns := o:ns-default-map();
 declare %private variable $o:handler-att := '@';
+declare %private variable $o:doc-handler-att := '!doc';
 declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
 declare %private variable $o:internal-att := ($o:handler-att);
@@ -235,7 +236,7 @@ as item()*
         else
             o:builder($builder)
     return
-        $builder?doc($nodes)
+        $builder($o:doc-handler-att)($nodes)
 };
 
 declare %private function o:to-doc($nodes as item()*, $builder as map(*))
@@ -494,7 +495,7 @@ as map(*)
 declare %private function o:is-doc-builder($builder as item()*)
 as xs:boolean
 {
-    $builder instance of map(*) and map:contains($builder, 'doc')
+    $builder instance of map(*) and map:contains($builder, $o:doc-handler-att)
 };
 
 (:~
@@ -690,7 +691,7 @@ as map(*)
     return
         map:merge((
             $builder,
-            map:entry('doc',
+            map:entry($o:doc-handler-att,
                 switch ($type)
                 case 'xslt' return
                     o:bind-xslt-handlers($extractor, $rules, $options)
