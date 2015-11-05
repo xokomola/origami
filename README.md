@@ -1,5 +1,7 @@
 # Origami 0.6
 
+> This a pre-release before [XML Amsterdam](http://www.xmlamsterdam.com/) where I will be presenting Origami. Soon after I will release 0.6.
+
 Origami is a templating library for XQuery (3.1). It consists of two different modules which support different templating paradigms.
 
 - **Origami-ω** is inspired by the Clojure [Enlive](https://github.com/cgrand/enlive) templating library. It makes use of Origami-μ but it can be used without μ's templating structures.
