@@ -74,12 +74,6 @@ declare %unit:test function test:choose()
         o:choose(['x'], function($n) { 1,2 }, function($x) { o:insert($x) }),
         (['x',1],['x',2]),
         'Choose with function returning a function that returns a node transformer'
-    ),
-
-    unit:assert-equals(
-        o:choose((['x'],['y']), (1,3), [o:insert(1), o:insert(2), o:insert(3)]),
-        (['x',1],['x',3],['y',1],['y',3]),
-        'Multiple nodes through multiple node transformers'
     )
 
 };

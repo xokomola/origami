@@ -147,20 +147,7 @@ declare %unit:test function test:attributes()
         o:attrs(['x', map { 'y': 10 }]),
         map { 'y': 10 },
         "No attributes"
-    ),
-    
-    unit:assert-equals(
-        o:attributes((['x', map { 'y': 10 }], ['y'], ['z', map { 'y': 20 }])),
-        (map { 'y': 10 }, map { 'y': 20 }),
-        "No attributes"
-    ),
-    
-    unit:assert-equals(
-        o:attrs((['x', map { 'y': 10 }], ['y'], ['z', map { 'y': 20 }])),
-        (map { 'y': 10 }, map {}, map { 'y': 20 }),
-        "No attributes"
     )
-
 };
 
 declare %unit:test function test:is-element() 

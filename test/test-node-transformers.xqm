@@ -90,10 +90,6 @@ declare %unit:test function test:unwrap()
     unit:assert-equals(
         ['p'] => o:unwrap(),
         ()
-    ),
-    unit:assert-equals(
-        (['p', ['x']],['p', ['y']]) => o:unwrap(),
-        (['x'],['y'])
     )
 };
 
