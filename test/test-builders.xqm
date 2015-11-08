@@ -5,10 +5,10 @@ xquery version "3.1";
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
-import module namespace o = 'http://xokomola.com/xquery/origami' 
-    at '../origami.xqm'; 
+import module namespace o = 'http://xokomola.com/xquery/origami'
+    at '../origami.xqm';
 
-declare %unit:test function test:extract-nothing() 
+declare %unit:test function test:extract-nothing()
 {
     unit:assert-equals(
         o:doc(<p><x y="10"/></p>, o:builder()),
@@ -22,15 +22,15 @@ declare %unit:test function test:extract-nothing()
         ['p', ['x', map { 'y': '10' }]],
         'Empty argument = identity'
     ),
-    
+
     unit:assert-equals(
         o:doc(<p><x y="10"/></p>, o:builder(['y'])),
         (),
         'If no rule matches return nothing'
-    )   
+    )
 };
 
-declare %unit:test function test:extract-whole-document() 
+declare %unit:test function test:extract-whole-document()
 {
     unit:assert-equals(
         o:xml(<p><x y="10"/></p>, o:builder(['*'])),
@@ -41,7 +41,7 @@ declare %unit:test function test:extract-whole-document()
 
 (: ISSUE: removing an element doesn't allow a handler to be added :)
 
-declare %unit:test function test:extract-whole-document-with-holes() 
+declare %unit:test function test:extract-whole-document-with-holes()
 {
     unit:assert-equals(
         o:doc(
@@ -65,7 +65,7 @@ declare %unit:test function test:extract-whole-document-with-holes()
 };
 
 (:~
- : When the second argument of o:doc is not a builder it is implicitly converted 
+ : When the second argument of o:doc is not a builder it is implicitly converted
  : into one.
  :)
 declare %unit:test function test:implicit-builder()
@@ -73,7 +73,7 @@ declare %unit:test function test:implicit-builder()
       unit:assert-equals(
         o:xml(o:doc(<x/>,['x'])),
         <x/>
-      )  
+      )
 };
 
 declare %unit:test function test:implicit-builder-multiple-root-rules()
@@ -81,30 +81,30 @@ declare %unit:test function test:implicit-builder-multiple-root-rules()
       unit:assert-equals(
         o:xml(o:doc(<x/>,(['x'],['y']))),
         <x/>
-      )  
+      )
 };
 
 (:~
- : A context function will typecheck context arguments and return the context 
+ : A context function will typecheck context arguments and return the context
  : that will be available in the template rules ($c).
  :)
-declare %unit:test function test:context-function() 
+declare %unit:test function test:context-function()
 {
     unit:assert-equals(
         o:apply(
           o:doc(
             <x><p><y/></p></x>,
             o:builder(['p', function($n,$c) { ['foo', $c?1] }])
-          ), 
+          ),
           [12]
         ),
         ['foo', 12],
         "One argument template"
     )
-    
+
 };
 
-declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler") 
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}invalid-handler")
 function test:invalid-handler()
 {
     unit:assert-equals(
@@ -141,14 +141,14 @@ declare variable $test:html :=
                         <li>item 3</li>
                         <li>item 4</li>
                         <li>item 5</li>
-                    </ol> 
+                    </ol>
                 </div>
             </div>
             <ol id="list-3">
                 <li>item 6</li>
                 <li>item 7</li>
                 <li>item 8</li>
-            </ol> 
+            </ol>
         </body>
     </html>;
 
@@ -178,25 +178,25 @@ declare function test:xf($rules)
     o:xml(o:doc($test:html, o:builder($rules)))
 };
 
-declare %unit:test function test:copy-whole-page() 
+declare %unit:test function test:copy-whole-page()
 {
     unit:assert-equals(
         test:xf(['html']),
         $test:html,
         'Take the whole html document'
-    )    
+    )
 };
 
 
-declare %unit:test function test:extract-lists() 
+declare %unit:test function test:extract-lists()
 {
     unit:assert-equals(
         test:xf(
             ['ol']
         ),
         (
-            $test:html//ol[@id='list-1'], 
-            $test:html//ol[@id='list-2'], 
+            $test:html//ol[@id='list-1'],
+            $test:html//ol[@id='list-2'],
             $test:html//ol[@id='list-3']
         ),
         'Take all lists in order'
@@ -210,7 +210,7 @@ declare %unit:test function test:extract-lists()
     )
 };
 
-declare %unit:test function test:remove-lists() 
+declare %unit:test function test:remove-lists()
 {
     unit:assert-equals(
         test:xf(
@@ -239,7 +239,7 @@ declare %unit:test function test:list-handler()
     unit:assert-equals(
         o:xml(
             o:apply(
-                o:doc(   
+                o:doc(
                     <ol>
                         <li>item 1</li>
                         <li>item 2</li>
@@ -306,7 +306,7 @@ declare %unit:test function test:table-extractions-2()
         $test:html-table//(td|th),
         'Extract the table cells (td and th) directly'
     ),
-    
+
     unit:assert-equals(
         test:extract-table(['table', (), ['tr', (), ['td|th']]]),
         $test:html-table//(td|th),
@@ -331,7 +331,7 @@ declare %unit:test function test:table-extractions-3()
         ,
         'Extract the table but remove all attributes'
     ),
-    
+
     unit:assert-equals(
         test:extract-table(['table', ['@*[name(.) != "class"]', ()]]),
         <table>
@@ -355,7 +355,7 @@ declare %unit:test %unit:ignore function test:table-extractions-4()
     unit:assert-equals(
         test:extract-table((['tr[th]'],['tr[td]'])),
         ($test:html-table//tr[th], $test:html-table//tr[td]),
-        'Header and data row separately (FIXME: root rules are in undefined order 
+        'Header and data row separately (FIXME: root rules are in undefined order
          so results come back in undefined order as well'
     )
 };
