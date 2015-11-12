@@ -350,20 +350,29 @@ declare %unit:test function test:table-extractions-3()
 
 };
 
-declare %unit:test %unit:ignore function test:table-extractions-4()
+declare %unit:test function test:table-extractions-4()
 {
-    unit:assert-equals(
-        test:extract-table((['tr[th]'],['tr[td]'])),
-        ($test:html-table//tr[th], $test:html-table//tr[td]),
-        'Header and data row separately (FIXME: root rules are in undefined order
-         so results come back in undefined order as well'
+    unit:assert(
+        let $extracted-rows := test:extract-table((
+          ['tr[th]'],
+          ['tr[td]']
+        ))
+        return
+          every $row in ($test:html-table//tr[th],$test:html-table//tr[td])
+          satisfies $row = $extracted-rows,
+        'Header and data row separately (root rules are in undefined order
+         so results come back in undefined order as well)'
     )
 };
 
 declare %unit:test function test:table-extractions-5()
 {
     unit:assert-equals(
-        test:extract-table((['table', (), ['tr[th]'],['tr[td]']])),
+        test:extract-table(
+          ['table', (), 
+            ['tr[th]'],
+            ['tr[td]']
+          ]),
         ($test:html-table//tr[th], $test:html-table//tr[td]),
         'The same example as in test:table-extractions-4 but worked around the issue'
     )
@@ -372,7 +381,13 @@ declare %unit:test function test:table-extractions-5()
 declare %unit:test function test:table-extractions-6()
 {
     unit:assert-equals(
-        test:extract-table(['table', ['td|th', ['text()', ()]]]),
+        test:extract-table(
+          ['table', 
+            ['td|th', 
+              ['text()', ()]
+            ]
+          ]
+        ),
         <table>
             <tr x="foo" class="odd">
                 <th>
@@ -395,7 +410,15 @@ declare %unit:test function test:table-extractions-6()
 declare %unit:test function test:table-extractions-7()
 {
     unit:assert-equals(
-        test:extract-table(['table', ['td|th', ['*', (), ['text()']]]]),
+        test:extract-table(
+          ['table', 
+            ['td|th', 
+              ['*', (), 
+                ['text()']
+              ]
+            ]
+          ]
+        ),
         <table>
             <tr x="foo" class="odd">
                 <th>hello world!</th>
@@ -408,5 +431,35 @@ declare %unit:test function test:table-extractions-7()
         </table>
         ,
         'Clear inline markup inside the cells'
+    )
+};
+
+declare %unit:test function test:table-extractions-8()
+{
+    unit:assert-equals(
+        test:extract-table(
+          ['table', 
+            ['tr', 
+              ['@*', ()],
+              ['td|th', 
+                ['*', (), 
+                  ['text()']
+                ]
+              ]
+            ]
+          ]
+        ),
+        <table>
+            <tr>
+                <th>hello world!</th>
+                <th>foobar</th>
+            </tr>
+            <tr>
+                <td>bla bla</td>
+                <td>foobar</td>
+            </tr>
+        </table>
+        ,
+        'Clear inline markup inside the cells and remove the attributes'
     )
 };
