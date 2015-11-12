@@ -397,7 +397,10 @@ as item()?
   let $tag := o:tag($e)
   return
     if ($tag = 'o:text') then
-      o:attrs($e)('@')
+        if (map:contains(o:attrs($e),'@')) then
+            o:attrs($e)('@')
+        else
+            o:children($e)
     else
       let $attrs := o:attributes($e)
       let $children := o:children($e)
@@ -719,17 +722,18 @@ as map(*)
 declare %private function o:compile-rule($rule as array(*), $context as xs:string*)
 as item()*
 {
-    let $head := array:head($rule)
-    let $head := if ($head instance of xs:string) then $head else error($o:err-invalid-rule, 'A rule must start with a string', $rule)
-    let $hash := o:mode(($context, $head))
+    let $match := array:head($rule)
+    let $match := 
+        if ($match instance of xs:string) then 
+            $match
+        else 
+            error($o:err-invalid-rule, 'A rule must start with a string', $rule)
+    let $hash := o:mode(($context, $match))
     let $mode := o:mode($context)
     let $tail := array:tail($rule)
     let $handler :=
-        if (array:size($tail) > 0) then
-            if (o:is-handler(array:head($tail))) then
-                array:head($tail)
-            else
-                ()
+        if (array:size($tail) > 0 and o:is-handler(array:head($tail))) then
+            array:head($tail)
         else
             ()
     let $op :=
@@ -741,8 +745,7 @@ as item()*
             'remove'
     let $rules :=
         if (array:size($tail) > 0
-            and
-                (array:head($tail) instance of empty-sequence()
+            and (array:head($tail) instance of empty-sequence()
                  or exists($handler))) then
             array:tail($tail)
         else
@@ -750,7 +753,7 @@ as item()*
     return (
         map:entry($hash,
             map:merge((
-                map:entry('xpath', $head),
+                map:entry('xpath', $match),
                 map:entry('context', $context),
                 map:entry('mode', $mode),
                 map:entry('op', $op),
@@ -764,7 +767,7 @@ as item()*
         return
             typeswitch ($rule)
             case array(*) return
-                o:compile-rule($rule, ($context, $head))
+                o:compile-rule($rule, ($context, $match))
             default return
                 ()
     )
@@ -777,7 +780,7 @@ as item()*
 declare %private function o:mode($paths as xs:string*)
 as xs:QName
 {
-    QName($o:origami-ns, concat('_', xs:hexBinary(hash:md5(string-join($paths, ' * ')))))
+    QName($o:origami-ns, concat('_', xs:hexBinary(hash:md5(string-join($paths, '//')))))
 };
 
 declare %private function o:compile-stylesheet($rules as map(*), $options as map(*))
@@ -839,7 +842,7 @@ as element(*)
                                             ],
                                             ['attribute',
                                                 map { 'name': 'o:path' },
-                                                string-join(($context, $xpath), ' * ')
+                                                o:path-string(($context, $xpath))
                                             ],
                                             ['value-of',
                                                 map { 'select': '.' }
@@ -856,7 +859,7 @@ as element(*)
                                             ],
                                             ['attribute',
                                                 map { 'name': 'o:path' },
-                                                string-join(($context, $xpath), ' * ')
+                                                o:path-string(($context, $xpath))
                                             ]
                                         ]
                                     ],
@@ -869,7 +872,7 @@ as element(*)
                                             ],
                                             ['attribute',
                                                 map { 'name': 'o:path' },
-                                                string-join(($context, $xpath), ' * ')
+                                                o:path-string(($context, $xpath))
                                             ],
                                             ['apply-templates',
                                                 map { 'select': 'node()|@*', 'mode': $hash }
@@ -893,13 +896,15 @@ as element(*)
                         (
                             ['template',
                                 map {
+                                    'priority': -10,
                                     'match': 'text()|processing-instruction()|comment()',
                                     'mode': concat('root',$mode)
                                 }
                             ],
                             ['template',
                                 map {
-                                    'priority': -10, 'match': '@*|*',
+                                    'priority': -10, 
+                                    'match': '@*|*',
                                     'mode': concat('root',$mode)
                                 },
                                 ['apply-templates',
@@ -917,13 +922,15 @@ as element(*)
                         (
                             ['template',
                                 map {
+                                    'priority': -10,
                                     'match': 'text()|processing-instruction()|comment()',
                                     'mode': $mode
                                 }
                             ],
                             ['template',
                                 map {
-                                    'priority': -10, 'match': '@*|*',
+                                    'priority': -10, 
+                                    'match': '@*|*|text()',
                                     'mode': $mode
                                 },
                                 ['apply-templates',
@@ -938,6 +945,7 @@ as element(*)
                         (
                             ['template',
                                 map {
+                                    'priority': -10,
                                     'match': 'processing-instruction()|comment()',
                                     'mode': $mode
                                 }
@@ -945,7 +953,7 @@ as element(*)
                             ['template',
                                 map {
                                     'priority': -10,
-                                    'match': '@*|*',
+                                    'match': '@*|*|text()',
                                     'mode': $mode
                                 },
                                 ['copy',
@@ -963,6 +971,11 @@ as element(*)
         ],
         o:default-ns-builder($options, 'http://www.w3.org/1999/XSL/Transform')
     )
+};
+
+declare %private function o:path-string($steps)
+{
+    string-join($steps, '//')
 };
 
 (:~

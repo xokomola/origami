@@ -398,11 +398,11 @@ declare %unit:test function test:table-extractions-7()
         test:extract-table(['table', ['td|th', ['*', (), ['text()']]]]),
         <table>
             <tr x="foo" class="odd">
-                <th>hello !</th>
+                <th>hello world!</th>
                 <th>foobar</th>
             </tr>
             <tr class="even" y="bar">
-                <td>bla </td>
+                <td>bla bla</td>
                 <td>foobar</td>
             </tr>
         </table>
