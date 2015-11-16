@@ -9,6 +9,13 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
+(: TODO: o:flatten :)
+(: TODO: o:remove-attr-handlers :)
+(: TODO: o:set-attr-handlers :)
+(: TODO: o:remove-handler :)
+(: TODO: o:set-handler :)
+(: TODO: o:identity :)
+    
 declare %unit:test function test:insert()
 {
     unit:assert-equals(

@@ -8,6 +8,8 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
+(: TODO: finish implementation :)
+
 declare variable $test:xml :=
     <foo>
         <bar>

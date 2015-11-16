@@ -8,6 +8,10 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
+(: TODO: o:do :)
+(: TODO: o:sort :)
+(: TODO: o:repeat :)
+
 declare %unit:test function test:choose() 
 {
     unit:assert-equals(

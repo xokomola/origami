@@ -1322,32 +1322,6 @@ declare function o:seq($nodes as item()*)
     o:seq()($nodes)
 };
 
-declare function o:tree-seq($nodes as item()*)
-as item()*
-{
-    o:tree-seq($nodes, o:is-element#1, o:identity#1)
-};
-
-declare function o:tree-seq($nodes as item()*, $children as function(*))
-as item()*
-{
-    o:tree-seq($nodes, o:is-element#1, $children)
-};
-
-declare function o:tree-seq($nodes as item()*, $is-branch as function(*), $children as function(*))
-as item()*
-{
-    $nodes ! (
-        if ($is-branch(.)) then
-            (
-                $children(.),
-                o:tree-seq(o:children(.), $is-branch, $children)
-            )
-        else
-            .
-    )
-};
-
 declare function o:map($nodes as item()*, $fn as function(item()) as item()*)
 {
     for-each($nodes, $fn)
@@ -1378,6 +1352,80 @@ declare function o:sort($key as function(item()) as xs:anyAtomicType*)
 as item()*
 {
     sort(?, $key)
+};
+
+(:~
+ : Repeat the incoming nodes and feed them through the functions.
+ :)
+declare function o:repeat($node as item(), $repeat-seq as item()*, $fn as function(*))
+{
+    o:repeat($repeat-seq, $fn)($node)
+};
+
+(: TODO: revise this now we only have to deal with prepared handlers :)
+declare function o:repeat($repeat-seq as item()*, $fn as function(*))
+{
+    let $arity := function-arity($fn)
+    return
+        function($node as item()) {
+            fold-left(
+                $repeat-seq,
+                (),
+                function($n, $i) {
+                    if ($arity = 2) then
+                        ($n, $fn($node, $i))
+                    else
+                        (: assume the default arity = 1, otherwise let it crash :)
+                        ($n, $fn($node))
+                }
+            )
+        }
+};
+
+(:~
+ : Selector:
+ :
+ : - function($node) => int*|key*
+ : - int*
+ : - key*
+ :
+ : Choices:
+ :
+ : - array: selector => int
+ : - map: selector =>
+ : - function(int*|key*) => fn(nodes)
+ :)
+declare function o:choose($selector as item()*, $choices as function(*))
+as item()*
+{
+    let $selector :=
+        typeswitch($selector)
+        case function(item()*) as item()* return
+            $selector
+        case xs:integer* | xs:string* return
+            function($node as item()) {
+                $selector
+            }
+        default return
+            ()
+    return
+        function($node as item()) {
+            $selector($node) ! (
+                typeswitch($choices(.))
+                case $choice as array(*) | map(*) return
+                    $choice
+                case $choice as function(*) return
+                    $choice($node)
+                default $choice return
+                    $choice
+            )
+        }
+};
+
+declare function o:choose($node as item(), $selector as item()*, $choices as function(*))
+as item()*
+{
+    o:choose($selector, $choices)($node)
 };
 
 declare function o:select($steps as array(*))
@@ -1431,6 +1479,32 @@ as item()*
     )
 };
 
+declare function o:tree-seq($nodes as item()*)
+as item()*
+{
+    o:tree-seq($nodes, o:is-element#1, o:identity#1)
+};
+
+declare function o:tree-seq($nodes as item()*, $children as function(*))
+as item()*
+{
+    o:tree-seq($nodes, o:is-element#1, $children)
+};
+
+declare function o:tree-seq($nodes as item()*, $is-branch as function(*), $children as function(*))
+as item()*
+{
+    $nodes ! (
+        if ($is-branch(.)) then
+            (
+                $children(.),
+                o:tree-seq(o:children(.), $is-branch, $children)
+            )
+        else
+            .
+    )
+};
+
 (:~
  : Generic walker function (depth-first).
  :)
@@ -1469,6 +1543,16 @@ declare function o:prewalk($form as item()*, $fn as function(*))
             default return
                 $walked
     )
+};
+
+declare function o:flatten()
+{
+    o:postwalk(?, o:children#1)
+};
+
+declare function o:flatten($nodes as item()*)
+{
+    o:flatten()($nodes)
 };
 
 declare function o:set-handler($element as array(*), $handler as function(*)?)
@@ -1555,80 +1639,6 @@ as function(*)
                 o:children($element)
             }
     }
-};
-
-(:~
- : Repeat the incoming nodes and feed them through the functions.
- :)
-declare function o:repeat($node as item(), $repeat-seq as item()*, $fn as function(*))
-{
-    o:repeat($repeat-seq, $fn)($node)
-};
-
-(: TODO: revise this now we only have to deal with prepared handlers :)
-declare function o:repeat($repeat-seq as item()*, $fn as function(*))
-{
-    let $arity := function-arity($fn)
-    return
-        function($node as item()) {
-            fold-left(
-                $repeat-seq,
-                (),
-                function($n, $i) {
-                    if ($arity = 2) then
-                        ($n, $fn($node, $i))
-                    else
-                        (: assume the default arity = 1, otherwise let it crash :)
-                        ($n, $fn($node))
-                }
-            )
-        }
-};
-
-(:~
- : Selector:
- :
- : - function($node) => int*|key*
- : - int*
- : - key*
- :
- : Choices:
- :
- : - array: selector => int
- : - map: selector =>
- : - function(int*|key*) => fn(nodes)
- :)
-declare function o:choose($selector as item()*, $choices as function(*))
-as item()*
-{
-    let $selector :=
-        typeswitch($selector)
-        case function(item()*) as item()* return
-            $selector
-        case xs:integer* | xs:string* return
-            function($node as item()) {
-                $selector
-            }
-        default return
-            ()
-    return
-        function($node as item()) {
-            $selector($node) ! (
-                typeswitch($choices(.))
-                case $choice as array(*) | map(*) return
-                    $choice
-                case $choice as function(*) return
-                    $choice($node)
-                default $choice return
-                    $choice
-            )
-        }
-};
-
-declare function o:choose($node as item(), $selector as item()*, $choices as function(*))
-as item()*
-{
-    o:choose($selector, $choices)($node)
 };
 
 (:~

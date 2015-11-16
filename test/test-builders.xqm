@@ -350,18 +350,16 @@ declare %unit:test function test:table-extractions-3()
 
 };
 
-declare %unit:test function test:table-extractions-4()
+declare %unit:test %unit:ignore function test:table-extractions-4()
 {
-    unit:assert(
-        let $extracted-rows := test:extract-table((
+    unit:assert-equals(
+        test:extract-table((
           ['tr[th]'],
           ['tr[td]']
-        ))
-        return
-          every $row in ($test:html-table//tr[th],$test:html-table//tr[td])
-          satisfies $row = $extracted-rows,
-        'Header and data row separately (root rules are in undefined order
-         so results come back in undefined order as well)'
+        )),
+        $test:html-table//tr,
+        "Header and data row separately (root rules are in undefined order
+         so results come back in undefined order as well)"
     )
 };
 
