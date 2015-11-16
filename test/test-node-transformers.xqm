@@ -133,14 +133,6 @@ declare %unit:test function test:insert-after()
     )
 };
 
-declare %unit:test function test:text()
-{
-    unit:assert-equals(
-        ['p', map { 'a': 10 }, 'foo', ['b', 'bar']] => o:text(),
-        ('foo','bar')
-    )
-};
-
 declare %unit:test function test:set-attr()
 {
     unit:assert-equals(
@@ -262,17 +254,17 @@ declare %unit:test function test:tree-seq()
         o:tree-seq((['a'],['b'],['c'])),
         (['a'],['b'],['c'])
     ),
-
+    
     unit:assert-equals(
         o:tree-seq((['a'],['b'],['c']), o:is-element#1, o:identity#1),
         (['a'],['b'],['c'])
     ),
-
+    
     unit:assert-equals(
         o:tree-seq((['a', 'b', ['c']])),
         (['a', 'b', ['c']], 'b', ['c'])
     ),
-
+    
     unit:assert-equals(
         o:tree-seq(['a', 'b',['c']], o:is-element#1, o:identity#1),
         (['a', 'b', ['c']], 'b', ['c'])
@@ -292,7 +284,7 @@ declare %unit:test function test:tree-seq()
         o:tree-seq(['a', ['b', ['c', ['d']]]]),
         (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
     ),
-
+    
     unit:assert-equals(
         o:tree-seq(['a', ['b', ['c', ['d']]]], o:is-element#1, o:identity#1),
         (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])

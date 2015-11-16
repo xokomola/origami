@@ -139,18 +139,7 @@ declare %unit:test function test:xml()
         o:xml(['a', 'b', 'c']),
         <a>bc</a>
     ),
-
-    unit:assert-equals(
-        o:xml(['a', (map {'x': 1}, (map {'y': 2 }, 'b', 'c'))]),
-        <a x="1" y="2">bc</a>
-    ),
-
-    (: with naughty attribute/map values :)
-    unit:assert-equals(
-        o:xml(['a', (map {'x': 1}, (map {'y': (2,3) }, 'b', 'c'))]),
-        <a x="1" y="2 3">bc</a>
-    ),
-
+    
     (:~
      : Atomic values will be converted into text nodes.
      :)
@@ -166,6 +155,15 @@ declare %unit:test function test:xml()
         o:xml(['a', ('foo', ['b', 'bar', ['c'], 'baz'])]),
         <a>foo<b>bar<c/>baz</b></a>
     )  
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed")
+function test:unwellformed()
+{
+    unit:assert-equals(
+        o:xml(['a', (map {'x': 1}, ('b', 'c'))]),
+        <a x="1">bc</a>
+    )
 };
 
 declare %unit:test function test:xml-node-sequence()

@@ -216,17 +216,6 @@ declare %private function o:csv-normal-form($csv)
     map:keys($csv) ! array { $csv(.) }
 };
 
-(: Create Origami documents :)
-
-declare function o:component($doc)
-{
-    let $doc := o:doc($doc)
-    return
-        function($data) {
-            o:apply($doc, $data)
-        }
-};
-
 (:~
  : Converts input nodes to an Origami document.
  :)
@@ -437,7 +426,7 @@ as item()?
 (:~
  : Given an extracted element node and adds the matching rules to it.
  :)
-declare function o:bind-handlers-to-node($rules as map(*))
+declare %private function o:bind-handlers-to-node($rules as map(*))
 as function(*)
 {
     function($element as array(*)) {
@@ -513,10 +502,10 @@ as xs:boolean
 (:~
  : Converts μ-nodes to XML nodes with the default name resolver.
  :)
-declare function o:xml($mu as item()*)
+declare function o:xml($nodes as item()*)
 as node()*
 {
-    o:xml($mu, map {})
+    o:xml($nodes, map {})
 };
 
 (:~
@@ -524,7 +513,7 @@ as node()*
  : only use the option 'ns' whose value must be a namespace map and 'qname'
  : function that translates strings into QNames.
  :)
-declare function o:xml($mu as item()*, $builder as map(*))
+declare function o:xml($nodes as item()*, $builder as map(*))
 as node()*
 {
     let $builder :=
@@ -538,18 +527,18 @@ as node()*
         else
             map:merge(($builder, map:entry('qname', o:qname-resolver($builder?ns))))
     return
-        o:to-xml($mu, $builder)
+        o:to-xml($nodes, $builder)
 };
 
-declare %private function o:to-xml($mu as item()*, $builder as map(*))
+declare %private function o:to-xml($nodes as item()*, $builder as map(*))
 as node()*
 {
-    $mu ! (
+    $nodes ! (
         typeswitch (.)
         case array(*) return
             o:to-element(., $builder)
         case map(*) return
-            o:to-attributes(., $builder)
+            error($o:err-unwellformed, "A map is only allowed as part of an element node", .)
         case function(*) return
             ()
         case empty-sequence() return
@@ -981,28 +970,33 @@ declare %private function o:path-string($steps)
 (:~
  : Converts μ-nodes to JSON with the default name resolver.
  :)
-declare function o:json($mu as item()*)
+declare function o:json($nodes as item()*)
 as xs:string
 {
-    o:json($mu, function($name) { $name })
+    o:json($nodes, function($name) { $name })
 };
 
 (:~
  : Converts μ-nodes to JSON using a name-resolver.
  :)
-declare function o:json($mu as item()*, $name-resolver as function(*))
+declare function o:json($nodes as item()*, $name-resolver as function(*))
 as xs:string
 {
     serialize(
-        o:to-json(if (count($mu) > 1) then array { $mu } else $mu, $name-resolver),
+        o:to-json(
+            if (count($nodes) > 1) then 
+                array { $nodes } 
+            else 
+                $nodes, $name-resolver
+        ),
         map { 'method': 'json' }
     )
 };
 
-declare %private function o:to-json($mu as item()*, $name-resolver as function(*))
+declare %private function o:to-json($nodes as item()*, $name-resolver as function(*))
 as item()*
 {
-    $mu ! (
+    $nodes ! (
         typeswitch (.)
         case array(*) return
             let $tag := o:tag(.)
@@ -1034,60 +1028,54 @@ as item()*
     )
 };
 
-(: μ-node information :)
+(: Node information :)
 
-declare function o:head($element as array(*)?)
+declare function o:head($node as array(*)?)
 as item()*
 {
-    if (exists($element)) then
-        array:head($element)
+    if (exists($node)) then
+        array:head($node)
     else
         ()
 };
 
-declare function o:tail($mu as array(*))
+declare function o:tail($node as array(*)?)
 as item()*
 {
-    tail($mu?*)
+    tail($node?*)
 };
 
-declare function o:tag($mu as array(*))
+declare function o:tag($node as array(*)?)
 as item()
 {
-    $mu?*[1]
+    $node?*[1]
 };
 
 (:~
  : Return child nodes of a mu-element as a sequence.
  :)
-declare function o:children($nodes as item()*)
+declare function o:children($node as array(*)?)
 as item()*
 {
-    $nodes ! (
-        if (. instance of array(*)
-            and array:size(.) > 0) then
-            let $c := array:tail(.)
-            return
-                if (array:size($c) > 0 and array:head($c) instance of map(*)) then
-                    array:tail($c)?*
-                else
-                    $c?*
-        else
-            ()
-    )
+    if (exists($node) and array:size($node) > 0) then
+        let $c := array:tail($node)
+        return
+            if (array:size($c) > 0 and array:head($c) instance of map(*)) then
+                array:tail($c)?*
+            else
+                $c?*
+    else
+        ()
 };
 
-declare function o:attributes($nodes as item()*)
-as map(*)*
+declare function o:attributes($node as array(*)?)
+as map(*)?
 {
-    $nodes ! (
-        if (. instance of array(*)
-            and array:size(.) > 1
-            and .?2 instance of map(*)) then
-            .?2
-        else
-            ()
-    )
+    if (exists($node) and array:size($node) > 1
+        and $node?2 instance of map(*)) then
+        $node?2
+    else
+        ()
 };
 
 (:~
@@ -1097,101 +1085,88 @@ as map(*)*
  : you can use both o:attrs($e)?foo as well as o:attributes($e)?foo because
  : ()?foo will work just like map{}?foo.
  :)
-declare function o:attrs($node as array(*))
+declare function o:attrs($node as array(*)?)
 as map(*)?
 {
-    (o:attributes($node), map {})[1]
+    if (exists($node)) then
+        if (array:size($node) > 1 and $node?2 instance of map(*)) then
+            $node?2
+        else
+            map {}
+    else
+        ()
+};
+
+(: TODO: really needed? only returns element handler :)
+declare function o:handler($element as array(*))
+{
+    o:attrs($element)($o:handler-att)
+};
+
+(:~
+ : Outputs the text value of `$nodes`.
+ :)
+declare function o:text()
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as xs:string? {
+        string-join(o:postwalk($nodes, o:children#1), '')
+    }
+};
+
+(:~
+ : Outputs the text value of `$nodes`.
+ :)
+declare function o:text($nodes as item()*)
+as xs:string
+{
+    o:text()($nodes)
+};
+
+(:~
+ : Create a node transformer that returns a text node with
+ : the space normalized string value of a node.
+ :)
+declare function o:ntext()
+as function(item()*) as item()*
+{
+    function($nodes as item()*) as xs:string? {
+        normalize-space(o:text($nodes))
+    }
+};
+
+declare function o:ntext($nodes as item()*)
+as xs:string?
+{
+    o:ntext()($nodes)
 };
 
 (:~
  : Returns the size of contents (child nodes not attributes).
  :)
-declare function o:size($element as array(*)?)
-as item()*
+declare function o:size($node as array(*)?)
+as xs:integer
 {
-    count(o:children($element))
-};
-
-declare function o:apply($nodes as item()*)
-{
-    o:apply($nodes, [], ())
-};
-
-declare function o:apply($nodes as item()*, $data as item()*)
-as item()*
-{
-    o:apply($nodes, [], $data)
-};
-
-declare function o:apply($nodes as item()*, $current as array(*), $data as item()*)
-as item()*
-{
-    $nodes ! (
-        typeswitch (.)
-        case array(*) return o:apply-element(., $data)
-        case map(*) return .
-        case function(*) return o:apply-handler(., $current, $data)
-        default return .
-    )
-};
-
-declare function o:apply-rules($data as item()*)
-{
-    o:apply(?, $data)
-};
-
-declare function o:apply-element($element as array(*), $data as item()*)
-{
-    let $tag := o:tag($element)
-    let $handler := o:handler($element)
-    let $atts := o:apply-attributes($element, $data)
-    let $content := o:children($element)
-    let $element := array { $tag, $atts, $content }
-    return
-        if (exists($handler)) then
-            o:apply-handler($handler, $element, $data)
-        else
-            o:insert($element, o:apply($content, $element, $data))
-};
-
-declare function o:apply-attributes($element as array(*), $data as item()*)
-{
-    let $atts :=
-        map:merge((
-            map:for-each(
-                o:attrs($element),
-                function($att-name, $att-value) {
-                    if ($att-name = $o:internal-att) then
-                        ()
-                    else
-                        map:entry(
-                            $att-name,
-                            switch (o:is-element-or-handler($att-value))
-                            case $o:is-handler return
-                                o:apply-handler($att-value, $element, $data)
-                            default return
-                                $att-value
-                        )
-                }
-            )
-        ))
-    where map:size($atts) > 0
-    return $atts
+    count(o:children($node))
 };
 
 declare function o:is-element($node as item()?)
 as xs:boolean
 {
-    (: NOTE: typeswitch is faster than instance of check :)
-    typeswitch($node)
-    case array(*)
-    return true()
-    default
-    return false()
+    o:is-element-or-handler($node) = true()
 };
 
-(: returns true if this is an element, false if this is a handler or nil it is neither :)
-declare function o:is-element-or-handler($node as item()?)
+declare function o:is-handler($node as item()?)
+as xs:boolean
+{
+    o:is-element-or-handler($node) != true()
+};
+
+(:~
+ : Returns true if this is an element, false if this is a handler or 
+ : nil it is neither 
+ :)
+declare %private function o:is-element-or-handler($node as item()?)
 as xs:boolean?
 {
     typeswitch ($node)
@@ -1221,15 +1196,97 @@ as xs:boolean?
         ()
 };
 
-declare function o:apply-handler($handler as item(), $owner as array(*)?, $data as item()*)
+declare function o:has-attrs($node as item()?)
+as xs:boolean
+{
+    map:size((o:attrs($node), map {})[1]) > 0
+};
+
+declare function o:has-handler($element as array(*))
+as xs:boolean
+{
+    map:contains(o:attrs($element), $o:handler-att)
+};
+
+(: Node apply :)
+
+declare function o:apply($nodes as item()*)
+{
+    o:apply($nodes, [], ())
+};
+
+declare function o:apply($nodes as item()*, $data as item()*)
+as item()*
+{
+    o:apply($nodes, [], $data)
+};
+
+declare function o:apply($nodes as item()*, $current as array(*), $data as item()*)
+as item()*
+{
+    $nodes ! (
+        typeswitch (.)
+        case array(*) return o:apply-element(., $data)
+        case map(*) return .
+        case function(*) return o:apply-handler(., $current, $data)
+        default return .
+    )
+};
+
+declare %private function o:apply-rules($data as item()*)
+{
+    o:apply(?, $data)
+};
+
+declare %private function o:apply-element($element as array(*), $data as item()*)
+{
+    let $tag := o:tag($element)
+    let $handler := o:handler($element)
+    let $atts := o:apply-attributes($element, $data)
+    let $content := o:children($element)
+    let $element := array { $tag, $atts, $content }
+    return
+        if (exists($handler)) then
+            o:apply-handler($handler, $element, $data)
+        else
+            o:insert($element, o:apply($content, $element, $data))
+};
+
+declare %private function o:apply-attributes($element as array(*), $data as item()*)
+{
+    let $atts :=
+        map:merge((
+            map:for-each(
+                o:attrs($element),
+                function($att-name, $att-value) {
+                    if ($att-name = $o:internal-att) then
+                        ()
+                    else
+                        map:entry(
+                            $att-name,
+                            switch (o:is-element-or-handler($att-value))
+                            case $o:is-handler return
+                                o:apply-handler($att-value, $element, $data)
+                            default return
+                                $att-value
+                        )
+                }
+            )
+        ))
+    where map:size($atts) > 0
+    return $atts
+};
+
+declare %private function o:apply-handler($handler as item(), $owner as array(*)?, $data as item()*)
 as item()*
 {
     $handler($owner, $data)
 };
 
 (:~
- : Compose functions.
+ : Node transformers.
  :)
+
 declare function o:do($fns) {
     function($input) {
         fold-left($fns, $input,
@@ -1240,8 +1297,6 @@ declare function o:do($fns) {
     }
 };
 
-(: μ-node transformers :)
-
 declare function o:identity($x) { $x };
 
 (:~
@@ -1250,8 +1305,8 @@ declare function o:identity($x) { $x };
 
 declare function o:seq()
 {
-    function($mu as item()*) {
-        $mu ! (
+    function($nodes as item()*) {
+        $nodes ! (
             if (. instance of array(*)) then
                 .?*
             else if (. instance of map(*)) then
@@ -1262,29 +1317,34 @@ declare function o:seq()
     }
 };
 
-declare function o:seq($mu as item()*)
+declare function o:seq($nodes as item()*)
 {
-    o:seq()($mu)
+    o:seq()($nodes)
 };
 
-declare function o:tree-seq($mu)
+declare function o:tree-seq($nodes as item()*)
+as item()*
 {
-    o:tree-seq($mu, o:is-element#1, o:identity#1)
+    o:tree-seq($nodes, o:is-element#1, o:identity#1)
 };
 
-declare function o:tree-seq($mu, $children as function(*))
+declare function o:tree-seq($nodes as item()*, $children as function(*))
+as item()*
 {
-    o:tree-seq($mu, o:is-element#1, $children)
+    o:tree-seq($nodes, o:is-element#1, $children)
 };
 
-declare function o:tree-seq($mu, $is-branch as function(*), $children as function(*))
+declare function o:tree-seq($nodes as item()*, $is-branch as function(*), $children as function(*))
+as item()*
 {
-    $mu ! (
+    $nodes ! (
         if ($is-branch(.)) then
-            $children(.)
+            (
+                $children(.),
+                o:tree-seq(o:children(.), $is-branch, $children)
+            )
         else
-            .,
-        o:tree-seq(o:children(.), $is-branch, $children)
+            .
     )
 };
 
@@ -1342,7 +1402,7 @@ as item()*
         for $node in $nodes
         where o:is-element($node)
         return $node
-    let $matched-nodes := trace(
+    let $matched-nodes := 
         typeswitch ($step)
         case xs:string return
             for $element in $element-nodes
@@ -1354,7 +1414,6 @@ as item()*
                 for $element in $element-nodes[$istep]
                 return $element
         default return ()
-        ,'MATCHED: ')
     return (
         if (exists($matched-nodes)) then
             if (array:size(array:tail($steps)) = 0) then
@@ -1362,7 +1421,7 @@ as item()*
             else
                 for $element in $matched-nodes
                 return
-                    o:select-nodes($element, trace(array:tail($steps),'TRYING: '), $all-steps)
+                    o:select-nodes($element, array:tail($steps), $all-steps)
         else
             ()
         ,
@@ -1410,35 +1469,6 @@ declare function o:prewalk($form as item()*, $fn as function(*))
             default return
                 $walked
     )
-};
-
-declare function o:is-handler($maybe-h as item()?)
-as xs:boolean
-{
-    let $h :=
-        if ($maybe-h instance of array(*) and array:size($maybe-h) > 0) then
-            o:tag($maybe-h)
-        else
-            $maybe-h
-    return $h instance of function(*) and not($h instance of array(*))
-};
-
-declare function o:has-handler($element as array(*))
-as xs:boolean
-{
-    map:contains(o:attrs($element), $o:handler-att)
-};
-
-declare function o:has-attrs($node as item())
-as xs:boolean
-{
-    exists(o:attributes($node))
-};
-
-(: TODO: really needed? only returns element handler :)
-declare function o:handler($element as array(*))
-{
-    o:attrs($element)($o:handler-att)
 };
 
 declare function o:set-handler($element as array(*), $handler as function(*)?)
@@ -1608,8 +1638,8 @@ as item()*
 declare function o:insert($content as item()*)
 as function(*)
 {
-    function($mu as array(*)) {
-        array { o:tag($mu), o:attributes($mu), $content }
+    function($node as array(*)) {
+        array { o:tag($node), o:attributes($node), $content }
     }
 };
 
@@ -1642,12 +1672,12 @@ as item()*
     o:replace($content)($node)
 };
 
-declare function o:wrap($mu as array(*)?)
+declare function o:wrap($element as array(*)?)
 as function(*)
 {
-    if (exists($mu)) then
+    if (exists($element)) then
         function($nodes as item()*) {
-            array { o:tag($mu), o:attributes($mu), $nodes }
+            array { o:tag($element), o:attributes($element), $nodes }
         }
     else
         function($nodes as item()*) {
@@ -1655,10 +1685,10 @@ as function(*)
         }
 };
 
-declare function o:wrap($nodes as item()*, $mu as array(*)?)
+declare function o:wrap($nodes as item()*, $element as array(*)?)
 as item()*
 {
-    o:wrap($mu)($nodes)
+    o:wrap($element)($nodes)
 };
 
 (:~
@@ -1794,67 +1824,6 @@ declare function o:insert-before($node as array(*), $prepend as item()*)
 as array(*)
 {
     o:insert-before($prepend)($node)
-};
-
-(:~
- : Outputs the text value of `$nodes`.
- :)
-declare function o:text()
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as xs:string* {
-        $nodes ! (
-            typeswitch (.)
-            case map(*) return
-                ()
-            case array(*) return
-                o:text(o:children(.))
-            case function(*) return
-                ()
-            default return
-                string(.)
-        )
-    }
-};
-
-(:~
- : Outputs the text value of `$nodes`.
- :)
-declare function o:text($nodes as item()*)
-as item()*
-{
-    o:text()($nodes)
-};
-
-(: TODO: review this one :)
-(:~
- : Create a node transformer that returns a text node with
- : the space normalized string value of a node.
- :)
-declare function o:ntext()
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as xs:string* {
-        normalize-space(string-join(
-            $nodes ! (
-                typeswitch (.)
-                case map(*) return
-                    ()
-                case array(*) return
-                    o:ntext(o:children(.))
-                case function(*) return
-                    ()
-                default return
-                    string(.)
-            )
-        , ''))
-    }
-};
-
-declare function o:ntext($nodes as item()*)
-as item()*
-{
-    o:ntext()($nodes)
 };
 
 (:~
@@ -2292,10 +2261,11 @@ as xs:string
  : This can be used for inspection and in tests. Function items
  : cannot be atomized or compared.
  :)
-declare function o:doc-repr($mu)
+declare function o:doc-repr($nodes as item()*)
+as item()*
 {
     o:prewalk(
-        $mu,
+        $nodes,
         function($n) {
             if (o:is-handler($n)) then
                 o:handler-repr($n)
