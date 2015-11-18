@@ -1,9 +1,8 @@
 xquery version "3.1";
 
 (:~
- : Origami tests: node map/select
+ : Test for various functional utilities (map, filter, seq, conj, comp)
  :)
- 
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace o = 'http://xokomola.com/xquery/origami' 
@@ -65,8 +64,8 @@ declare %unit:test function test:filter-on-attribute()
 declare %unit:test function test:seq()
 {
     unit:assert-equals(
-        o:seq((1,2,3)),
-        (1,2,3)
+        o:seq(map { 'a': 10, 'b': 20 }),
+        (['a', 10],['b', 20])
     ),
     
     unit:assert-equals(
@@ -100,4 +99,62 @@ declare %unit:test function test:seq()
         (1,<x/>,<y/>)
     )
 
+};
+
+declare %unit:test function test:conj()
+{
+    unit:assert-equals(
+        o:conj((),'a'),
+        ('a')
+    ),
+    
+    unit:assert-equals(
+        o:conj(('a'),'b'),
+        ('a','b')
+    ),
+
+    unit:assert-equals(
+        o:conj((),()),
+        ()
+    ),
+
+    unit:assert-equals(
+        o:conj('a',('b','c')),
+        ('a','b','c')
+    ),
+
+    unit:assert-equals(
+        o:conj('a',['b']),
+        ('a',['b'])
+    ),
+
+    unit:assert-equals(
+        o:conj([],'a'),
+        ['a']
+    ),
+
+    unit:assert-equals(
+        o:conj([],('a','b')),
+        ['a','b']
+    ),
+
+    unit:assert-equals(
+        o:conj([],['a','b']),
+        [['a','b']]
+    )
+};
+
+declare %unit:test function test:comp()
+{
+    unit:assert-equals(
+        o:comp((
+          o:conj('x'),
+          o:conj('y'),
+          o:conj('z'),
+          reverse#1,
+          string-join(?,'-')
+        ))('a')
+        ,
+        'a-x-y-z'
+    )
 };

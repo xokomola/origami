@@ -1286,7 +1286,13 @@ as item()*
  : Node transformers.
  :)
 
-declare function o:do($fns) {
+(:~
+ : Returns a function that composes the passed functions. All functions
+ : have arity 1.
+ : TODO: what about other arities?
+ : TODO: in Clojure do evaluates in sequence, maybe use compose.
+ :)
+declare function o:comp($fns) {
     function($input) {
         fold-left($fns, $input,
               function($args, $fn) {
@@ -1296,27 +1302,60 @@ declare function o:do($fns) {
     }
 };
 
-declare function o:identity($x) { $x };
+(:~
+ : Returns the argument unmodified.
+ :)
+declare function o:identity($x)
+{ 
+    $x 
+};
 
 (:~
- : Returns a sequence even if the argument is an array or a map.
+ : Returns a function that conjoins items to a sequence.
  :)
+declare function o:conj($seq as item()*)
+as item()*
+{
+    typeswitch ($seq)
+    case array(*) return
+        function($items as item()*) {
+            array { $seq?*, $items }
+        }
+    default return
+        function($items as item()*) {
+            ($seq, $items)
+        }
+};
 
+(:~
+ : Conjoins items to a sequence.
+ :)
+declare function o:conj($seq as item()*, $items as item()*)
+as item()*
+{
+    o:conj($seq)($items)
+};
+
+(:~
+ : Returns a function that transforms an array or map into a sequence.
+ : A map item will be transformed into a sequence of two item arrays.
+ :)
 declare function o:seq()
 {
-    function($nodes as item()*) {
-        $nodes ! (
-            if (. instance of array(*)) then
-                .?*
-            else if (. instance of map(*)) then
-                map:for-each(., function($k, $v) { ($k, $v) })
-            else
-                .
-        )
+    function($node as item()) {
+        if ($node instance of array(*)) then
+            $node?*
+        else if ($node instance of map(*)) then
+            map:for-each($node, function($k, $v) { [$k, $v] })
+        else
+            $node
     }
 };
 
-declare function o:seq($nodes as item()*)
+(:~
+ : Transforms an array or map item into a sequence.
+ :)
+declare function o:seq($nodes as item())
 {
     o:seq()($nodes)
 };
@@ -2071,14 +2110,6 @@ as function(*)
 };
 
 (: Namespace support :)
-(:~
- : Returns a name resolver function with the HTML namespace as default.
- :)
-declare function o:html-resolver()
-as function(xs:string) as xs:QName
-{
-    o:qname(?, map:merge((o:ns-map(), map:entry('', 'http://www.w3.org/1999/xhtml'))))
-};
 
 (:~
  : Returns a name resolver function from the default namespace map (nsmap.xml).
@@ -2086,7 +2117,7 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname(?, $o:ns)
+    o:qname-resolver(map {}, '')
 };
 
 (:~
@@ -2095,13 +2126,28 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname(?, map:merge(($ns-map, map:entry('', ''))))
+    o:qname-resolver($ns-map, '')
 };
 
 declare function o:qname-resolver($ns-map as map(*), $default-namespace-uri as xs:string)
 as function(xs:string) as xs:QName
 {
-    o:qname(?, map:merge(($ns-map, map:entry('', $default-namespace-uri))))
+    o:qname(?, map:merge((o:ns-map($ns-map), map:entry('', $default-namespace-uri))))
+};
+
+(:~
+ : Returns a name resolver function with the HTML namespace as default.
+ :)
+declare function o:html-resolver()
+as function(xs:string) as xs:QName
+{
+    o:qname-resolver(map {}, 'http://www.w3.org/1999/xhtml')
+};
+
+declare function o:html-resolver($ns-map as map(*))
+as function(xs:string) as xs:QName
+{
+    o:qname-resolver($ns-map, 'http://www.w3.org/1999/xhtml')
 };
 
 (:~
@@ -2319,8 +2365,9 @@ as item()*
     )
 };
 
-(: utility functions :)
-
+(:~
+ : Extract some entries from a map into a new map.
+ :)
 declare function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
 as map(*)
 {

@@ -1,8 +1,5 @@
 xquery version "3.1";
 
-(:~
- : Tests for reading and parsing.
- :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace o = 'http://xokomola.com/xquery/origami' 
