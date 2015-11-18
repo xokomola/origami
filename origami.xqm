@@ -556,10 +556,10 @@ as item()*
     let $tag := o:tag($element)
     let $atts := o:attrs($element)
     let $content := o:children($element)
-    let $name-resolver as function(xs:string) as xs:QName := $builder?qname
     where $tag
     return
-        element { $name-resolver($tag) } {
+        element { $builder?qname($tag) } {
+            (: add namespace :)
             if ($builder?ns instance of map(*)) then
                 for $prefix in map:keys($builder?ns)
                 let $uri := $builder?ns($prefix)
@@ -582,12 +582,11 @@ as attribute()*
 {
     map:for-each($atts,
         function($k, $v) {
-            if ($k = $o:internal-att
-                or namespace-uri-from-QName($builder?qname($k)) = $o:origami-ns) then
+            (: Removes Origami namespaced attributes :)
+            if ($k = $o:internal-att) then
                 ()
             else
-                (: should not add default ns to attributes if name has no prefix :)
-                attribute { if (contains($k, ':')) then $builder?qname($k) else $k } {
+                attribute { $k } {
                     data(
                         typeswitch ($v)
                         case array(*) return
@@ -2096,7 +2095,7 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname(?, $ns-map)
+    o:qname(?, map:merge(($ns-map, map:entry('', ''))))
 };
 
 declare function o:qname-resolver($ns-map as map(*), $default-namespace-uri as xs:string)
@@ -2125,8 +2124,7 @@ as xs:QName
 declare function o:qname($name as xs:string, $ns-map as map(*))
 as xs:QName
 {
-    if (contains($name, ':'))
-    then
+    if (contains($name, ':')) then
         let $prefix := substring-before($name, ':')
         let $local := substring-after($name, ':')
         let $default-ns := $ns-map('')
@@ -2244,10 +2242,17 @@ as map(*)
 declare function o:default-ns-builder($builder as map(*), $default-namespace-uri as xs:string)
 as map(*)
 {
-    map:merge((
-        $builder,
-        map { 'ns': map:merge(($builder?ns, map:entry('', $default-namespace-uri))) }
-    ))
+    let $ns :=
+        if (map:contains($builder,'ns')) then
+            $builder?ns
+        else
+            map {}
+    return
+        map:merge((
+            $builder,
+            map { 'ns': map:merge(($ns, map:entry('', $default-namespace-uri))) },
+            map { 'qname': o:qname-resolver($ns, $default-namespace-uri) }
+        ))
 };
 
 declare %private function o:handler-repr($h as item())

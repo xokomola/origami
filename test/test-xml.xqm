@@ -12,6 +12,7 @@ declare namespace h = 'http://www.w3.org/1999/xhtml';
 
 declare %unit:test function test:xml() 
 {
+  (:
     (:~
      : A string becomes a text node.
      :)
@@ -19,7 +20,7 @@ declare %unit:test function test:xml()
         o:xml('a'),
         text { 'a' }
     ),
-
+    
     unit:assert-equals(
         o:xml(('a','b','c')),
         (text { 'a' }, text { 'b'}, text { 'c' })
@@ -54,7 +55,7 @@ declare %unit:test function test:xml()
         o:xml(['a',map { 'x': 10, 'b': 'y' }]),
         <a x="10" b="y"/>
     ),
-
+    
     (:~
      : Or, without attributes if the map is empty.
      :)
@@ -79,7 +80,7 @@ declare %unit:test function test:xml()
         o:xml(['a',map { }, 'hello']),
         <a>hello</a>
     ),
-
+:)
     (:~
      : Or without child nodes.
      :)
@@ -95,7 +96,7 @@ declare %unit:test function test:xml()
         o:xml(['a', map { }, ()]),
         <a/>
     ),
-    
+   
     (:~
      : If an item is already an XML node than it is passed
      : unmodified.
@@ -139,7 +140,7 @@ declare %unit:test function test:xml()
         o:xml(['a', 'b', 'c']),
         <a>bc</a>
     ),
-    
+
     (:~
      : Atomic values will be converted into text nodes.
      :)
@@ -147,14 +148,15 @@ declare %unit:test function test:xml()
         o:xml(['a', (10,'c')]),
         <a>10c</a>
     ),
-    
+   
     (:~
      : Mixed content.
      :)
     unit:assert-equals(
         o:xml(['a', ('foo', ['b', 'bar', ['c'], 'baz'])]),
         <a>foo<b>bar<c/>baz</b></a>
-    )  
+    )
+  
 };
 
 declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed")
