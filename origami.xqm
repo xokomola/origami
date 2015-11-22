@@ -1552,8 +1552,10 @@ declare function o:postwalk($form as item()*, $fn as function(*))
         typeswitch (.)
         case array(*) return
             $fn(array {
-                for $item in $form?*
-                return o:postwalk($item, $fn)
+                o:map(
+                    $form?*,
+                    o:postwalk(?, $fn)
+                )
             })
         default return
             $form
@@ -1571,12 +1573,15 @@ declare function o:prewalk($form as item()*, $fn as function(*))
             typeswitch ($walked)
             case array(*) return
                 array {
-                    for $item in $walked?*
-                    return
-                        if ($item instance of array(*)) then
-                            o:prewalk($item, $fn)
-                        else
-                            $item
+                    o:map(
+                        $walked?*,
+                        function($n) {
+                            if ($n instance of array(*)) then
+                                o:prewalk($n, $fn)
+                            else
+                                $n
+                        }
+                    )
                 }
             default return
                 $walked
