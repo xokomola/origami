@@ -222,22 +222,25 @@ declare %private function o:csv-normal-form($csv)
 declare function o:doc($items as item()*)
 as item()*
 {
-    o:to-doc($items, map {})
+    o:to-doc($items, ())
 };
 
 declare function o:doc($nodes as item()*, $builder as item()*)
 as item()*
 {
-    let $builder :=
-        if (o:is-doc-builder($builder)) then
+    let $builder :=        
+        if (o:is-builder($builder)) then
             $builder
         else
             o:builder($builder)
     return
-        $builder($o:doc-handler-att)($nodes)
+        if (exists($builder) and map:contains($builder, $o:doc-handler-att)) then
+            $builder($o:doc-handler-att)($nodes)
+        else
+            o:to-doc($nodes, $builder)
 };
 
-declare %private function o:to-doc($nodes as item()*, $builder as map(*))
+declare %private function o:to-doc($nodes as item()*, $builder as map(*)?)
 as item()*
 {
     let $rules :=
@@ -476,27 +479,61 @@ declare %private function o:normalize-text-node($node as text())
 };
 
 declare function o:builder()
-as map(*)
+as empty-sequence()
 {
-    o:builder((), map {})
+    ()
 };
 
 declare function o:builder($rules as item()*)
-as map(*)
+as map(*)?
 {
     o:builder($rules, o:default-ns-builder(o:ns-builder(), ''))
 };
 
 declare function o:builder($rules as item()*, $options as map(*))
-as map(*)
+as map(*)?
 {
-    o:compile-rules($rules, $options)
+    typeswitch ($rules)
+    case array(*)+ return
+        o:xslt-builder($rules, $options)
+    case map(*)+ return
+        o:map-builder($rules, $options)
+    default return
+        ()
 };
 
-declare %private function o:is-doc-builder($builder as item()*)
+declare %private function o:is-builder($builder as item()*)
 as xs:boolean
 {
-    $builder instance of map(*) and map:contains($builder, $o:doc-handler-att)
+    $builder instance of map(*) and $builder?type = 'builder'
+};
+
+declare function o:map-builder($rules as map(*), $options as map(*))
+as map(*)
+{
+    map:merge((
+        $options,            
+        map:entry('rules', $rules),
+        map:entry('type', 'builder')
+    ))    
+};
+
+declare function o:xslt-builder($rules as array(*)+, $options as map(*))
+as map(*)
+{
+    let $rules := map:merge($rules ! o:compile-rule(., ()))
+    let $xslt := o:compile-stylesheet($rules, $options)
+    return
+        map:merge((
+            $options,            
+            map:entry(
+                $o:doc-handler-att,
+                o:bind-xslt-handlers($xslt, $rules, $options)
+            ),
+            map:entry('xslt', $xslt),
+            map:entry('rules', $rules),
+            map:entry('type', 'builder')
+        ))
 };
 
 (:~
@@ -652,55 +689,6 @@ as function(*)
                 }
         default return
             error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
-};
-
-(:~
- :
- : Prepare a map that is used in a transformer to attach the correct
- : handler to the correct mu-node.
- :)
-declare %private function o:compile-rules($rules as item()*, $options as map(*))
-as map(*)
-{
-    let $type :=
-        typeswitch ($rules)
-        case array(*)+ return
-            'xslt'
-        case map(*)+ return
-            'map'
-        default return
-            'default'
-    let $rules :=
-        switch ($type)
-        case 'xslt' return
-            map:merge($rules ! o:compile-rule(., ()))
-        default return
-            $rules
-    let $extractor :=
-        if ($type = 'xslt') then
-            o:compile-stylesheet($rules, $options)
-        else
-            ()
-    let $builder :=
-        map:merge((
-            $options,
-            (: TODO: remove before release, to support easier debugging of builders :)
-            if ($extractor) then map:entry('xslt', $extractor) else (),
-            if ($rules instance of map(*)) then map:entry('rules', $rules) else ()
-        ))
-    return
-        map:merge((
-            $builder,
-            map:entry($o:doc-handler-att,
-                switch ($type)
-                case 'xslt' return
-                    o:bind-xslt-handlers($extractor, $rules, $options)
-                case 'map' return
-                    function($nodes) { $nodes ! o:to-doc(., $builder) }
-                default return
-                    function($nodes) { $nodes ! o:to-doc(., $options) }
-            )
-        ))
 };
 
 (:~
