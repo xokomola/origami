@@ -1464,7 +1464,7 @@ declare %private function o:apply-element($element as array(*), $data as item()*
     let $element := array { $tag, $atts, $content }
     return
         if (exists($handler)) then
-            o:apply-handler($handler, $element, $data)
+            o:apply(o:apply-handler($handler, $element, $data), $data)
         else
             o:insert($element, o:apply($content, $element, $data))
 };
