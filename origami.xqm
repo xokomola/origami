@@ -2115,6 +2115,24 @@ as array(*)
     o:set-attr($name, $value)($node)
 };
 
+declare function o:advise-attr($name as xs:string, $value as item()*)
+as function(array(*)) as array(*)
+{
+    function($node as array(*)) {
+        array {
+            o:tag($node),
+            map:merge((map:entry($name, $value), o:attributes($node))),
+            o:children($node)
+        }
+    }
+};
+
+declare function o:advise-attr($node as array(*), $name as xs:string, $value as item()*)
+as array(*)
+{
+    o:advise-attr($name, $value)($node)
+};
+
 (:~
  : Create a node transformer that sets attributes using a map
  : on each element in the nodes passed.
