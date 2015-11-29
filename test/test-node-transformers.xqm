@@ -143,7 +143,7 @@ declare %unit:test function test:insert-after()
 declare %unit:test function test:set-attr()
 {
     unit:assert-equals(
-        ['p', map { 'a': 0 }] => o:set-attr(map { 'a': 10, 'b': 20 }),
+        ['p', map { 'a': 0 }] => o:set-attrs(map { 'a': 10, 'b': 20 }),
         ['p', map { 'a': 10, 'b': 20 }]
     )
 };

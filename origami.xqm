@@ -779,6 +779,8 @@ as element(*)
     o:xml(
         if ($options?extract) then
             o:xslt-builder-stylesheet-extract($rules)
+        else if ($options?annotate) then
+            o:xslt-builder-stylesheet2($rules)
         else
             o:xslt-builder-stylesheet($rules),
         o:default-ns-builder($options, 'http://www.w3.org/1999/XSL/Transform')
@@ -843,7 +845,7 @@ as array(*)
                                         ],
                                         ['attribute',
                                             map { 'name': 'o:path' },
-                                            o:xpath-join(($context, $xpath))
+                                            o:xpath(($context, $xpath))
                                         ],
                                         ['value-of',
                                             map { 'select': '.' }
@@ -860,7 +862,7 @@ as array(*)
                                         ],
                                         ['attribute',
                                             map { 'name': 'o:path' },
-                                            o:xpath-join(($context, $xpath))
+                                            o:xpath(($context, $xpath))
                                         ]
                                     ]
                                 ],
@@ -873,7 +875,7 @@ as array(*)
                                         ],
                                         ['attribute',
                                             map { 'name': 'o:path' },
-                                            o:xpath-join(($context, $xpath))
+                                            o:xpath(($context, $xpath))
                                         ],
                                         ['apply-templates',
                                             map { 'select': 'node()|@*', 'mode': $hash }
@@ -972,6 +974,129 @@ as array(*)
     ]
 };
 
+declare %private function o:xslt-builder-stylesheet2($rules as map(*))
+as array(*)
+{
+    ['stylesheet',
+        map { 'version': '1.0' },
+        ['output',
+            map {
+                'method': 'xml',
+                'indent': 'no'
+            }
+        ],
+        ['strip-space',
+            map { 'elements': '*' }
+        ],
+        ['template',
+            map { 'match': '/' },
+            ['o:seq',
+                ['apply-templates']
+            ]
+        ],
+        map:for-each($rules,
+            function($hash, $rule) {
+                let $xpath := o:xpath($rule?xpath)
+                let $op := $rule?op
+                return
+                    ['template',
+                        map { 'match': $xpath },
+                        if ($op = 'copy') then
+                            ['choose',
+                                ['when',
+                                    map { 'test': 'self::text()' },
+                                    ['o:text',
+                                        ['attribute',
+                                            map { 'name': 'o:id' },
+                                            $hash
+                                        ],
+                                        ['attribute',
+                                            map { 'name': 'o:path' },
+                                            $xpath
+                                        ],
+                                        ['value-of',
+                                            map { 'select': '.' }
+                                        ]
+                                    ]
+                                ],
+                                ['when',
+                                    map { 'test': 'count(.|../@*)=count(../@*)' },
+                                    ['o:attribute',
+                                        map { 'name': '{name(.)}' },
+                                        ['attribute',
+                                            map { 'name': 'o:id' },
+                                            $hash
+                                        ],
+                                        ['attribute',
+                                            map { 'name': 'o:path' },
+                                            $xpath
+                                        ]
+                                    ]
+                                ],
+                                ['when',
+                                    map { 'test': 'self::*' },
+                                    ['copy',
+                                        ['attribute',
+                                            map { 'name': 'o:id' },
+                                            $hash
+                                        ],
+                                        ['attribute',
+                                            map { 'name': 'o:path' },
+                                            $xpath
+                                        ],
+                                        ['apply-templates',
+                                            map { 'select': 'node()|@*' }
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        else
+                            ['apply-templates',
+                                map { 'select': 'node()|@*', 'mode': 'remove' }
+                            ]
+                    ]
+            }
+        ),
+        ['template',
+            map {
+                'priority': -10,
+                'match': 'processing-instruction()|comment()'
+            }
+        ],
+        ['template',
+            map {
+                'priority': -10, 
+                'match': '@*|*|text()'
+            },
+            ['copy',
+                ['apply-templates',
+                    map { 'select': '*|@*|text()' }
+                ]
+            ]
+        ] (:,
+        ['template',
+            map {
+                'priority': -10,
+                'match': 'processing-instruction()|comment()',
+                'mode': 'remove'
+            }
+        ],
+        ['template',
+            map {
+                'priority': -10, 
+                'match': '@*|*|text()',
+                'mode': 'remove'
+            },
+            ['apply-templates',
+                map {
+                    'select': '*|@*|text()',
+                    'mode': 'remove'
+                }
+            ]
+        ] :)
+    ]
+};
+
 declare %private function o:xslt-builder-stylesheet-extract($rules as map(*))
 as array(*)
 {
@@ -1048,14 +1173,9 @@ as array(*)
     ]
 };
 
-declare %private function o:xpath($expr as xs:string)
+declare %private function o:xpath($expr as xs:string*)
 {
-    translate($expr, "&quot;", "'")    
-};
-
-declare %private function o:xpath-join($steps as xs:string+)
-{
-    string-join($steps, '//')
+    translate(string-join($expr,'//'), "&quot;", "'")
 };
 
 (:~
@@ -1285,6 +1405,12 @@ as xs:boolean?
         $o:is-handler
     default return
         ()
+};
+
+declare function o:has-attr($node as item()?, $attr as xs:string)
+as xs:boolean
+{
+    map:contains(o:attrs($node), $attr)
 };
 
 declare function o:has-attrs($node as item()?)
@@ -1699,7 +1825,7 @@ as array(*)
 declare function o:set-handler($handler as function(*)?)
 as function(*)
 {
-    o:set-attr(map { $o:handler-att: o:prepare-handler($handler) })
+    o:set-attrs(map { $o:handler-att: o:prepare-handler($handler) })
 };
 
 declare function o:remove-handler($element as array(*))
@@ -1971,11 +2097,29 @@ as array(*)
     o:insert-before($prepend)($node)
 };
 
+declare function o:set-attr($name as xs:string, $value as item()*)
+as function(array(*)) as array(*)
+{
+    function($node as array(*)) {
+        array {
+            o:tag($node),
+            map:merge((o:attributes($node), map:entry($name, $value))),
+            o:children($node)
+        }
+    }
+};
+
+declare function o:set-attr($node as array(*), $name as xs:string, $value as item()*)
+as array(*)
+{
+    o:set-attr($name, $value)($node)
+};
+
 (:~
  : Create a node transformer that sets attributes using a map
  : on each element in the nodes passed.
  :)
-declare function o:set-attr($attrs as map(*))
+declare function o:set-attrs($attrs as map(*))
 as function(array(*)) as array(*)
 {
     function($node as array(*)) {
@@ -1988,12 +2132,45 @@ as function(array(*)) as array(*)
 };
 
 (:~
- : Set attributes using a map on each element in `$nodes`.
+ : Set attributes using a map on `$node`.
  :)
-declare function o:set-attr($node as array(*), $attrs as map(*))
+declare function o:set-attrs($node as array(*), $attrs as map(*))
 as array(*)
 {
-    o:set-attr($attrs)($node)
+    o:set-attrs($attrs)($node)
+};
+
+(:~
+ : Set attributes that aren't already set on `$node`.
+ :)
+declare function o:advise-attrs($attrs as map(*))
+as function(array(*)) as array(*)
+{
+    function($node as array(*)) {
+        array {
+            o:tag($node),
+            map:merge((
+                o:attributes($node),
+                map:for-each(
+                    $attrs,
+                    function($k,$v) {
+                        if (o:has-attr($node,$k)) then
+                            ()
+                        else
+                            map:entry($k,$v)
+                    }
+                )
+            )),
+            map:merge((o:attributes($node), $attrs)),
+            o:children($node)
+        }
+    }
+};
+
+declare function o:advise-attrs($node as array(*), $attrs as map(*))
+as array(*)
+{
+    o:advise-attrs($attrs)($node)
 };
 
 (:~
