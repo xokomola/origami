@@ -1530,6 +1530,8 @@ declare function o:identity($x)
 
 (:~
  : Returns a function that conjoins items to a sequence.
+ : The type of sequence is determined by the type of the $seq
+ : argument.
  :)
 declare function o:conj($seq as item()*)
 as item()*
@@ -1610,20 +1612,30 @@ as item()*
     sort(?, $key)
 };
 
+declare function o:sort()
+as function(item()*) as item()*
+{
+    sort(?)
+};
+
 (:~
- : Repeat the incoming nodes and feed them through the functions.
+ : Repeat the incoming nodes and feed them through the function.
  :)
-declare function o:repeat($node as item(), $repeat-seq as item()*, $fn as function(*))
+declare function o:repeat($node as item()*, $repeat-seq as item()*, $fn as function(*))
+as item()*
 {
     o:repeat($repeat-seq, $fn)($node)
 };
 
-(: TODO: revise this now we only have to deal with prepared handlers :)
+(:~
+ : A node repeating function, also works with prepped node handlers 
+ :)
 declare function o:repeat($repeat-seq as item()*, $fn as function(*))
+as function(item()*) as item()*
 {
     let $arity := function-arity($fn)
     return
-        function($node as item()) {
+        function($node as item()*) {
             fold-left(
                 $repeat-seq,
                 (),
@@ -1636,6 +1648,12 @@ declare function o:repeat($repeat-seq as item()*, $fn as function(*))
                 }
             )
         }
+};
+
+declare function o:repeat($repeat-seq as item()*)
+as item()*
+{
+    o:repeat($repeat-seq, o:identity#1)
 };
 
 (:~
@@ -1765,6 +1783,7 @@ as item()*
  : Generic walker function (depth-first).
  :)
 declare function o:postwalk($form as item()*, $fn as function(*))
+as item()*
 {
     $form ! (
         typeswitch (.)
@@ -1784,6 +1803,7 @@ declare function o:postwalk($form as item()*, $fn as function(*))
  : Generic walker function (breadth-first).
  :)
 declare function o:prewalk($form as item()*, $fn as function(*))
+as item()*
 {
     $form ! (
         let $walked := $fn(.)
@@ -1806,12 +1826,16 @@ declare function o:prewalk($form as item()*, $fn as function(*))
     )
 };
 
+(: Return a function for flattening a sequence :)
 declare function o:flatten()
+as function(item()*) as item()*
 {
     o:postwalk(?, o:children#1)
 };
 
+(: Flatten returns a sequence of child nodes. No elements :)
 declare function o:flatten($nodes as item()*)
+as item()*
 {
     o:flatten()($nodes)
 };
@@ -2537,6 +2561,11 @@ as map(*)
             map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname))
         )
     ))
+};
+
+declare function o:ns($namespaces as map(*))
+{
+    map { 'ns': $namespaces }
 };
 
 declare function o:ns-builder()

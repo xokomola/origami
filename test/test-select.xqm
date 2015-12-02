@@ -1,7 +1,7 @@
 xquery version "3.1";
 
 (:~
- : Tests for o:builder()
+ : Tests for o:select()
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 

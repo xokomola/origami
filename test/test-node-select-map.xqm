@@ -8,6 +8,37 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
+declare %unit:test function test:identity()
+{
+    unit:assert-equals(
+        o:identity(()),
+        ()
+    ),
+
+    unit:assert-equals(
+        o:identity(['x']),
+        ['x']
+    )
+};
+
+declare %unit:test function test:flatten()
+{
+    unit:assert-equals(
+        o:flatten(['a','b','c']),
+        ('b','c')
+    ),
+    
+    unit:assert-equals(
+        o:flatten(['a',['b','c']]),
+        ('c')
+    ),
+
+    unit:assert-equals(
+        o:flatten()(['a',['b','c','d', ['e','f']]]),
+        ('c','d','f')
+    )
+};
+
 declare %unit:test function test:filter-on-element()
 {
     unit:assert-equals(

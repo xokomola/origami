@@ -16,7 +16,6 @@ declare %unit:test function test:extract-nothing()
         'No argument = identity'
     ),
 
-    (: TODO: is this the correct result? :)
     unit:assert-equals(
         o:doc(<p><x y="10"/></p>,o:builder(())),
         ['p', ['x', map { 'y': '10' }]],

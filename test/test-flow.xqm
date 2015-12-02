@@ -8,9 +8,52 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami.xqm'; 
 
-(: TODO: o:do :)
-(: TODO: o:sort :)
-(: TODO: o:repeat :)
+declare %unit:test function test:repeat()
+{
+    unit:assert-equals(
+        o:repeat(1 to 5)(1),
+        (1,1,1,1,1)
+    ),
+    
+    unit:assert-equals(
+        o:repeat(1 to 5)((1,2)),
+        (1,2,1,2,1,2,1,2,1,2)
+    ),
+
+    unit:assert-equals(
+        o:repeat(1 to 5)(['a']),
+        (['a'],['a'],['a'],['a'],['a'])
+    )
+};
+
+declare %unit:test function test:sort()
+{
+    unit:assert-equals(
+        o:sort()((2,1,3)),
+        (1,2,3)
+    ),
+    
+    unit:assert-equals(
+        o:sort(data#1)((2,1,3)),
+        (1,2,3)
+    ),
+
+    unit:assert-equals(
+        o:sort((2,1,3),data#1),
+        (1,2,3)
+    ),
+    
+    unit:assert-equals(
+        o:sort(('b','a','c'),data#1),
+        ('a','b','c')
+    ),
+    
+    unit:assert-equals(
+        o:sort(('b',2,'a',1,'c',3),xs:string#1),
+        (1,2,3,'a','b','c')
+    )
+
+};
 
 declare %unit:test function test:choose() 
 {
