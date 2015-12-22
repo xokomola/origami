@@ -8,30 +8,30 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami'
     at '../origami.xqm'; 
 
-declare %unit:test function test:ns-default-map()
+declare %unit:test function test:ns-map()
 {
-    let $ns := o:ns-default-map()
+    let $ns := o:ns-map()
     return
         unit:assert-equals($ns?html,'http://www.w3.org/1999/xhtml',
-            'XHTML namespace is in default namespace map'
+            "XHTML namespace is in default namespace map"
         ),
 
     let $ns := o:ns-map()
     return
         unit:assert-equals($ns?x,(),
-            'X namespace is not in default namespace map'
+            "X namespace is not in default namespace map"
         ),
 
     let $ns := o:ns-map(map { 'x': 'foobar' })
     return
         unit:assert-equals($ns?x,'foobar',
-            'X namespace is in the namespace map'
+            "X namespace is in the namespace map"
         ),
 
     let $ns := o:ns-map(map { 'html': 'foobar' })
     return
         unit:assert-equals($ns?html,'foobar',
-            'XHTML is mapped to foobar'
+            "XHTML is mapped to foobar"
         )
 };
 
@@ -99,10 +99,29 @@ declare variable $test:psychotic-borderline-neurotic :=
         <x:foo xmlns:y="bar" xmlns:z="foo" z:foo="bar"/>
     </x:foo>;
 
+(:~
+ : This document redefines default namespace on child nodes.
+ : A sane approach probably only returns the namespace from
+ : the highest node. 
+ :)
+declare variable $test:remap-default-ns :=
+  <foo xmlns="foo">
+    <bar xmlns="bar"/>
+  </foo>;
+
+declare %unit:test function test:remap-default-ns()
+{
+    unit:assert-equals(
+        o:ns-map($test:remap-default-ns),
+        map { '': 'foo' },
+        'A weird XML document.'
+    )
+};
+
 declare %unit:test function test:normal-xml()
 {
     unit:assert-equals(
-        o:ns-map-from-nodes($test:sane),
+        o:ns-map($test:sane),
         map { '': 'foo', 'x': 'bar' },
         'A sane XML document.'
     )
@@ -111,7 +130,7 @@ declare %unit:test function test:normal-xml()
 declare %unit:test function test:sane-xml()
 {
     unit:assert-equals(
-        o:ns-map-from-nodes($test:sane),
+        o:ns-map($test:sane),
         map { '': 'foo', 'x': 'bar' },
         'A sane XML document.'
     )
@@ -120,27 +139,27 @@ declare %unit:test function test:sane-xml()
 declare %unit:test function test:insane-xml()
 {
     unit:assert-equals(
-        o:ns-map-from-nodes($test:neurotic),
+        o:ns-map($test:neurotic),
         map { 'x': 'foo' },
         'A neurotic XML maps the same namespace prefix to two different 
          namespace URIs at different points.'
     ),
     
     unit:assert-equals(
-        o:ns-map-from-nodes($test:borderline),
+        o:ns-map($test:borderline),
         map { 'x': 'foo', 'y': 'foo' },
         'A borderline XML maps two different namespace prefixes to the same 
         namespace URI.'
     ),
 
     unit:assert-equals(
-        o:ns-map-from-nodes($test:psychotic),
+        o:ns-map($test:psychotic),
         map { 'x': 'foo', 'y': 'foo' },
         'A psychotic XML maps two different URIs to the same prefix.'
     ),
 
     unit:assert-equals(
-        o:ns-map-from-nodes($test:psychotic-borderline-neurotic),
+        o:ns-map($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
         'A mixture of insanity.'
     )
@@ -148,7 +167,7 @@ declare %unit:test function test:insane-xml()
 
 declare %unit:test function test:ns-builder()
 {
-    let $xf := o:ns-builder(o:ns-default-map())
+    let $xf := o:ns-builder(o:ns-map())
     return
         unit:assert-equals(
             $xf?ns?html,
@@ -164,7 +183,7 @@ declare %unit:test function test:ns-builder()
             'Transformer has sane XML namespace map'
         ),
 
-    let $xf := o:ns-builder(o:ns-builder(), map:merge((o:ns-default-map(), o:ns-map-from-nodes($test:sane))))
+    let $xf := o:ns-builder(o:ns-builder(), map:merge((o:ns-map(), o:ns-map($test:sane))))
     return (
         unit:assert-equals(
             $xf?ns?html,
@@ -184,16 +203,16 @@ declare %unit:test function test:ns-builder()
     )
 };
 
-declare %unit:test function test:default-ns-builder()
+declare %unit:test function test:default-ns()
 {
     unit:assert-equals(
-        o:default-ns-builder(map {}, 'foo')?ns(''),
+        o:default-ns(map {}, 'foo')(''),
         'foo',
         'Default namespace foo'
     ),
 
     unit:assert-equals(
-        o:default-ns-builder(o:ns-builder(), 'bar')?ns(''),
+        o:default-ns(o:ns-map(), 'bar')(''),
         'bar',
         'Default namespace foo'
     )
@@ -205,22 +224,22 @@ declare %unit:test function test:default-namespace()
     return
         unit:assert-equals(namespace-uri($xml), '')
     ,
-    let $xml := o:xml(['h:p'], o:ns-builder(o:ns-default-map()))
+    let $xml := o:xml(['h:p'], o:ns-builder(o:ns-map('h')))
     return
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ,
-    let $xml := o:xml(['p'], o:default-ns-builder('http://foobar'))
+    let $xml := o:xml(['p'], o:ns-builder(o:default-ns('http://foobar')))
     return
         unit:assert-equals(namespace-uri($xml), 'http://foobar')
     ,
-    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:ns-default-map()) => o:default-ns-builder('http://foobar'))
+    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:default-ns(o:ns-map(), 'http://foobar')))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         (: default is set to a uri so we cannot just use $xml/p to get at the child element :)
         unit:assert-equals(namespace-uri($xml/*[1]), 'http://foobar')
     )
     ,
-    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:ns-default-map()) => o:default-ns-builder(''))
+    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:default-ns(o:ns-map(), '')))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         unit:assert-equals(namespace-uri($xml/p), '')
@@ -242,16 +261,16 @@ declare %unit:test function test:prefixes()
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := o:xml(['p'], o:ns-builder() => o:default-ns-builder('http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['p'], o:ns-builder(o:default-ns('http://www.w3.org/1999/xhtml')))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ),
-    let $xml := o:xml(['h:p'], o:ns-builder(o:ns-default-map()) => o:default-ns-builder('http://www.w3.org/1999/xhtml'))
+    let $xml := o:xml(['h:p'], o:ns-builder(o:default-ns(o:ns-map(), 'http://www.w3.org/1999/xhtml')))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
-    let $xml := o:xml(['x:p'],o:ns-builder(map { 'x': 'http://foobar' }) => o:default-ns-builder('http://foobar'))
+    let $xml := o:xml(['x:p'],o:ns-builder(map { 'x': 'http://foobar' } => o:default-ns('http://foobar')))
     return
         unit:assert-equals(prefix-from-QName(node-name($xml)), ())
     ,
@@ -264,7 +283,7 @@ declare %unit:test function test:mixed-namespaces()
 {
     let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-default-map()))
+        o:ns-builder(o:ns-map()))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -275,8 +294,8 @@ declare %unit:test function test:mixed-namespaces()
     ),
     let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-default-map()) 
-        => o:default-ns-builder('http://www.w3.org/2007/app'))
+        o:ns-builder(o:ns-map() 
+        => o:default-ns('http://www.w3.org/2007/app')))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -287,8 +306,8 @@ declare %unit:test function test:mixed-namespaces()
     ),
     let $xml := o:xml(
         ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-default-map()) 
-        => o:default-ns-builder('http://www.w3.org/2005/Atom'))
+        o:ns-builder(o:ns-map()
+        => o:default-ns('http://www.w3.org/2005/Atom')))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
@@ -302,8 +321,8 @@ declare %unit:test function test:mixed-namespaces()
         o:ns-builder(map { 
             'x': 'http://www.w3.org/2005/Atom',
             'atom': 'http://www.w3.org/2005/Atom',
-            'app': 'http://www.w3.org/2007/app' }) 
-        => o:default-ns-builder('http://www.w3.org/2005/Atom'))
+            'app': 'http://www.w3.org/2007/app' }
+        => o:default-ns('http://www.w3.org/2005/Atom')))
     return (
         unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),

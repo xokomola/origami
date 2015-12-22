@@ -23,6 +23,6 @@ declare %unit:test %unit:ignore function test:select()
 {
     unit:assert-equals(
         o:select($test:xml, ['p',(1,2),'i']),
-        'No argument = identity'
+        "No argument = identity"
     )
 };

@@ -23,7 +23,7 @@ declare %unit:test function test:attribute-handler-default()
             [2,4]
         )),
         <x a="6"/>,
-        'Attribute handler'
+        "Attribute handler"
     )    
 };
 
@@ -38,7 +38,7 @@ declare %unit:test function test:attribute-handler-custom()
             }]
         ))),
         <x a="6"/>,
-        'Attribute handler with arguments'
+        "Attribute handler with arguments"
     )
 };
 
@@ -61,7 +61,7 @@ declare %unit:test function test:content-handler-default()
             <li>item 2</li>
             <li>item 3</li>
         </ul>,
-        'Default content handler: build a list'
+        "Default content handler: build a list"
     )
 };
 
@@ -87,7 +87,7 @@ declare %unit:test function test:content-handler-custom()
             <li>item 2</li>
             <li>item 3</li>
         </ul>,
-        'Custom content handler: build a list'
+        "Custom content handler: build a list"
     ),
     
     (: 
@@ -110,8 +110,8 @@ declare %unit:test function test:content-handler-custom()
             <li>item 2</li>
             <li>item 3</li>
         </ul>,
-        'Default content handler: build a list with literal result node
-         constructors.'
+        "Default content handler: build a list with literal result node
+         constructors."
     )
     
 };
@@ -164,7 +164,7 @@ declare %unit:test function test:nested-apply-table()
             )
         ),
         $test:table,
-        'Use nested handlers to produce a table'
+        "Use nested handlers to produce a table"
     )
     (:,
             o:apply(
@@ -212,7 +212,7 @@ declare %unit:test function test:component-0-data-is-ignored()
             ['foo', function() { 'hello' }]
         ), ['foobar']),
         ['foo', 'hello'],
-        "Data is ignored as the handler doesn't use it."
+        "Data is ignored as the handler does not use it."
     )
 };
 

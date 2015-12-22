@@ -8,7 +8,8 @@ module namespace o = 'http://xokomola.com/xquery/origami';
 
 declare %private variable $o:origami-ns := 'http://xokomola.com/xquery/origami';
 declare %private variable $o:version := '0.6';
-declare %private variable $o:ns := o:ns-default-map();
+declare %private variable $o:ns := o:ns-map();
+declare %private variable $o:default-prefixes := ('o');
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:doc-handler-att := '!doc';
 declare %private variable $o:is-element := true();
@@ -484,19 +485,23 @@ declare %private function o:normalize-text-node($node as text())
 };
 
 declare function o:builder()
-as empty-sequence()
+as map(*)
 {
-    ()
+    map { 'type': 'builder' }
 };
 
 declare function o:builder($rules as item()*)
-as map(*)?
+as map(*)
 {
-    o:builder($rules, o:default-ns-builder(o:ns-builder(), ''))
+    typeswitch ($rules)
+    case node() return
+        o:ns-builder($rules)
+    default return 
+        o:builder($rules, o:ns-builder())
 };
 
 declare function o:builder($rules as item()*, $options as map(*))
-as map(*)?
+as map(*)
 {
     typeswitch ($rules)
     case array(*)+ return
@@ -504,13 +509,7 @@ as map(*)?
     case map(*)+ return
         o:map-builder($rules, $options)
     default return
-        ()
-};
-
-declare %private function o:is-builder($builder as item()*)
-as xs:boolean
-{
-    $builder instance of map(*) and $builder?type = 'builder'
+        o:builder()
 };
 
 declare function o:map-builder($rules as map(*), $options as map(*))
@@ -550,6 +549,12 @@ as map(*)
         ))
 };
 
+declare %private function o:is-builder($builder as item()*)
+as xs:boolean
+{
+    $builder instance of map(*) and $builder?type = 'builder'
+};
+
 (:~
  : Converts μ-nodes to XML nodes with the default name resolver.
  :)
@@ -571,7 +576,7 @@ as node()*
         if (map:contains($builder, 'ns')) then
             $builder
         else
-            map:merge(($builder, map:entry('ns', map {})))
+            o:ns-builder($builder)
     let $builder :=
         if (map:contains($builder, 'qname')) then
             $builder
@@ -611,6 +616,7 @@ as item()*
     return
         element { $builder?qname($tag) } {
             (: add namespace :)
+            (: TODO:REVIEW :)
             if ($builder?ns instance of map(*)) then
                 for $prefix in map:keys($builder?ns)
                 let $uri := $builder?ns($prefix)
@@ -783,7 +789,7 @@ as element(*)
             o:xslt-builder-stylesheet2($rules)
         else
             o:xslt-builder-stylesheet($rules),
-        o:default-ns-builder($options, 'http://www.w3.org/1999/XSL/Transform')
+        o:ns-builder($options, o:default-ns('http://www.w3.org/1999/XSL/Transform'))
     )
 };
 
@@ -2433,7 +2439,7 @@ as function(*)
 declare function o:qname-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver(map {}, '')
+    o:qname-resolver(o:select-keys($o:ns, $o:default-prefixes))
 };
 
 (:~
@@ -2442,13 +2448,7 @@ as function(xs:string) as xs:QName
 declare function o:qname-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver($ns-map, '')
-};
-
-declare function o:qname-resolver($ns-map as map(*), $default-namespace-uri as xs:string)
-as function(xs:string) as xs:QName
-{
-    o:qname(?, map:merge((o:ns-map($ns-map), map:entry('', $default-namespace-uri))))
+    o:qname(?, $ns-map)
 };
 
 (:~
@@ -2457,13 +2457,13 @@ as function(xs:string) as xs:QName
 declare function o:html-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver(map {}, 'http://www.w3.org/1999/xhtml')
+    o:qname-resolver(o:default-ns('http://www.w3.org/1999/xhtml'))
 };
 
 declare function o:html-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver($ns-map, 'http://www.w3.org/1999/xhtml')
+    o:qname-resolver(o:default-ns($ns-map, 'http://www.w3.org/1999/xhtml'))
 };
 
 (:~
@@ -2503,32 +2503,7 @@ as xs:QName
             QName((), $name)
 };
 
-(:~
- : Builds a namespace map from the default namespace map provided in the
- : XML file nsmap.xml.
- :)
 declare function o:ns-map()
-as map(*)
-{
-    o:ns-map(map {})
-};
-
-(:~
- : Builds a namespace map from the default namespace map provided in the
- : XML file nsmap.xml and adding extra namespace mappings from a map provided
- : as the argument. The latter mappings will override existing mappings in the
- : default namespace map.
- :)
-declare function o:ns-map($ns-map as map(*))
-as map(*)
-{
-    map:merge((
-        map { 'o': $o:origami-ns },
-        $ns-map
-    ))
-};
-
-declare function o:ns-default-map()
 {
     map:merge((
         for $ns in doc(concat(file:base-dir(), '/nsmap.xml'))/nsmap/*
@@ -2547,66 +2522,79 @@ declare function o:ns-default-map()
  :
  : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
  :)
-declare function o:ns-map-from-nodes($nodes as node()*)
+declare function o:ns-map($node-or-map as item()*)
 as map(*)
 {
-    map:merge((
-        for $node in reverse($nodes/descendant-or-self::*)
-        let $qname := node-name($node)
-        return (
-            for $att in $node/@*
-            let $qname := node-name($att)
-            return
-                map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname)),
-            map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname))
-        )
-    ))
-};
-
-declare function o:ns($namespaces as map(*))
-{
-    map { 'ns': $namespaces }
+    typeswitch ($node-or-map)
+    case map(*) return
+        $node-or-map
+    case node()+ return
+        map:merge((
+            for $node in reverse($node-or-map/descendant-or-self::*)
+            let $qname := node-name($node)
+            return (
+                for $att in $node/@*
+                let $qname := node-name($att)
+                return
+                    map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname)),
+                map:entry((prefix-from-QName($qname), '')[1], namespace-uri-from-QName($qname))
+            )
+        ))
+    case xs:string+ return
+        o:select-keys($o:ns, $node-or-map)
+    default return
+        o:select-keys($o:ns, $o:default-prefixes)
 };
 
 declare function o:ns-builder()
 as map(*)
 {
-    o:ns-builder(o:ns-map())
+    o:ns-builder(o:builder(), o:ns-map())
 };
 
-declare function o:ns-builder($nodes-or-map as item()*)
+declare function o:ns-builder($nodes-or-map as item())
 as map(*)
 {
-    o:ns-builder(map {}, $nodes-or-map)
+    o:ns-builder(o:builder(), $nodes-or-map)
 };
 
-declare function o:ns-builder($builder as map(*), $nodes-or-map as item()*)
+declare function o:ns-builder($builder as map(*), $nodes-or-map as item())
+as map(*)
+{
+    typeswitch ($nodes-or-map)
+    case node() return
+        o:ns-builder($builder, o:ns-map($nodes-or-map))
+    case map(*) return
+        map:merge((
+            $builder,
+            map:entry('ns',
+                map:merge((
+                    $builder('ns'),
+                    $nodes-or-map
+                ))
+            )
+        ))
+    default return
+        $builder
+};
+
+declare function o:default-ns($default-namespace-uri as xs:string)
+as map(*)
+{
+    o:default-ns(map {}, $default-namespace-uri)
+};
+
+declare function o:default-ns($ns-map as map(*), $default-namespace-uri as xs:string)
 as map(*)
 {
     map:merge((
-        $builder,
-        map { 'ns':
-            map:merge((
-                $builder?ns,
-                typeswitch ($nodes-or-map)
-                case map(*) return
-                    $nodes-or-map
-                case node()* return
-                    o:ns-map-from-nodes($nodes-or-map)
-                default return
-                    map {}
-            ))
-        }
+        $ns-map,
+        map:entry('', $default-namespace-uri)
     ))
 };
 
-declare function o:default-ns-builder($default-namespace-uri as xs:string)
-as map(*)
-{
-    o:default-ns-builder(map {}, $default-namespace-uri)
-};
-
-declare function o:default-ns-builder($builder as map(*), $default-namespace-uri as xs:string)
+(: TODO: remove :)
+declare %private function o:default-ns-builder($builder as map(*), $default-namespace-uri as xs:string)
 as map(*)
 {
     let $ns :=
@@ -2618,7 +2606,7 @@ as map(*)
         map:merge((
             $builder,
             map { 'ns': map:merge(($ns, map:entry('', $default-namespace-uri))) },
-            map { 'qname': o:qname-resolver($ns, $default-namespace-uri) }
+            map { 'qname': o:qname-resolver(o:default-ns($default-namespace-uri)) }
         ))
 };
 

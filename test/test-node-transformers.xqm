@@ -301,12 +301,12 @@ declare %unit:test function test:tree-seq-transform()
     unit:assert-equals(
         o:tree-seq(['a',['b']], function($n) { 'element' }),
         ('element','element'),
-        'replace each element by a string'
+        "Replace each element by a string"
     ),
 
     unit:assert-equals(
         o:tree-seq(['a',['b']], function($n) { ($n,$n) }),
         (['a',['b']],['a',['b']],['b'],['b']),
-        'double each node'
+        "Double each node"
     )
 };

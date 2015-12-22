@@ -60,55 +60,55 @@ declare %unit:test function test:choose()
     unit:assert-equals(
         o:choose(['x'],1,['a','b','c']),
         'a',
-        'Choose from array'
+        "Choose from array"
     ),
     
     unit:assert-equals(
         o:choose(['x'],(1,3),['a','b','c']),
         ('a','c'),
-        'Choose from array (multiple)'
+        "Choose from array (multiple)"
     ),
     
     unit:assert-equals(
         o:choose(['x'],'a',map { 'a': 10, 'b': 20, 'c': 30 }),
         10,
-        'Choose from map'
+        "Choose from map"
     ),   
 
     unit:assert-equals(
         o:choose(['x'],('a','c'),map { 'a': 10, 'b': 20, 'c': 30 }),
         (10,30),
-        'Choose from map (multiple)'
+        "Choose from map (multiple)"
     ),
 
     unit:assert-equals(
         o:choose(['x'], function($n) { 'a','c' }, map { 'a': 10, 'b': 20, 'c': 30 }),
         (10,30),
-        'Choose with function'
+        "Choose with function"
     ),
 
     unit:assert-equals(
         o:choose(['x'], function($n) { 1,3 }, ['a','b','c']),
         ('a','c'),
-        'Choose with function'
+        "Choose with function"
     ),
 
     unit:assert-equals(
         o:choose(['x'], function($n) { o:tag($n) }, map { 'x': <x/>, 'y': <y/>}),
         <x/>,
-        'Choose with function using input node'
+        "Choose with function using input node"
     ),
 
     unit:assert-equals(
         o:choose(['x'], function($n) { o:tag($n) }, map { 'x': o:insert('foo'), 'y': o:insert('bar') }),
         ['x', 'foo'],
-        'Choose with function using input node'
+        "Choose with function using input node"
     ),
 
     unit:assert-equals(
         o:choose(['x'], function($n) { 'x', 'y' }, map { 'x': o:insert('foo'), 'y': o:insert('bar') }),
         (['x', 'foo'],['x', 'bar']),
-        'Choose with function selecting node transformers'
+        "Choose with function selecting node transformers"
     ),
 
     unit:assert-equals(

@@ -1,8 +1,5 @@
 xquery version "3.1";
 
-(:~
- : Tests for o:builder()
- :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace o = 'http://xokomola.com/xquery/origami'
@@ -13,19 +10,19 @@ declare %unit:test function test:extract-nothing()
     unit:assert-equals(
         o:doc(<p><x y="10"/></p>, o:builder()),
         ['p', ['x', map { 'y': '10' }]],
-        'No argument = identity'
+        "No argument = identity"
     ),
 
     unit:assert-equals(
-        o:doc(<p><x y="10"/></p>,o:builder(())),
+        o:doc(<p><x y="10"/></p>, o:builder(())),
         ['p', ['x', map { 'y': '10' }]],
-        'Empty argument = identity'
+        "Empty argument = identity"
     ),
 
     unit:assert-equals(
         o:doc(<p><x y="10"/></p>, o:builder(['y'])),
         (),
-        'If no rule matches return nothing'
+        "If no rule matches return nothing"
     )
 };
 
@@ -34,7 +31,7 @@ declare %unit:test function test:extract-whole-document()
     unit:assert-equals(
         o:xml(<p><x y="10"/></p>, o:builder(['*'])),
         <p><x y="10"/></p>,
-        'Copies every element'
+        "Copies every element"
     )
 };
 
@@ -59,7 +56,7 @@ declare %unit:test function test:extract-whole-document-with-holes()
             o:builder(['p', ['c', ()]])
         ),
         ["p", ["x"], ["y"]],
-        'Whole document leaving out c elements'
+        "Whole document leaving out c elements"
     )
 };
 
@@ -112,7 +109,8 @@ function test:invalid-handler()
             o:builder(['p', function($n,$a,$b) {1}])
         ),
         (),
-        "Handlers with arity > 2 are not supported")
+        "Handlers with arity > 2 are not supported"
+    )
 };
 
 declare variable $test:html :=
@@ -182,7 +180,7 @@ declare %unit:test function test:copy-whole-page()
     unit:assert-equals(
         test:xf(['html']),
         $test:html,
-        'Take the whole html document'
+        "Take the whole html document"
     )
 };
 
@@ -198,14 +196,14 @@ declare %unit:test function test:extract-lists()
             $test:html//ol[@id='list-2'],
             $test:html//ol[@id='list-3']
         ),
-        'Take all lists in order'
+        "Take all lists in order"
     ),
     unit:assert-equals(
         test:xf(
             ['div', (), ['ol']]
         ),
         ($test:html//ol[@id='list-1'], $test:html//ol[@id='list-2']),
-        'Take some lists using nested rule'
+        "Take some lists using nested rule"
     )
 };
 
@@ -216,7 +214,7 @@ declare %unit:test function test:remove-lists()
             ['html', ['ol', ()]]
         ),
         $test:html-no-lists,
-        'Remove all lists'
+        "Remove all lists"
     )
 };
 
@@ -229,7 +227,7 @@ declare %unit:test function test:remove-all-but-first()
         <ol id="list-1">
             <li>item 1</li>
         </ol>,
-        'Take first list and remove all but first item'
+        "Take first list and remove all but first item"
     )
 };
 
@@ -256,7 +254,7 @@ declare %unit:test function test:list-handler()
                 <li>item 1</li>
             </ol>
         </list>,
-        'Add list handler'
+        "Add list handler"
     )
 };
 
@@ -294,7 +292,7 @@ declare %unit:test function test:table-extractions-1()
     unit:assert-equals(
         test:extract-table(['table']),
         $test:html-table//table,
-        'Extract the table'
+        "Extract the table"
     )
 };
 
@@ -303,13 +301,13 @@ declare %unit:test function test:table-extractions-2()
     unit:assert-equals(
         test:extract-table(['td|th']),
         $test:html-table//(td|th),
-        'Extract the table cells (td and th) directly'
+        "Extract the table cells (td and th) directly"
     ),
 
     unit:assert-equals(
         test:extract-table(['table', (), ['tr', (), ['td|th']]]),
         $test:html-table//(td|th),
-        'Extract the table cells (td and th) in proper context'
+        "Extract the table cells (td and th) in proper context"
     )
 };
 
@@ -328,7 +326,7 @@ declare %unit:test function test:table-extractions-3()
             </tr>
         </table>
         ,
-        'Extract the table but remove all attributes'
+        "Extract the table but remove all attributes"
     ),
 
     unit:assert-equals(
@@ -344,7 +342,7 @@ declare %unit:test function test:table-extractions-3()
             </tr>
         </table>
         ,
-        'Extract the table but remove some attributes'
+        "Extract the table but remove some attributes"
     )
 
 };
@@ -371,7 +369,7 @@ declare %unit:test function test:table-extractions-5()
             ['tr[td]']
           ]),
         ($test:html-table//tr[th], $test:html-table//tr[td]),
-        'The same example as in test:table-extractions-4 but worked around the issue'
+        "The same example as in test:table-extractions-4 but worked around the issue"
     )
 };
 
@@ -400,7 +398,7 @@ declare %unit:test function test:table-extractions-6()
             </tr>
         </table>
         ,
-        'Remove all text nodes from the table cells'
+        "Remove all text nodes from the table cells"
     )
 };
 
@@ -427,7 +425,7 @@ declare %unit:test function test:table-extractions-7()
             </tr>
         </table>
         ,
-        'Clear inline markup inside the cells'
+        "Clear inline markup inside the cells"
     )
 };
 
@@ -457,6 +455,6 @@ declare %unit:test function test:table-extractions-8()
             </tr>
         </table>
         ,
-        'Clear inline markup inside the cells and remove the attributes'
+        "Clear inline markup inside the cells and remove the attributes"
     )
 };
