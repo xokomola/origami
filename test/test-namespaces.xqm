@@ -114,7 +114,7 @@ declare %unit:test function test:remap-default-ns()
     unit:assert-equals(
         o:ns-map($test:remap-default-ns),
         map { '': 'foo' },
-        'A weird XML document.'
+        "A weird XML document."
     )
 };
 
@@ -123,7 +123,7 @@ declare %unit:test function test:normal-xml()
     unit:assert-equals(
         o:ns-map($test:sane),
         map { '': 'foo', 'x': 'bar' },
-        'A sane XML document.'
+        "A sane XML document."
     )
 };
 
@@ -132,7 +132,7 @@ declare %unit:test function test:sane-xml()
     unit:assert-equals(
         o:ns-map($test:sane),
         map { '': 'foo', 'x': 'bar' },
-        'A sane XML document.'
+        "A sane XML document."
     )
 };
 
@@ -141,27 +141,27 @@ declare %unit:test function test:insane-xml()
     unit:assert-equals(
         o:ns-map($test:neurotic),
         map { 'x': 'foo' },
-        'A neurotic XML maps the same namespace prefix to two different 
-         namespace URIs at different points.'
+        "A neurotic XML maps the same namespace prefix to two different 
+         namespace URIs at different points."
     ),
     
     unit:assert-equals(
         o:ns-map($test:borderline),
         map { 'x': 'foo', 'y': 'foo' },
-        'A borderline XML maps two different namespace prefixes to the same 
-        namespace URI.'
+        "A borderline XML maps two different namespace prefixes to the same 
+         namespace URI."
     ),
 
     unit:assert-equals(
         o:ns-map($test:psychotic),
         map { 'x': 'foo', 'y': 'foo' },
-        'A psychotic XML maps two different URIs to the same prefix.'
+        "A psychotic XML maps two different URIs to the same prefix."
     ),
 
     unit:assert-equals(
         o:ns-map($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
-        'A mixture of insanity.'
+        "A mixture of insanity."
     )
 };
 
@@ -172,7 +172,7 @@ declare %unit:test function test:ns-builder()
         unit:assert-equals(
             $xf?ns?html,
             'http://www.w3.org/1999/xhtml',
-            'Transformer has XHTML namespace URI'
+            "Transformer has XHTML namespace URI"
         ),
         
     let $xf := o:ns-builder($test:sane)
@@ -180,7 +180,7 @@ declare %unit:test function test:ns-builder()
         unit:assert-equals(
             $xf?ns,
             map { '': 'foo', 'x': 'bar' },
-            'Transformer has sane XML namespace map'
+            "Transformer has sane XML namespace map"
         ),
 
     let $xf := o:ns-builder(o:ns-builder(), map:merge((o:ns-map(), o:ns-map($test:sane))))
@@ -188,17 +188,17 @@ declare %unit:test function test:ns-builder()
         unit:assert-equals(
             $xf?ns?html,
             'http://www.w3.org/1999/xhtml',
-            'Transformer is composed of default namespaces and XML namespaces'
+            "Transformer is composed of default namespaces and XML namespaces"
         ),
         unit:assert-equals(
             $xf?ns?x,
             'bar',
-            'Transformer has bar namespace'
+            "Transformer has bar namespace"
         ),
         unit:assert-equals(
             $xf?ns(''),
             'foo',
-            'Transformer has foo namespace'
+            "Transformer has foo namespace"
         )
     )
 };
@@ -208,13 +208,13 @@ declare %unit:test function test:default-ns()
     unit:assert-equals(
         o:default-ns(map {}, 'foo')(''),
         'foo',
-        'Default namespace foo'
+        "Default namespace foo"
     ),
 
     unit:assert-equals(
         o:default-ns(o:ns-map(), 'bar')(''),
         'bar',
-        'Default namespace foo'
+        "Default namespace foo"
     )
 };
 
