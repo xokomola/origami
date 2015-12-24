@@ -67,6 +67,30 @@ as element()
     o:parse-html(o:read-text($uri, map:merge(($options, map { 'lines': false() }))), $options)
 };
 
+declare function o:get-html($uri as xs:string)
+{
+    o:get-html($uri, map {})
+};
+
+declare function o:get-html($uri as xs:string, $options as map(xs:string, xs:string))
+{
+    let $req :=
+        <http:request method="get"
+            override-media-type="application/octet-stream"
+            href="{ $uri }">
+            <http:header name="User-Agent" value="{ $options('user-agent') }"/>
+            <http:header name="Accept" value="text/html"/>
+            <http:header name="Accept-Language" value="en-US,en;q=0.8"/>
+        </http:request>
+    let $binary := http:send-request($req)[2]
+    return 
+        try {
+            html:parse($binary)
+        } catch * {
+            'Conversion to XML failed: ' || $err:description
+        }
+};
+
 (:~
  : Note that binary or strings can be passed to html:parse, in which case encoding
  : can be used to override automatic detection.
@@ -529,6 +553,28 @@ as map(*)
         map:entry('xf', $transformer),
         map:entry('type', 'builder')
     ))
+};
+
+declare function o:extract($rules as array(*)+)
+{
+    let $options := map {}
+    let $compiled-rules := map:merge($rules ! o:compile-rule(., ()))
+    let $xslt := 
+        o:xml(
+            o:xslt-builder-stylesheet-extract($compiled-rules),
+            o:ns-builder(o:ns-builder(), o:default-ns('http://www.w3.org/1999/XSL/Transform'))
+        )
+    return
+        map:merge((
+            $options,            
+            map:entry(
+                $o:doc-handler-att,
+                o:bind-xslt-handlers($xslt, $compiled-rules, $options)
+            ),
+            map:entry('xslt', $xslt),
+            map:entry('rules', $compiled-rules),
+            map:entry('type', 'builder')
+        ))        
 };
 
 declare function o:xslt-builder($rules as array(*)+, $options as map(*))
@@ -2439,7 +2485,7 @@ as function(*)
 declare function o:qname-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver(o:select-keys($o:ns, $o:default-prefixes))
+    o:qname(?, o:select-keys($o:ns, $o:default-prefixes))
 };
 
 (:~
@@ -2452,18 +2498,26 @@ as function(xs:string) as xs:QName
 };
 
 (:~
+ : 
+ :)
+declare function o:qname-resolver($ns-map as map(*), $default-ns-uri as xs:string)
+{
+    o:qname(?, o:default-ns($ns-map, $default-ns-uri))
+};
+
+(:~
  : Returns a name resolver function with the HTML namespace as default.
  :)
 declare function o:html-resolver()
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver(o:default-ns('http://www.w3.org/1999/xhtml'))
+    o:qname(?, o:default-ns('http://www.w3.org/1999/xhtml'))
 };
 
 declare function o:html-resolver($ns-map as map(*))
 as function(xs:string) as xs:QName
 {
-    o:qname-resolver(o:default-ns($ns-map, 'http://www.w3.org/1999/xhtml'))
+    o:qname(?, o:default-ns($ns-map, 'http://www.w3.org/1999/xhtml'))
 };
 
 (:~
@@ -2591,23 +2645,6 @@ as map(*)
         $ns-map,
         map:entry('', $default-namespace-uri)
     ))
-};
-
-(: TODO: remove :)
-declare %private function o:default-ns-builder($builder as map(*), $default-namespace-uri as xs:string)
-as map(*)
-{
-    let $ns :=
-        if (map:contains($builder,'ns')) then
-            $builder?ns
-        else
-            map { 'o': $o:origami-ns }
-    return
-        map:merge((
-            $builder,
-            map { 'ns': map:merge(($ns, map:entry('', $default-namespace-uri))) },
-            map { 'qname': o:qname-resolver(o:default-ns($default-namespace-uri)) }
-        ))
 };
 
 declare %private function o:handler-repr($h as item())

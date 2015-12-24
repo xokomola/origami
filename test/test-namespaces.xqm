@@ -2,7 +2,16 @@ xquery version "3.1";
 
 (:~
  : Tests for namespace functions.
+ :
+ : - o:ns-map
+ : - o:default-ns
+ : - o:qname
+ : - o:name (TODO)
+ : - o:qname-resolver
+ : - o:html-resolver
+ : - o:ns-builder
  :)
+
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace o = 'http://xokomola.com/xquery/origami'
