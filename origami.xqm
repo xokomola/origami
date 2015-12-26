@@ -2265,7 +2265,7 @@ as xs:QName
 };
 
 (:~
- : Returns a QName resolver function from the default namespace map (nsmap.xml).
+ : Returns a QName resolver function from the default namespace map.
  :)
 declare function o:qname-resolver()
 as function(xs:string) as xs:QName
@@ -2307,11 +2307,27 @@ as function(xs:string) as xs:string
 
 declare function o:ns-map()
 {
-    map:merge((
-        for $ns in doc(concat(file:base-dir(), '/nsmap.xml'))/nsmap/*
-        return
-            map:entry(string($ns/@prefix), string($ns/@uri))
-    ))
+    map {
+        'o': 'http://xokomola.com/xquery/origami',
+        'μ': 'http://xokomola.com/xquery/origami/mu',
+        'mu': 'http://xokomola.com/xquery/origami/mu',
+        'js': 'http://www.w3.org/2013/XSL/json',
+        'json': 'http://www.w3.org/2013/XSL/json',
+        'csv': 'http://example.org/linked-csv',
+        'html': 'http://www.w3.org/1999/xhtml',
+        'h': 'http://www.w3.org/1999/xhtml',
+        'atom': 'http://www.w3.org/2005/Atom',
+        'app': 'http://www.w3.org/2007/app',
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+        'svg': 'http://www.w3.org/2000/svg',
+        'fo': 'http://www.w3.org/1999/XSL/Format',
+        'xsl': 'http://www.w3.org/1999/XSL/Transform',
+        'xs': 'http://www.w3.org/2001/XMLSchema',
+        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'xlink': 'http://www.w3.org/1999/xlink',
+        'xl': 'http://www.w3.org/1999/xlink'
+    }
 };
 
 (:~
