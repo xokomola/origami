@@ -17,6 +17,73 @@ module namespace test = 'http://xokomola.com/xquery/origami/tests';
 import module namespace o = 'http://xokomola.com/xquery/origami'
     at '../origami.xqm'; 
 
+declare %unit:test function test:qname_1()
+{
+    unit:assert-equals(
+        o:qname('x'), xs:QName('x')
+    )
+};
+
+declare %unit:test("expected", "err:FOCA0002") function test:qname_1-no-ns-uri-error()
+{
+    unit:assert-equals(
+        o:qname('x:y'), xs:QName('x'),
+        "Cannot cast to xs:anyURI: ''"
+    )
+};
+
+declare %unit:test("expected", "err:FOCA0002") function test:qname_1-lexical-error()
+{
+    unit:assert-equals(
+        o:qname('1y'), xs:QName('x'),
+        "Cannot cast to xs:anyURI: '1y'"
+    )
+};
+
+declare %unit:test function test:qname_2()
+{
+    unit:assert-equals(
+        o:qname('x:y', map { 'x': 'foo' }), QName('foo','x:y')
+    )
+};
+
+declare %unit:test function test:qname_2-n-ns-uri-generated()
+{
+    unit:assert-equals(
+        o:qname('x:y', map { 'y': 'foo' }), QName('ns:prefix:x','x:y')
+    )
+};
+
+declare %unit:test function test:qname_2-default-ns()
+{
+    unit:assert-equals(
+        o:qname('y', map { '': 'foo' }), QName('foo','y')
+    )
+};
+
+declare %unit:test function test:name_2-with-map()
+{
+    unit:assert-equals(
+        o:name('x', map { 'x': 'foo' }), 'foo'
+    ),
+
+    unit:assert-equals(
+        o:name('x', map { 'y': 'foo' }), 'x'
+    )
+};
+
+(: TODO: what to do with arrays? :)
+declare %unit:test function test:name_2-with-fn()
+{
+    unit:assert-equals(
+        o:name('x', function($x) { upper-case($x) }), 'X'
+    ),
+
+    unit:assert-equals(
+        o:name('x', function($x) { () }), 'x'
+    )
+};
+
 declare %unit:test function test:ns-map()
 {
     let $ns := o:ns-map()
