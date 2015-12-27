@@ -1,15 +1,17 @@
 xquery version "3.1";
 
 (:~
- : Tests for namespace functions.
+ : Tests for name resolvers and namespace related functions.
  :
- : - o:ns-map
- : - o:default-ns
  : - o:qname
- : - o:name (TODO)
+ : - o:name
  : - o:qname-resolver
- : - o:html-resolver
+ : - o:name-resolver
+ : - o:ns-map
+ : - o:ns
+ : - o:default-ns
  : - o:ns-builder
+ : - o:xml (name related tests)
  :)
 
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
@@ -20,14 +22,16 @@ import module namespace o = 'http://xokomola.com/xquery/origami'
 declare %unit:test function test:qname_1()
 {
     unit:assert-equals(
-        o:qname('x'), xs:QName('x')
+        o:qname('x'), 
+        xs:QName('x')
     )
 };
 
 declare %unit:test("expected", "err:FOCA0002") function test:qname_1-no-ns-uri-error()
 {
     unit:assert-equals(
-        o:qname('x:y'), xs:QName('x'),
+        o:qname('x:y'), 
+        xs:QName('x'),
         "Cannot cast to xs:anyURI: ''"
     )
 };
@@ -35,7 +39,8 @@ declare %unit:test("expected", "err:FOCA0002") function test:qname_1-no-ns-uri-e
 declare %unit:test("expected", "err:FOCA0002") function test:qname_1-lexical-error()
 {
     unit:assert-equals(
-        o:qname('1y'), xs:QName('x'),
+        o:qname('1y'), 
+        xs:QName('x'),
         "Cannot cast to xs:anyURI: '1y'"
     )
 };
@@ -43,32 +48,61 @@ declare %unit:test("expected", "err:FOCA0002") function test:qname_1-lexical-err
 declare %unit:test function test:qname_2()
 {
     unit:assert-equals(
-        o:qname('x:y', map { 'x': 'foo' }), QName('foo','x:y')
+        o:qname('x:y', map { 'x': 'foo' }), 
+        QName('foo','x:y')
     )
 };
 
 declare %unit:test function test:qname_2-n-ns-uri-generated()
 {
     unit:assert-equals(
-        o:qname('x:y', map { 'y': 'foo' }), QName('ns:prefix:x','x:y')
+        o:qname('x:y', map { 'y': 'foo' }), 
+        QName('urn:x-prefix:x','x:y')
     )
 };
 
 declare %unit:test function test:qname_2-default-ns()
 {
     unit:assert-equals(
-        o:qname('y', map { '': 'foo' }), QName('foo','y')
+        o:qname('y', map { '': 'foo' }), 
+        QName('foo','y')
+    )
+};
+
+declare %unit:test function test:qname_2-with-fn()
+{
+    unit:assert-equals(
+        o:qname('x', function($x) { QName((), upper-case($x)) }), 
+        QName((), 'X')
+    )
+};
+
+declare %unit:test("expected", "err:XPTY0004") function test:qname_2-with-fn-not-qname-err()
+{
+    unit:assert-equals(
+        o:qname('x', function($x) { upper-case($x) }), 
+        QName((), 'X')
+    )
+};
+
+declare %unit:test("expected", "o:invalid-argument") function test:qname_2-with-fn-resolver-err()
+{
+    unit:assert-equals(
+        o:qname('x', [1,2,3]), 
+        QName((), 'X')
     )
 };
 
 declare %unit:test function test:name_2-with-map()
 {
     unit:assert-equals(
-        o:name('x', map { 'x': 'foo' }), 'foo'
+        o:name('x', map { 'x': 'foo' }), 
+        'foo'
     ),
 
     unit:assert-equals(
-        o:name('x', map { 'y': 'foo' }), 'x'
+        o:name('x', map { 'y': 'foo' }), 
+        'x'
     )
 };
 
@@ -76,39 +110,149 @@ declare %unit:test function test:name_2-with-map()
 declare %unit:test function test:name_2-with-fn()
 {
     unit:assert-equals(
-        o:name('x', function($x) { upper-case($x) }), 'X'
+        o:name('x', function($x) { upper-case($x) }), 
+        'X'
     ),
 
     unit:assert-equals(
-        o:name('x', function($x) { () }), 'x'
+        o:name('x', function($x) { () }), 
+        'x'
     )
 };
 
-declare %unit:test function test:ns-map()
+(: TODO: trigger invalid arg errors :)
+
+declare %unit:test function test:qname-resolver_0()
 {
-    let $ns := o:ns-map()
-    return
-        unit:assert-equals($ns?html,'http://www.w3.org/1999/xhtml',
-            "XHTML namespace is in default namespace map"
-        ),
+    unit:assert-equals(
+        o:qname-resolver()('o:foo'),
+        QName('http://xokomola.com/xquery/origami', 'foo'),
+        "Origami namespace is defined as a default namespace"
+    ),
 
-    let $ns := o:ns-map()
-    return
-        unit:assert-equals($ns?x,(),
-            "X namespace is not in default namespace map"
-        ),
+    unit:assert-equals(
+        o:qname-resolver()('html:foo'),
+        QName('http://www.w3.org/1999/xhtml', 'foo'),
+        "HTML namespace is defined as a default namespace"
+    )
+};
 
-    let $ns := o:ns-map(map { 'x': 'foobar' })
-    return
-        unit:assert-equals($ns?x,'foobar',
-            "X namespace is in the namespace map"
-        ),
+declare %unit:test function test:qname-resolver_1()
+{
+    unit:assert-equals(
+        o:qname-resolver(function($name) { QName((),'x') })('foo'),
+        QName((), 'x'),
+        "Resolve string names using a resolver function that returns QNames"
+    ),
 
-    let $ns := o:ns-map(map { 'html': 'foobar' })
-    return
-        unit:assert-equals($ns?html,'foobar',
-            "XHTML is mapped to foobar"
-        )
+    unit:assert-equals(
+        o:qname-resolver(map { '': 'x' })('foo'),
+        QName('x', 'foo'),
+        "Resolve string names using a namespace map"
+    )    
+};
+
+declare %unit:test function test:qname-resolver_2()
+{
+    unit:assert-equals(
+        o:qname-resolver(map { '': 'x' }, 'y')('foo'),
+        QName('y', 'foo'),
+        "Resolve string names using a namespace map and an explicit default namespace uri"
+    )    
+};
+
+declare %unit:test function test:name-resolver_1()
+{
+    unit:assert-equals(
+        o:name-resolver(function($name) { upper-case($name) })('foo'),
+        'FOO'
+    ),
+
+    unit:assert-equals(
+        o:name-resolver(map { 'foo': 'x' })('foo'),
+        'x'
+    )    
+};
+
+declare %unit:test function test:ns-map_0()
+{
+    unit:assert-equals(
+        o:ns-map()?html,
+        'http://www.w3.org/1999/xhtml',
+        "XHTML namespace is in default namespace map"
+    ),
+
+    unit:assert-equals(
+        o:ns-map()?x,
+        (),
+        "X namespace is not in default namespace map"
+    )
+};
+
+declare %unit:test function test:ns-map_1()
+{
+    unit:assert-equals(
+        o:ns-map(map { 'x': 'foobar' })?x,
+        'foobar',
+        "X namespace is in the namespace map"
+    ),
+
+    unit:assert-equals(
+        o:ns-map(map { 'html': 'foobar' })?html,
+        'foobar',
+        "XHTML is mapped to foobar"
+    )
+};
+
+declare %unit:test function test:ns_1()
+{
+    unit:assert-equals(
+        o:ns((map { 'x': 'urn:foo' }, <x:foo xmlns:x="urn:bar"/>)),
+        map {
+            'x': 'urn:bar'
+        }
+    ),
+    
+    unit:assert-equals(
+        o:ns((<foo xmlns="urn:foo"/>, <bar xmlns="urn:bar"/>)),
+        map { 
+            '': 'urn:bar'
+        }
+    )
+
+};
+
+declare %unit:test("expected", "o:invalid-argument") function test:ns_1-arg-err()
+{
+    unit:assert-equals(
+        o:ns(1),
+        'x',
+        "Second argument is not valid"
+    )
+};
+
+declare %unit:test function test:ns_2()
+{
+    unit:assert-equals(
+        o:ns(o:ns-map(), ()),
+        o:ns-map()
+    ),
+    
+    unit:assert-equals(
+        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, ()),
+        map { 'x': 'urn:foo', 'y': 'urn:bar' }
+    ),
+
+    unit:assert-equals(
+        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, 'x'),
+        map { 'x': 'urn:foo' }
+    ),
+
+    unit:assert-equals(
+        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, ('x','y')),
+        map { 'x': 'urn:foo', 'y': 'urn:bar' }
+    )
+
 };
 
 (:~
@@ -185,81 +329,92 @@ declare variable $test:remap-default-ns :=
     <bar xmlns="bar"/>
   </foo>;
 
-declare %unit:test function test:remap-default-ns()
+declare %unit:test function test:ns-map_1-default-ns()
 {
     unit:assert-equals(
-        o:ns-map($test:remap-default-ns),
+        o:ns($test:remap-default-ns),
         map { '': 'foo' },
         "A weird XML document."
     )
 };
 
-declare %unit:test function test:normal-xml()
+declare %unit:test function test:ns-map_1-normal-xml()
 {
     unit:assert-equals(
-        o:ns-map($test:sane),
+        o:ns($test:sane),
         map { '': 'foo', 'x': 'bar' },
         "A sane XML document."
     )
 };
 
-declare %unit:test function test:sane-xml()
+declare %unit:test function test:ns-map_1-sane-xml()
 {
     unit:assert-equals(
-        o:ns-map($test:sane),
+        o:ns($test:sane),
         map { '': 'foo', 'x': 'bar' },
         "A sane XML document."
     )
 };
 
-declare %unit:test function test:insane-xml()
+declare %unit:test function test:ns_1-insane-xml()
 {
     unit:assert-equals(
-        o:ns-map($test:neurotic),
+        o:ns($test:neurotic),
         map { 'x': 'foo' },
         "A neurotic XML maps the same namespace prefix to two different 
          namespace URIs at different points."
     ),
     
     unit:assert-equals(
-        o:ns-map($test:borderline),
+        o:ns($test:borderline),
         map { 'x': 'foo', 'y': 'foo' },
         "A borderline XML maps two different namespace prefixes to the same 
          namespace URI."
     ),
 
     unit:assert-equals(
-        o:ns-map($test:psychotic),
+        o:ns($test:psychotic),
         map { 'x': 'foo', 'y': 'foo' },
         "A psychotic XML maps two different URIs to the same prefix."
     ),
 
     unit:assert-equals(
-        o:ns-map($test:psychotic-borderline-neurotic),
+        o:ns($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
         "A mixture of insanity."
     )
 };
 
+declare %unit:test function test:default-ns_2()
+{
+    unit:assert-equals(
+        o:default-ns(map {}, 'foo')(''),
+        'foo',
+        "Default namespace foo"
+    ),
+
+    unit:assert-equals(
+        o:default-ns(o:ns-map(), 'bar')(''),
+        'bar',
+        "Default namespace foo"
+    )
+};
+
 declare %unit:test function test:ns-builder()
 {
-    let $xf := o:ns-builder(o:ns-map())
-    return
-        unit:assert-equals(
-            $xf?ns?html,
-            'http://www.w3.org/1999/xhtml',
-            "Transformer has XHTML namespace URI"
-        ),
+    unit:assert-equals(
+        o:ns-builder(o:ns-map())?ns?html,
+        'http://www.w3.org/1999/xhtml',
+        "Transformer has XHTML namespace URI"
+    ),
         
-    let $xf := o:ns-builder($test:sane)
-    return
-        unit:assert-equals(
-            $xf?ns,
-            map { '': 'foo', 'x': 'bar' },
-            "Transformer has sane XML namespace map"
-        ),
+    unit:assert-equals(
+        o:ns-builder($test:sane)?ns,
+        map { '': 'foo', 'x': 'bar' },
+        "Transformer has sane XML namespace map"
+    ),
 
-    let $xf := o:ns-builder(o:ns-builder(), map:merge((o:ns-map(), o:ns-map($test:sane))))
+    let $xf := o:ns-builder(o:ns((o:ns-map(), $test:sane)))
     return (
         unit:assert-equals(
             $xf?ns?html,
@@ -279,28 +434,13 @@ declare %unit:test function test:ns-builder()
     )
 };
 
-declare %unit:test function test:default-ns()
-{
-    unit:assert-equals(
-        o:default-ns(map {}, 'foo')(''),
-        'foo',
-        "Default namespace foo"
-    ),
-
-    unit:assert-equals(
-        o:default-ns(o:ns-map(), 'bar')(''),
-        'bar',
-        "Default namespace foo"
-    )
-};
-
 declare %unit:test function test:default-namespace() 
 {
     let $xml := o:xml(['p'])
     return
         unit:assert-equals(namespace-uri($xml), '')
     ,
-    let $xml := o:xml(['h:p'], o:ns-builder(o:ns-map('h')))
+    let $xml := o:xml(['h:p'], o:ns-builder(o:ns(o:ns-map(),'h')))
     return
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ,
