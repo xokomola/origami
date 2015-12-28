@@ -27,12 +27,12 @@ declare %unit:test function test:qname_1()
     )
 };
 
-declare %unit:test("expected", "err:FOCA0002") function test:qname_1-no-ns-uri-error()
+declare %unit:test function test:qname_1-generated-ns-uri()
 {
     unit:assert-equals(
         o:qname('x:y'), 
-        xs:QName('x'),
-        "Cannot cast to xs:anyURI: ''"
+        QName('urn:x-prefix:x', 'y'),
+        "Generate prefix for unknown namespaces"
     )
 };
 
@@ -120,23 +120,6 @@ declare %unit:test function test:name_2-with-fn()
     )
 };
 
-(: TODO: trigger invalid arg errors :)
-
-declare %unit:test function test:qname-resolver_0()
-{
-    unit:assert-equals(
-        o:qname-resolver()('o:foo'),
-        QName('http://xokomola.com/xquery/origami', 'foo'),
-        "Origami namespace is defined as a default namespace"
-    ),
-
-    unit:assert-equals(
-        o:qname-resolver()('html:foo'),
-        QName('http://www.w3.org/1999/xhtml', 'foo'),
-        "HTML namespace is defined as a default namespace"
-    )
-};
-
 declare %unit:test function test:qname-resolver_1()
 {
     unit:assert-equals(
@@ -152,15 +135,6 @@ declare %unit:test function test:qname-resolver_1()
     )    
 };
 
-declare %unit:test function test:qname-resolver_2()
-{
-    unit:assert-equals(
-        o:qname-resolver(map { '': 'x' }, 'y')('foo'),
-        QName('y', 'foo'),
-        "Resolve string names using a namespace map and an explicit default namespace uri"
-    )    
-};
-
 declare %unit:test function test:name-resolver_1()
 {
     unit:assert-equals(
@@ -172,36 +146,6 @@ declare %unit:test function test:name-resolver_1()
         o:name-resolver(map { 'foo': 'x' })('foo'),
         'x'
     )    
-};
-
-declare %unit:test function test:ns-map_0()
-{
-    unit:assert-equals(
-        o:ns-map()?html,
-        'http://www.w3.org/1999/xhtml',
-        "XHTML namespace is in default namespace map"
-    ),
-
-    unit:assert-equals(
-        o:ns-map()?x,
-        (),
-        "X namespace is not in default namespace map"
-    )
-};
-
-declare %unit:test function test:ns-map_1()
-{
-    unit:assert-equals(
-        o:ns-map(map { 'x': 'foobar' })?x,
-        'foobar',
-        "X namespace is in the namespace map"
-    ),
-
-    unit:assert-equals(
-        o:ns-map(map { 'html': 'foobar' })?html,
-        'foobar',
-        "XHTML is mapped to foobar"
-    )
 };
 
 declare %unit:test function test:ns_1()
@@ -229,30 +173,6 @@ declare %unit:test("expected", "o:invalid-argument") function test:ns_1-arg-err(
         'x',
         "Second argument is not valid"
     )
-};
-
-declare %unit:test function test:ns_2()
-{
-    unit:assert-equals(
-        o:ns(o:ns-map(), ()),
-        o:ns-map()
-    ),
-    
-    unit:assert-equals(
-        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, ()),
-        map { 'x': 'urn:foo', 'y': 'urn:bar' }
-    ),
-
-    unit:assert-equals(
-        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, 'x'),
-        map { 'x': 'urn:foo' }
-    ),
-
-    unit:assert-equals(
-        o:ns(map { 'x': 'urn:foo', 'y': 'urn:bar' }, ('x','y')),
-        map { 'x': 'urn:foo', 'y': 'urn:bar' }
-    )
-
 };
 
 (:~
@@ -329,7 +249,7 @@ declare variable $test:remap-default-ns :=
     <bar xmlns="bar"/>
   </foo>;
 
-declare %unit:test function test:ns-map_1-default-ns()
+declare %unit:test function test:ns_1-default-ns()
 {
     unit:assert-equals(
         o:ns($test:remap-default-ns),
@@ -338,7 +258,7 @@ declare %unit:test function test:ns-map_1-default-ns()
     )
 };
 
-declare %unit:test function test:ns-map_1-normal-xml()
+declare %unit:test function test:ns_1-normal-xml()
 {
     unit:assert-equals(
         o:ns($test:sane),
@@ -347,7 +267,7 @@ declare %unit:test function test:ns-map_1-normal-xml()
     )
 };
 
-declare %unit:test function test:ns-map_1-sane-xml()
+declare %unit:test function test:ns_1-sane-xml()
 {
     unit:assert-equals(
         o:ns($test:sane),
@@ -356,6 +276,9 @@ declare %unit:test function test:ns-map_1-sane-xml()
     )
 };
 
+(:~
+ : This test illustrates how `o:ns` behaves on insane XML nodes.
+ :)
 declare %unit:test function test:ns_1-insane-xml()
 {
     unit:assert-equals(
@@ -381,56 +304,7 @@ declare %unit:test function test:ns_1-insane-xml()
     unit:assert-equals(
         o:ns($test:psychotic-borderline-neurotic),
         map { 'x': 'foo', 'y': 'foo', 'z': 'foo' },
-        "A mixture of insanity."
-    )
-};
-
-declare %unit:test function test:default-ns_2()
-{
-    unit:assert-equals(
-        o:default-ns(map {}, 'foo')(''),
-        'foo',
-        "Default namespace foo"
-    ),
-
-    unit:assert-equals(
-        o:default-ns(o:ns-map(), 'bar')(''),
-        'bar',
-        "Default namespace foo"
-    )
-};
-
-declare %unit:test function test:ns-builder()
-{
-    unit:assert-equals(
-        o:ns-builder(o:ns-map())?ns?html,
-        'http://www.w3.org/1999/xhtml',
-        "Transformer has XHTML namespace URI"
-    ),
-        
-    unit:assert-equals(
-        o:ns-builder($test:sane)?ns,
-        map { '': 'foo', 'x': 'bar' },
-        "Transformer has sane XML namespace map"
-    ),
-
-    let $xf := o:ns-builder(o:ns((o:ns-map(), $test:sane)))
-    return (
-        unit:assert-equals(
-            $xf?ns?html,
-            'http://www.w3.org/1999/xhtml',
-            "Transformer is composed of default namespaces and XML namespaces"
-        ),
-        unit:assert-equals(
-            $xf?ns?x,
-            'bar',
-            "Transformer has bar namespace"
-        ),
-        unit:assert-equals(
-            $xf?ns(''),
-            'foo',
-            "Transformer has foo namespace"
-        )
+        "Multiple disorders."
     )
 };
 
@@ -440,29 +314,43 @@ declare %unit:test function test:default-namespace()
     return
         unit:assert-equals(namespace-uri($xml), '')
     ,
-    let $xml := o:xml(['h:p'], o:ns-builder(o:ns(o:ns-map(),'h')))
+    let $xml := o:xml(['h:p'], o:ns(['h', $o:ns?html]))
     return
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
     ,
-    let $xml := o:xml(['p'], o:ns-builder(o:default-ns('http://foobar')))
+    let $xml := o:xml(['p'], o:ns(['', 'http://foobar']))
     return
         unit:assert-equals(namespace-uri($xml), 'http://foobar')
     ,
-    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:default-ns(o:ns-map(), 'http://foobar')))
+    let $xml := o:xml(['h:x',['p']], o:ns((['h', $o:ns?html], ['', 'http://foobar'])))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         (: default is set to a uri so we cannot just use $xml/p to get at the child element :)
         unit:assert-equals(namespace-uri($xml/*[1]), 'http://foobar')
     )
     ,
-    let $xml := o:xml(['h:x',['p']], o:ns-builder(o:default-ns(o:ns-map(), '')))
+    let $xml := o:xml(['h:x',['p']], o:ns(['h', $o:ns?html]))
     return (
         unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml'),
         unit:assert-equals(namespace-uri($xml/p), '')
     )
 };
 
-(: TODO: default ns prefixes are present in the result :)
+declare %unit:test function test:ns-builder()
+{
+    unit:assert-equals(
+        o:ns-builder(['html', $o:ns?html])?ns?html,
+        'http://www.w3.org/1999/xhtml',
+        "Builder has XHTML namespace URI"
+    ),
+        
+    unit:assert-equals(
+        o:ns-builder($test:sane)?ns,
+        map { '': 'foo', 'x': 'bar' },
+        "Transformer has sane XML namespace map"
+    )
+};
+
 declare %unit:test function test:no-extra-namespaces-in-result()
 {
       unit:assert-equals(
@@ -471,82 +359,11 @@ declare %unit:test function test:no-extra-namespaces-in-result()
       )  
 };
 
-declare %unit:test function test:prefixes() 
+declare %unit:test function test:all-default-bound-prefixes-on-document-element()
 {
-    let $xml := o:xml(['p'])
-    return
-        unit:assert-equals(prefix-from-QName(node-name($xml)), ())
-    ,
-    let $xml := o:xml(['p'], o:ns-builder(o:default-ns('http://www.w3.org/1999/xhtml')))
-    return (
-        unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
-        unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/1999/xhtml')
-    ),
-    let $xml := o:xml(['h:p'], o:ns-builder(o:default-ns(o:ns-map(), 'http://www.w3.org/1999/xhtml')))
-    return
-        unit:assert-equals(prefix-from-QName(node-name($xml)), ())
-    ,
-    let $xml := o:xml(['x:p'],o:ns-builder(map { 'x': 'http://foobar' } => o:default-ns('http://foobar')))
-    return
-        unit:assert-equals(prefix-from-QName(node-name($xml)), ())
-    ,
-    let $xml := o:xml(['x:p'], o:ns-builder(map { 'x': 'http://foobar' }))
-    return
-        unit:assert-equals(prefix-from-QName(node-name($xml)), 'x')
+      unit:assert(
+        every $prefix in in-scope-prefixes(o:xml(['x'],  $o:ns))
+        satisfies $prefix = ('xml','origami','html','svg','xsl','xs')
+      )  
 };
 
-declare %unit:test function test:mixed-namespaces()
-{
-    let $xml := o:xml(
-        ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-map()))
-    return (
-        unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
-        unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[1])), 'atom'),
-        unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
-        unit:assert-equals(namespace-uri($xml/*[3]), '')        
-    ),
-    let $xml := o:xml(
-        ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-map() 
-        => o:default-ns('http://www.w3.org/2007/app')))
-    return (
-        unit:assert-equals(prefix-from-QName(node-name($xml)), ()),
-        unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[1])), 'atom'),
-        unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
-        unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2007/app')         
-    ),
-    let $xml := o:xml(
-        ['app:foo', ['atom:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(o:ns-map()
-        => o:default-ns('http://www.w3.org/2005/Atom')))
-    return (
-        unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
-        unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[1])), ()),
-        unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
-        unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2005/Atom')         
-    ),    
-    let $xml := o:xml(
-        ['app:foo', ['x:bar'], ['atom:bar'], ['category']], 
-        o:ns-builder(map { 
-            'x': 'http://www.w3.org/2005/Atom',
-            'atom': 'http://www.w3.org/2005/Atom',
-            'app': 'http://www.w3.org/2007/app' }
-        => o:default-ns('http://www.w3.org/2005/Atom')))
-    return (
-        unit:assert-equals(prefix-from-QName(node-name($xml)), 'app'),
-        unit:assert-equals(namespace-uri($xml), 'http://www.w3.org/2007/app'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[1])), ()),
-        unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[2])), ()),
-        unit:assert-equals(namespace-uri($xml/*[1]), 'http://www.w3.org/2005/Atom'),
-        unit:assert-equals(prefix-from-QName(node-name($xml/*[3])), ()),
-        unit:assert-equals(namespace-uri($xml/*[3]), 'http://www.w3.org/2005/Atom')         
-    )
-};

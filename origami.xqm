@@ -6,9 +6,17 @@ xquery version "3.1";
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
-declare %private variable $o:origami-ns := 'http://xokomola.com/xquery/origami';
 declare %private variable $o:version := '0.6';
-declare %private variable $o:ns := o:ns-map();
+
+declare variable $o:ns :=
+    map {
+        'origami': 'http://xokomola.com/xquery/origami',
+        'html': 'http://www.w3.org/1999/xhtml',
+        'svg': 'http://www.w3.org/2000/svg',
+        'xsl': 'http://www.w3.org/1999/XSL/Transform',
+        'xs': 'http://www.w3.org/2001/XMLSchema'
+    };
+declare %private variable $o:origami-ns := $o:ns?origami;
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:doc-handler-att := '!doc';
 declare %private variable $o:is-element := true();
@@ -533,11 +541,12 @@ as map(*)
 declare function o:builder($rules as item()*)
 as map(*)
 {
+    (: TODO: review :)
     typeswitch ($rules)
     case node() return
         o:ns-builder($rules)
     default return 
-        o:builder($rules, o:ns-builder())
+        o:builder($rules, map { })
 };
 
 declare function o:builder($rules as item()*, $options as map(*))
@@ -812,11 +821,11 @@ as element(*)
 {
     o:xml(
         o:xslt-builder-stylesheet($rules, $options),
-        (: TODO: clean this up :)
-        o:ns-builder(
-            o:ns-builder(map:merge(($options, o:select-keys($o:ns,'o')))), 
-            o:default-ns('http://www.w3.org/1999/XSL/Transform')
-        )
+        o:ns((
+            $options,
+            ['o', $o:ns?origami], 
+            ['', 'http://www.w3.org/1999/XSL/Transform']
+        ))
     )
 };
 
@@ -2234,7 +2243,7 @@ as function(*)
 declare function o:qname($name as xs:string)
 as xs:QName
 {
-    QName((), $name)
+    o:qname($name, map {})
 };
 
 (:~
@@ -2252,12 +2261,12 @@ as xs:QName
             let $prefix := substring-before($name, ':')
             let $local := substring-after($name, ':')
             let $default-ns := $resolver('')
-            let $ns := ($resolver($prefix), $o:ns($prefix), concat('urn:x-prefix:', $prefix))[1]
+            let $ns := ($resolver($prefix), concat('urn:x-prefix:', $prefix))[1]
             return
                 if ($ns = $default-ns) then
                     QName($ns, $local)
                 else
-                    QName($ns, concat($prefix, ':', $local))
+                    QName($ns, $name)
         else
             if (map:contains($resolver, '')) then
                 QName($resolver(''), $name)
@@ -2270,37 +2279,22 @@ as xs:QName
 };
 
 (:~
- : Returns a QName resolver function from the default namespace map.
- :)
-declare function o:qname-resolver()
-as function(xs:string) as xs:QName
-{
-    o:qname(?, o:ns-map())
-};
-
-(:~
  : Returns a QName resolver function from the namespace map passed as it's argument.
  :)
-declare function o:qname-resolver($resolver as item()*)
+declare function o:qname-resolver($resolver as item())
 as function(xs:string) as xs:QName
 {
     typeswitch ($resolver)
     case map(*) return
-        o:qname(?, o:ns-map($resolver))
-    case node()* return
-        o:qname(?, o:ns-map($resolver))
+        o:qname(?, $resolver)
     case array(*) return
         o:qname(?)
     case function(*) return
         o:qname(?, $resolver)
+    case node() return
+        o:qname(?, o:ns($resolver))
     default return
         o:qname(?)
-};
-
-declare function o:qname-resolver($node-or-map as item()*, $default-ns-uri as xs:string)
-as function(xs:string) as xs:QName
-{
-    o:qname(?, o:default-ns(o:ns-map($node-or-map), $default-ns-uri))
 };
 
 (:~
@@ -2322,38 +2316,6 @@ as function(xs:string) as xs:string
     o:name(?, $resolver)
 };
 
-declare function o:ns-map()
-as map(*)
-{
-    o:ns-map(map {})
-};
-
-declare function o:ns-map($map as map(*))
-as map(*)
-{
-    map:merge((
-        map {
-            'o': 'http://xokomola.com/xquery/origami',
-            'js': 'http://www.w3.org/2013/XSL/json',
-            'json': 'http://www.w3.org/2013/XSL/json',
-            'csv': 'http://example.org/linked-csv',
-            'html': 'http://www.w3.org/1999/xhtml',
-            'h': 'http://www.w3.org/1999/xhtml',
-            'atom': 'http://www.w3.org/2005/Atom',
-            'app': 'http://www.w3.org/2007/app',
-            'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
-            'svg': 'http://www.w3.org/2000/svg',
-            'fo': 'http://www.w3.org/1999/XSL/Format',
-            'xsl': 'http://www.w3.org/1999/XSL/Transform',
-            'xs': 'http://www.w3.org/2001/XMLSchema',
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'xlink': 'http://www.w3.org/1999/xlink',
-            'xl': 'http://www.w3.org/1999/xlink'
-        },
-        $map
-    ))
-};
 
 (:~
  : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
@@ -2366,94 +2328,56 @@ as map(*)
  : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
  :)
 declare function o:ns($namespaces as item()*)
-{
-    o:ns($namespaces, ())
-};
-
-declare function o:ns($namespaces as item()*, $names as xs:string*)
 as map(*)
 {
-    let $ns-map :=
-        fold-left(
-            $namespaces,
-            map {},
-            function ($ns-map, $arg) {
-                typeswitch ($arg)
-                case map(*) return
-                    map:merge(($ns-map, $arg))
-                case node() return
-                    map:merge(($ns-map,
-                        for $node in reverse($arg/descendant-or-self::*)
-                        let $qname := node-name($node)
-                        return (
-                            for $att in $node/@*
-                            let $qname := node-name($att)
-                            return
-                                map:entry(
-                                    (prefix-from-QName($qname), '')[1], 
-                                    namespace-uri-from-QName($qname)
-                                ),
+    fold-left(
+        $namespaces,
+        map {},
+        function ($ns-map, $arg) {
+            typeswitch ($arg)
+            case map(*) return
+                map:merge(($ns-map, $arg))
+            case array(*) return
+                if (array:size($arg) = 2) then
+                    map:merge(($ns-map, map:entry($arg(1), $arg(2)))) 
+                else
+                    error($o:err-invalid-argument, 'Namespace binding requires two array elements [$prefix,$uri]')
+            case node() return
+                map:merge(($ns-map,
+                    for $node in reverse($arg/descendant-or-self::*)
+                    let $qname := node-name($node)
+                    return (
+                        for $att in $node/@*
+                        let $qname := node-name($att)
+                        return
                             map:entry(
                                 (prefix-from-QName($qname), '')[1], 
                                 namespace-uri-from-QName($qname)
-                            )
+                            ),
+                        map:entry(
+                            (prefix-from-QName($qname), '')[1], 
+                            namespace-uri-from-QName($qname)
                         )
-                    ))
-                default return
-                    error($o:err-invalid-argument, "Invalid namespace map argument")        
-            }
-        )
-    return
-        if (empty($names)) then
-            $ns-map
-        else
-            o:select-keys($ns-map, $names)
-};
-
-declare function o:ns-builder()
-as map(*)
-{
-    o:ns-builder(o:builder(), o:ns-map())
-};
-
-declare function o:ns-builder($nodes-or-map as item())
-as map(*)
-{
-    o:ns-builder(o:builder(), $nodes-or-map)
-};
-
-declare function o:ns-builder($builder as map(*), $nodes-or-map as item())
-as map(*)
-{
-    typeswitch ($nodes-or-map)
-    case node() return
-        o:ns-builder($builder, o:ns($nodes-or-map))
-    case map(*) return
-        map:merge((
-            $builder,
-            map:entry('ns',
-                map:merge((
-                    $builder('ns'),
-                    $nodes-or-map
+                    )
                 ))
-            )
-        ))
-    default return
-        $builder
+            default return
+                error($o:err-invalid-argument, "Invalid namespace map argument")        
+        }
+    )
 };
 
-declare function o:default-ns($default-namespace-uri as xs:string)
+declare function o:ns-builder($namespaces as item()*)
 as map(*)
 {
-    o:default-ns(map {}, $default-namespace-uri)
+    o:ns-builder(map {}, $namespaces)
 };
 
-declare function o:default-ns($ns-map as map(*), $default-namespace-uri as xs:string)
+declare function o:ns-builder($builder as map(*), $namespaces as item()*)
 as map(*)
 {
-    map:merge((
-        $ns-map,
-        map:entry('', $default-namespace-uri)
+   map:merge((
+        $builder,
+        map:entry('ns', o:ns($namespaces))
     ))
 };
 
@@ -2524,7 +2448,7 @@ as item()*
 (:~
  : Extract some entries from a map into a new map.
  :)
-declare function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
+declare %private function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
 as map(*)
 {
     map:merge((
