@@ -583,19 +583,14 @@ as map(*)
 declare function o:xslt-builder($rules as array(*)+, $options as map(*))
 as map(*)
 {
-    let $compiled-rules := o:compile-rules($rules)
-    let $xslt := o:compile-stylesheet($compiled-rules, $options)
-    return
-        map:merge((
-            $options,            
-            map:entry(
-                $o:doc-handler-key,
-                o:transformer($xslt, $compiled-rules)
-            ),
-            map:entry('xslt', $xslt),
-            map:entry('rules', $compiled-rules),
-            map:entry('type', 'builder')
-        ))
+    map:merge((
+        $options,            
+        map:entry(
+            $o:doc-handler-key,
+            o:transformer($rules, $options)
+        ),
+        map:entry('type', 'builder')
+    ))
 };
 
 declare %private function o:is-builder($builder as item()*)
