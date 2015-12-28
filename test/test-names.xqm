@@ -7,9 +7,7 @@ xquery version "3.1";
  : - o:name
  : - o:qname-resolver
  : - o:name-resolver
- : - o:ns-map
  : - o:ns
- : - o:default-ns
  : - o:ns-builder
  : - o:xml (name related tests)
  :)
@@ -277,7 +275,7 @@ declare %unit:test function test:ns_1-sane-xml()
 };
 
 (:~
- : This test illustrates how `o:ns` behaves on insane XML nodes.
+ : Illustrates how `o:ns` behaves on insane XML nodes.
  :)
 declare %unit:test function test:ns_1-insane-xml()
 {

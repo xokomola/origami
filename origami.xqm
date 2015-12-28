@@ -18,7 +18,7 @@ declare variable $o:ns :=
     };
 declare %private variable $o:origami-ns := $o:ns?origami;
 declare %private variable $o:handler-att := '@';
-declare %private variable $o:doc-handler-att := '!doc';
+declare %private variable $o:doc-handler-key := '!doc';
 declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
 declare %private variable $o:internal-att := ($o:handler-att);
@@ -268,8 +268,8 @@ as item()*
             o:builder($builder)
     return
         if (exists($builder)) then
-            if  (map:contains($builder, $o:doc-handler-att)) then
-                $builder($o:doc-handler-att)($nodes)
+            if  (map:contains($builder, $o:doc-handler-key)) then
+                $builder($o:doc-handler-key)($nodes)
             else if ($builder?xf instance of function(item()*) as item()*) then
                 o:to-doc($builder?xf($nodes), ())
             else
@@ -589,7 +589,7 @@ as map(*)
         map:merge((
             $options,            
             map:entry(
-                $o:doc-handler-att,
+                $o:doc-handler-key,
                 o:transformer($xslt, $compiled-rules)
             ),
             map:entry('xslt', $xslt),
@@ -688,7 +688,6 @@ as attribute()*
 {
     map:for-each($atts,
         function($k, $v) {
-            (: Removes Origami namespaced attributes :)
             if ($k = $o:internal-att) then
                 ()
             else
