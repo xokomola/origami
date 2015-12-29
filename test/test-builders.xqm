@@ -218,11 +218,12 @@ declare %unit:test function test:remove-lists()
     )
 };
 
+(: TODO: review XPaths (have to specify / otherwise li[1] and li will have same specificity):)
 declare %unit:test function test:remove-all-but-first()
 {
     unit:assert-equals(
         test:xf(
-            ['ol[@id="list-1"]', ['li[1]'], ['li', ()]]
+            ['ol[@id="list-1"]', ['/li[1]'], ['/li', ()]]
         ),
         <ol id="list-1">
             <li>item 1</li>
@@ -243,7 +244,7 @@ declare %unit:test function test:list-handler()
                     </ol>,
                     o:builder(
                         ['ol', o:wrap(['list']),
-                            ['li[1]'], ['li', ()]
+                            ['/li[1]'], ['/li', ()]
                         ]
                     )
                 )
@@ -311,10 +312,11 @@ declare %unit:test function test:table-extractions-2()
     )
 };
 
+(: TODO: review XPaths (to remove attributes have to specify */@* instead of just @*) :)
 declare %unit:test function test:table-extractions-3()
 {
     unit:assert-equals(
-        test:extract-table(['table', ['@*', ()]]),
+        test:extract-table(['table', ['*/@*', ()]]),
         <table>
             <tr>
                 <th>hello <b>world</b>!</th>
@@ -330,7 +332,7 @@ declare %unit:test function test:table-extractions-3()
     ),
 
     unit:assert-equals(
-        test:extract-table(['table', ['@*[name(.) != "class"]', ()]]),
+        test:extract-table(['table', ['*/@*[name(.) != "class"]', ()]]),
         <table>
             <tr class="odd">
                 <th>hello <b>world</b>!</th>
@@ -373,12 +375,16 @@ declare %unit:test function test:table-extractions-5()
     )
 };
 
+(: TODO: review XPaths (now XPaths are concatenated we cannot just specify td|th) :)
 declare %unit:test function test:table-extractions-6()
 {
     unit:assert-equals(
         test:extract-table(
           ['table', 
-            ['td|th', 
+            ['td', 
+              ['text()', ()]
+            ],
+            ['th', 
               ['text()', ()]
             ]
           ]
@@ -402,12 +408,18 @@ declare %unit:test function test:table-extractions-6()
     )
 };
 
+(: TODO: review XPaths (now XPaths are concatenated we cannot just specify td|th) :)
 declare %unit:test function test:table-extractions-7()
 {
     unit:assert-equals(
         test:extract-table(
           ['table', 
-            ['td|th', 
+            ['th', 
+              ['*', (), 
+                ['text()']
+              ]
+            ],
+            ['td', 
               ['*', (), 
                 ['text()']
               ]
@@ -429,6 +441,7 @@ declare %unit:test function test:table-extractions-7()
     )
 };
 
+(: TODO: review XPaths (now XPaths are concatenated we cannot just specify td|th) :)
 declare %unit:test function test:table-extractions-8()
 {
     unit:assert-equals(
@@ -436,7 +449,12 @@ declare %unit:test function test:table-extractions-8()
           ['table', 
             ['tr', 
               ['@*', ()],
-              ['td|th', 
+              ['th', 
+                ['*', (), 
+                  ['text()']
+                ]
+              ],
+              ['td', 
                 ['*', (), 
                   ['text()']
                 ]
