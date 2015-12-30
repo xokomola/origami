@@ -155,15 +155,33 @@ declare %unit:test function test:xml()
     unit:assert-equals(
         o:xml(['a', ('foo', ['b', 'bar', ['c'], 'baz'])]),
         <a>foo<b>bar<c/>baz</b></a>
-    )
+    ),
   
+    (:~
+     : Sequence as content.
+     :)
+    unit:assert-equals(
+        o:xml(['a', (map {'x': 10}, 'foo')]),
+        <a x="10">foo</a>,
+        "The attributes map may be part of the child content"
+    ),
+    
+    (:~
+     : Sequence as content.
+     :)
+    unit:assert-equals(
+        o:xml([('a', map {'x': 10}, 'foo')]),
+        <a x="10">foo</a>,
+        "The whole element may be wrapped in a sequence."
+    )
+
 };
 
 declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed")
 function test:unwellformed()
 {
     unit:assert-equals(
-        o:xml(['a', (map {'x': 1}, ('b', 'c'))]),
+        o:xml([map {'x': 1}, 'a', ('b', 'c')]),
         <a x="1">bc</a>
     )
 };

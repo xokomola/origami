@@ -404,6 +404,7 @@ as map(*)
  : TODO: rename as this is the real transforming function!!!
  :)
 declare function o:transformer($rules)
+as function(*)
 {
     o:transformer($rules, map {})
 };
@@ -423,6 +424,18 @@ as function(*)
                 o:merge-node-handlers#1
             )
         }
+};
+
+declare function o:transform($nodes as item()*, $rules as array(*)+)
+as item()*
+{
+    o:transformer($rules)($nodes)
+};
+
+declare function o:transform($nodes as item()*, $rules as array(*)+, $options as map(*))
+as item()*
+{
+    o:transformer($rules, $options)($nodes)
 };
 
 (:~
@@ -638,7 +651,7 @@ as node()*
         case array(*) return
             o:to-element(., $builder)
         case map(*) return
-            error($o:err-unwellformed, "A map is only allowed as part of an element node", .)
+            error($o:err-unwellformed, "A map is only allowed preceded by an element tag.", .)
         case function(*) return
             ()
         case empty-sequence() return
@@ -656,26 +669,29 @@ as item()*
     let $tag := o:tag($element)
     let $atts := o:attrs($element)
     let $content := o:children($element)
-    where $tag
+    where exists($tag)
     return
-        element { $builder?qname($tag) } {
-            (: add namespace :)
-            (: TODO:REVIEW :)
-            if ($builder?ns instance of map(*)) then
-                for $prefix in map:keys($builder?ns)
-                let $uri := $builder?ns($prefix)
-                where $prefix != '' and $uri != ''
-                return
-                    namespace { $prefix } { $uri }
-            else
-                (),
-            o:to-attributes($atts, $builder),
-            fold-left($content, (),
-                function($n, $i) {
-                    ($n, o:to-xml($i, $builder))
-                }
-            )
-        }
+        if ($tag instance of xs:string) then
+            element { $builder?qname($tag) } {
+                (: add namespace :)
+                (: TODO:REVIEW :)
+                if ($builder?ns instance of map(*)) then
+                    for $prefix in map:keys($builder?ns)
+                    let $uri := $builder?ns($prefix)
+                    where $prefix != '' and $uri != ''
+                    return
+                        namespace { $prefix } { $uri }
+                else
+                    (),
+                o:to-attributes($atts, $builder),
+                fold-left($content, (),
+                    function($n, $i) {
+                        ($n, o:to-xml($i, $builder))
+                    }
+                )
+            }
+        else
+           error($o:err-unwellformed, 'Tag must be a string', $tag)
 };
 
 declare %private function o:to-attributes($atts as map(*), $builder as map(*))
@@ -762,16 +778,21 @@ declare function o:compile-rules($rules as array(*)+)
 as map(*)*
 {
     map:merge((
-        for $rule in ($rules ! o:compile-rules(., ()))
-        return
-            map:entry($rule?match, $rule)
+        $rules ! o:compile-rules(., ())
     ))
 };
 
-declare %private function o:compile-rules($rule as array(*), $context as xs:string?)
+declare %private function o:compile-rules($rule as array(*), $context as xs:string*)
 as item()*
 {
-    let $xpath as xs:string := o:xpath(($context, array:head($rule)))
+    let $selectors := array:head($rule)
+    let $selectors :=
+        if ($selectors instance of xs:string+) then
+            $selectors
+        else
+            error($o:err-invalid-rule, 'A rule must start with a string sequence', $rule)
+    let $rule-id := o:rule-id(($context, $selectors))
+    let $rule-mode := o:rule-id($context)
     let $tail := array:tail($rule)
     let $handler :=
         if (array:size($tail) > 0 and o:is-handler(array:head($tail))) then
@@ -793,192 +814,200 @@ as item()*
         else
             $tail
     return (
-        map {
-            'match': $xpath,
-            'op': $op,
-            'handler': $handler
-        },
+        map:entry($rule-id,
+            map {
+                'id': $rule-id,
+                'match': o:xpath($selectors),
+                'context': $context, (: for dbg :)
+                'mode': $rule-mode,
+                'op': $op,
+                'handler': $handler
+            }
+        ),
         for $rule in $rules?*
         where $rule instance of array(*)
         return
-            o:compile-rules($rule, $xpath)
+            o:compile-rules($rule, ($context, $selectors))
     )
 };
 
-declare function o:compile-stylesheet($rules)
+declare %private function o:rule-id($paths as xs:string*)
+{
+    xs:hexBinary(hash:md5(string-join($paths, '//')))
+};
+
+declare function o:compile-stylesheet($rules as map(*))
+as element(*)
 {
     o:compile-stylesheet($rules, map {})
 };
 
-declare function o:compile-stylesheet($rules as map(*)*, $options as map(*))
+declare function o:compile-stylesheet($rules as map(*), $namespaces as map(*))
 as element(*)
 {
     o:xml(
-        o:xslt-builder-stylesheet($rules, $options),
+        ['stylesheet',
+            o:xslt-preamble(),
+            map:for-each($rules, 
+                function($id, $rule) { 
+                    o:xslt-rule-templates($rule) }),
+            (: TODO: for each context? :)
+            map:for-each($rules,
+                function($id, $rule) { 
+                    o:xslt-identity-transform($rule) })
+        ],
         o:ns((
-            $options,
+            $namespaces,
             ['o', $o:ns?origami], 
             ['', 'http://www.w3.org/1999/XSL/Transform']
         ))
     )
 };
 
-declare %private function o:xslt-builder-stylesheet($rules as map(*)*, $options as map(*))
-as array(*)
+declare %private function o:xslt-preamble()
+as item()*
 {
-    ['stylesheet',
-        map { 'version': '1.0' },
-        ['output',
-            map {
-                'method': 'xml',
-                'indent': 'no'
-            }
-        ],
-        ['strip-space',
-            map { 'elements': '*' }
-        ],
-        ['template',
-            map { 'match': '/' },
-            ['o:seq',
-                ['apply-templates',
-                    map { 'mode': 'remove'}
-                ]
-            ]
-        ],
-        for $key in map:keys($rules)
-        let $rule := $rules($key)
-        let $xpath := $rule?match
-        let $op := $rule?op
-        return
-            ['template', map { 'match': $xpath },
-                if ($op = 'copy') then
-                    ['choose',
-                        ['when',
-                            map { 'test': 'self::text()' },
-                            ['o:text',
-                                ['attribute',
-                                    map { 'name': 'o:path' },
-                                    $xpath
-                                ],
-                                ['value-of',
-                                    map { 'select': '.' }
-                                ]
-                            ]
-                        ],
-                        ['when',
-                            map { 'test': 'count(.|../@*)=count(../@*)' },
-                            ['o:attribute',
-                                map { 'name': '{name(.)}' },
-                                ['attribute',
-                                    map { 'name': 'o:path' },
-                                    $xpath
-                                ],
-                                ['value-of', map { 'select': '.' }]
-                            ]
-                        ],
-                        ['when',
-                            map { 'test': 'self::*' },
-                            ['copy',
-                                ['attribute',
-                                    map { 'name': 'o:path' },
-                                    $xpath
-                                ],
-                                ['apply-templates',
-                                    map { 'select': 'node()|@*' }
-                                ]
-                            ]
-                        ]
-                    ]
-                else
-                    ['apply-templates',
-                        map {
-                            'select': 'node()|@*',
-                            'mode': 'remove'
-                        }
-                    ]
-            ],
-        for $key in map:keys($rules)
-        let $rule := $rules($key)
-        let $xpath := $rule?match
-        let $op := $rule?op
-        where $op != 'remove'
-        return
-            ['template',
-                map { 'match': $xpath, 'mode': 'remove' },
-                ['apply-templates',
-                    map { 'select': '.' }
-                ]
-            ],
-        ['template',
-            map {
-                'priority': -10,
-                'match': 'processing-instruction()|comment()'
-            }
-        ],
-        ['template',
-            map {
-                'priority': -10, 
-                'match': '@*|*|text()'
-            },
-            if (false()) then
-                ['apply-templates',
-                    map { 'select': '*|@*|text()' }
-                ]                
-            else
-                ['copy',
-                    ['apply-templates',
-                        map { 'select': '*|@*|text()' }
-                    ]
-                ]
-        ],
-        ['template',
-            map {
-                'priority': -10,
-                'match': 'processing-instruction()|comment()',
-                'mode': 'remove'
-            }
-        ],
-        ['template',
-            map {
-                'priority': -10, 
-                'match': '@*|*|text()',
-                'mode': 'remove'
-            },
+    map { 'version': '1.0' },
+    ['output',
+        map {
+            'method': 'xml',
+            'indent': 'no'
+        }
+    ],
+    ['strip-space',
+        map { 'elements': '*' }
+    ],
+    ['template',
+        map { 'match': '/' },
+        ['o:seq',
             ['apply-templates',
-                map {
-                    'select': '*|@*|text()',
-                    'mode': 'remove'
-                }
+                map { 'mode': 'remove'}
             ]
-        ]            
+        ]
     ]
 };
 
-declare %private function o:xpath($exprs as xs:string*)
+declare %private function o:xslt-rule-templates($rule as map(*))
+as array(*)
+{
+    ['template', 
+        map:merge((
+            map:entry('match', $rule?match),
+            if (exists($rule?context)) then
+                map:entry('mode', $rule?mode)
+            else
+                ()
+        )),
+        if ($rule?op = 'copy') then
+            ['choose',
+                ['when',
+                    map { 'test': 'self::text()' },
+                    ['o:text',
+                        ['attribute',
+                            map { 'name': 'o:id' },
+                            $rule?id
+                        ],
+                        ['attribute',
+                            map { 'name': 'o:path' },
+                            $rule?match
+                        ],
+                        ['value-of',
+                            map { 'select': '.' }
+                        ]
+                    ]
+                ],
+                ['when',
+                    map { 'test': 'count(.|../@*)=count(../@*)' },
+                    ['o:attribute',
+                        map { 'name': '{name(.)}' },
+                        ['attribute',
+                            map { 'name': 'o:id' },
+                            $rule?id
+                        ],
+                        ['attribute',
+                            map { 'name': 'o:path' },
+                            $rule?match
+                        ],
+                        ['value-of', map { 'select': '.' }]
+                    ]
+                ],
+                ['when',
+                    map { 'test': 'self::*' },
+                    ['copy',
+                        ['attribute',
+                            map { 'name': 'o:id' },
+                            $rule?id
+                        ],
+                        ['attribute',
+                            map { 'name': 'o:path' },
+                            $rule?match
+                        ],
+                        ['apply-templates',
+                            map { 
+                                'select': 'node()|@*', 
+                                'mode': $rule?mode 
+                            }
+                        ]
+                    ]
+                ]
+            ]
+        else
+            ['apply-templates',
+                map {
+                    'select': 'node()|@*',
+                    'mode': $rule?mode
+                }
+            ]
+    ]
+};
+
+declare %private function o:xslt-identity-dbg($rule as map(*))
+as array(*)
+{
+    ['template',
+        map {
+            'match': $rule?match,
+            'context': $rule?context,
+            'mode': $rule?mode
+        }
+    ]
+};
+
+declare %private function o:xslt-identity-transform($rule as map(*))
+as array(*)+
+{
+    ['template',
+        map {
+            'priority': -10,
+            'match': 'text()|processing-instruction()|comment()',
+            'mode': $rule?mode
+        }
+    ],
+    ['template',
+        map {
+            'priority': -10,
+            'match': '*|@*|text()',
+            'mode': $rule?mode
+        },
+        let $apply :=
+            ['apply-template',
+                map {
+                    'select': '*|@*|text()',
+                    'mode': $rule?mode
+                }
+            ]
+        return
+            if ($rule?op = 'copy') then
+                o:wrap($apply, ['copy'])
+            else
+                $apply
+    ]
+};
+
+declare %private function o:xpath($exprs as xs:string+)
 as xs:string?
 {
-    (: TODO: improve this :)
-    string-join(
-        fold-left(
-            $exprs,
-            (),
-            function($acc, $expr) {
-                (
-                    $acc,
-                    translate(
-                        if (not(starts-with($expr,'/'))) then
-                            if (starts-with($expr,'@')) then
-                                '/' || $expr
-                            else
-                                '//' || $expr
-                        else
-                            $expr
-                        , "&quot;", "'")
-                )
-            }
-        ), 
-        ''
-    )
+    translate(string-join($exprs,'//'), "&quot;", "'")
 };
 
 (:~
@@ -1047,20 +1076,17 @@ as item()*
 declare function o:head($node as array(*)?)
 as item()*
 {
-    if (exists($node)) then
-        array:head($node)
-    else
-        ()
+    $node?*[1]
 };
 
 declare function o:tail($node as array(*)?)
 as item()*
 {
-    tail($node?*)
+    $node?*[position() > 1]
 };
 
 declare function o:tag($node as array(*)?)
-as item()
+as item()?
 {
     $node?*[1]
 };
@@ -1071,25 +1097,22 @@ as item()
 declare function o:children($node as array(*)?)
 as item()*
 {
-    if (exists($node) and array:size($node) > 0) then
-        let $c := array:tail($node)
-        return
-            if (array:size($c) > 0 and array:head($c) instance of map(*)) then
-                array:tail($c)?*
-            else
-                $c?*
-    else
-        ()
+    let $items := $node?*
+    where exists($items)
+    return
+        if ($items[2] instance of map(*)) then
+            $items[position() > 2]
+        else
+            $items[position() > 1]
 };
 
 declare function o:attributes($node as array(*)?)
 as map(*)?
 {
-    if (exists($node) and array:size($node) > 1
-        and $node?2 instance of map(*)) then
-        $node?2
-    else
-        ()
+    let $items := $node?*
+    where exists($items) and $items[2] instance of map(*)
+    return
+        $items[2]
 };
 
 (:~
@@ -1100,15 +1123,9 @@ as map(*)?
  : ()?foo will work just like map{}?foo.
  :)
 declare function o:attrs($node as array(*)?)
-as map(*)?
+as map(*)
 {
-    if (exists($node)) then
-        if (array:size($node) > 1 and $node?2 instance of map(*)) then
-            $node?2
-        else
-            map {}
-    else
-        ()
+    (o:attributes($node),map {})[1]
 };
 
 (: TODO: really needed? only returns element handler :)
@@ -2442,11 +2459,11 @@ as item()*
 (:~
  : Extract some entries from a map into a new map.
  :)
-declare %private function o:select-keys($map as map(*)?, $keys as xs:anyAtomicType*)
+declare %private function o:select-keys($map as map(*), $keys as xs:anyAtomicType*)
 as map(*)
 {
     map:merge((
-        for $k in map:keys(($map, map {})[1])
+        for $k in map:keys($map)
         where $k = $keys
         return map:entry($k, $map($k))
     ))
