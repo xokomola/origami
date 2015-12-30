@@ -98,7 +98,7 @@ declare %unit:test function test:children()
 
     unit:assert-equals(
         o:children([(1,2,3), 4,5,6]),
-        (4,5,6),
+        (2,3,4,5,6),
         "Unwellformed element (is fine)"
     ),
 
@@ -143,20 +143,13 @@ declare %unit:test function test:children-map-in-seq()
 {
     unit:assert-equals(
         o:children(['x', (map { 'x': 1}, 'a','b')]),
-        (map { 'x': 1 }, 'a','b'),
-        "Unwellformed but o:children doesn't check for wellformedness"
+        ('a','b'),
+        "Attribute map is not part of children."
     )
 };
 
 declare %unit:test function test:attributes() 
 {
-
-    unit:assert-equals(
-        o:attributes(()),
-        (),
-        "No attributes"
-    ),
-
     unit:assert-equals(
         o:attributes(['x']),
         (),
@@ -183,18 +176,36 @@ declare %unit:test function test:attributes()
     
 };
 
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") function test:attributes-error()
+{
+    unit:assert-equals(
+        o:attributes([]),
+        (),
+        "Emtpy array is not a valid element"
+    )
+};
+
+declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") function test:attributes-error2()
+{
+    unit:assert-equals(
+        o:attributes(()),
+        (),
+        "Emtpy sequence is not a valid element"
+    )
+};
+
 declare %unit:test function test:attrs()
 {
     unit:assert-equals(
-        o:attrs(()),
-        (),
-        "Not an element"
+        o:attrs(['x',map {}, 1,2,3]),
+        map {},
+        "Empty attributes map"
     ),
 
     unit:assert-equals(
-        o:attrs(['x',map {}, 1,2,3]),
+        o:attrs(['x',1,2,3]),
         map {},
-        "No attributes"
+        "No attributes map"
     ),
 
     unit:assert-equals(
@@ -277,7 +288,7 @@ declare %unit:test function test:size()
 
     unit:assert-equals(
         o:size([(1,2,3), 4,5,6]),
-        3,
+        5,
         "Unwellformed element (is fine)"
     ),
 
@@ -398,12 +409,6 @@ declare %unit:test function test:is-handler()
 
 declare %unit:test function test:has-attrs() 
 {
-    unit:assert-equals(
-        o:has-attrs(()),
-        false(),
-        "No document"
-    ),
-    
     unit:assert-equals(
         o:has-attrs(['x']),
         false(),

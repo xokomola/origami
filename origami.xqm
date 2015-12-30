@@ -833,7 +833,7 @@ as item()*
 
 declare %private function o:rule-id($paths as xs:string*)
 {
-    xs:hexBinary(hash:md5(string-join($paths, '//')))
+    concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
 };
 
 declare function o:compile-stylesheet($rules as map(*))
@@ -990,7 +990,7 @@ as array(*)+
             'mode': $rule?mode
         },
         let $apply :=
-            ['apply-template',
+            ['apply-templates',
                 map {
                     'select': '*|@*|text()',
                     'mode': $rule?mode
@@ -1110,9 +1110,11 @@ declare function o:attributes($node as array(*)?)
 as map(*)?
 {
     let $items := $node?*
-    where exists($items) and $items[2] instance of map(*)
     return
-        $items[2]
+        if (count($items) = 0) then
+            error($o:err-unwellformed, 'Not a valid element', $node)
+        else
+            $items[2][. instance of map(*)]
 };
 
 (:~
