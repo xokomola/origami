@@ -209,22 +209,6 @@ declare %unit:test function test:attrs()
     )
 };
 
-declare %unit:test function test:handler() 
-{
-    unit:assert-equals(
-        o:handler(['x', map {}]),
-        (),
-        "No handler"
-    ),
-    
-    unit:assert-equals(
-        o:handler(['x', map { '@': 'fn' }]),
-        'fn',
-        "A string in handler position"
-    )
-
-};
-
 declare %unit:test function test:text() 
 {
     unit:assert-equals(
