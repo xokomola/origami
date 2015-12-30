@@ -223,7 +223,7 @@ declare %unit:test function test:remove-all-but-first()
 {
     unit:assert-equals(
         test:xf(
-            ['ol[@id="list-1"]', ['/li[1]'], ['/li', ()]]
+            ['ol[@id="list-1"]', ['li[1]'], ['li', ()]]
         ),
         <ol id="list-1">
             <li>item 1</li>
@@ -244,7 +244,7 @@ declare %unit:test function test:list-handler()
                     </ol>,
                     o:builder(
                         ['ol', o:wrap(['list']),
-                            ['/li[1]'], ['/li', ()]
+                            ['li[1]'], ['li', ()]
                         ]
                     )
                 )

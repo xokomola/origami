@@ -506,14 +506,14 @@ as function(*)
         let $attrs := o:attrs($element)
         let $content := o:children($element)
         let $rule :=
-            if (map:contains($attrs, 'o:path')) then
-                $rules($attrs('o:path'))
+            if (map:contains($attrs, 'o:id')) then
+                $rules($attrs('o:id'))
             else
                 map {}
         let $merged-attributes :=
             map:merge((
                 map:for-each($attrs,
-                    function($k, $v) { if ($k = ('o:path')) then () else map:entry($k, $v) }
+                    function($k, $v) { if ($k = ('o:id', 'o:path')) then () else map:entry($k, $v) }
                 ),
                 if (map:contains($rule, 'handler') and exists($rule?handler)) then
                     map:entry($o:handler-att, o:prepare-handler($rule?handler))
@@ -746,44 +746,37 @@ as function(*)
         (: allow functions with arity > 2 only if a second arg handler is provided that returns an array (an adapter basically) :)
         (: TODO: put a stricter typecheck on the arg handler function. It must return an array for apply :)
         if (function-arity(array:head($args)) = 2) then
-            function  ($node as array(*), $data as item()*) {
-                apply($handler, array:head($args)($node, $data))
-            }
+            function ($node as array(*), $data as item()*) {
+                apply($handler, array:head($args)($node, $data)) }
         else
-            error($o:err-invalid-handler, 'Argument handler must be of arity 2', $args)
+            error($o:err-invalid-handler, 
+                'Argument handler must be of arity 2', $args)
     else
         switch (function-arity($handler))
         case 0 return
             function($node as array(*), $data as item()*) {
-                $handler()
-            }
+                $handler() }
         case 1 return
             function($node as array(*), $data as item()*) {
-                $handler($node)
-            }
+                $handler($node) }
         case 2 return
             if (array:size($args) = 0) then
                 $handler
             else
                 function($node as array(*), $data as item()*) {
-                    $handler($node, ($args?*, $data))
-                }
+                    $handler($node, ($args?*, $data)) }
         default return
-            error($o:err-invalid-handler, 'Handlers with more than two arguments are not supported ', $handler)
+            error($o:err-invalid-handler, 
+                'Handlers with more than two arguments are not supported ', $handler)
 };
 
-(:~
- : A builder rules consists of an XPath match expression (selector) and
- : a handler.
- :)
 declare function o:compile-rules($rules as array(*)+)
 as map(*)*
 {
-    map:merge((
-        $rules ! o:compile-rules(., ())
-    ))
+    map:merge(($rules ! o:compile-rules(., ())))
 };
 
+(: TODO: look at o:tag, o:attributes etc for ideas for cleaning this up :)
 declare %private function o:compile-rules($rule as array(*), $context as xs:string*)
 as item()*
 {
@@ -793,7 +786,8 @@ as item()*
             $selectors
         else
             error($o:err-invalid-rule, 'A rule must start with a string sequence', $rule)
-    let $rule-id := o:rule-id(($context, $selectors))
+    let $rule-selector := o:xpath($selectors)
+    let $rule-id := o:rule-id(($context, $rule-selector))
     let $rule-mode := o:rule-id($context)
     let $tail := array:tail($rule)
     let $handler :=
@@ -819,7 +813,7 @@ as item()*
         map:entry($rule-id,
             map {
                 'id': $rule-id,
-                'match': o:xpath($selectors),
+                'match': $rule-selector,
                 'context': $context, (: for dbg :)
                 'mode': $rule-mode,
                 'op': $op,
@@ -827,15 +821,17 @@ as item()*
             }
         ),
         for $rule in $rules?*
+        (: TODO: shouldn't we raise an error when this is the case? :)
         where $rule instance of array(*)
         return
-            o:compile-rules($rule, ($context, $selectors))
+            o:compile-rules($rule, ($context, $rule-selector))
     )
 };
 
 declare %private function o:rule-id($paths as xs:string*)
 as xs:string
 {
+    (: mode names must be compatible with qnames :)
     concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
 };
 
@@ -884,10 +880,11 @@ as item()*
     ['template',
         map { 'match': '/' },
         ['o:seq',
-            ['apply-templates',
-                map { 'mode': 'remove'}
-            ]
+            ['apply-templates']
         ]
+    ],
+    ['template',
+        map { 'match': 'text()' }
     ]
 };
 
@@ -913,7 +910,7 @@ as array(*)
                         ],
                         ['attribute',
                             map { 'name': 'o:path' },
-                            $rule?match
+                            string-join(($rule?context,$rule?match),' ')
                         ],
                         ['value-of',
                             map { 'select': '.' }
@@ -930,7 +927,7 @@ as array(*)
                         ],
                         ['attribute',
                             map { 'name': 'o:path' },
-                            $rule?match
+                            string-join(($rule?context,$rule?match),' ')
                         ],
                         ['value-of', map { 'select': '.' }]
                     ]
@@ -944,12 +941,12 @@ as array(*)
                         ],
                         ['attribute',
                             map { 'name': 'o:path' },
-                            $rule?match
+                            string-join(($rule?context,$rule?match),' ')
                         ],
                         ['apply-templates',
                             map { 
                                 'select': 'node()|@*', 
-                                'mode': $rule?mode 
+                                'mode': $rule?id
                             }
                         ]
                     ]
@@ -959,7 +956,7 @@ as array(*)
             ['apply-templates',
                 map {
                     'select': 'node()|@*',
-                    'mode': $rule?mode
+                    'mode': $rule?id
                 }
             ]
     ]
@@ -971,21 +968,21 @@ as array(*)+
     ['template',
         map {
             'priority': -10,
-            'match': 'text()|processing-instruction()|comment()',
-            'mode': $rule?mode
+            'match': 'processing-instruction()|comment()',
+            'mode': $rule?id
         }
     ],
     ['template',
         map {
             'priority': -10,
             'match': '*|@*|text()',
-            'mode': $rule?mode
+            'mode': $rule?id
         },
         let $apply :=
             ['apply-templates',
                 map {
                     'select': '*|@*|text()',
-                    'mode': $rule?mode
+                    'mode': $rule?id
                 }
             ]
         return
