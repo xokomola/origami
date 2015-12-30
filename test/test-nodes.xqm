@@ -151,6 +151,18 @@ declare %unit:test function test:children-map-in-seq()
 declare %unit:test function test:attributes() 
 {
     unit:assert-equals(
+        o:attributes([]),
+        (),
+        "Emtpy array is not a valid element"
+    ),
+
+    unit:assert-equals(
+        o:attributes(()),
+        (),
+        "Emtpy sequence is not a valid element"
+    ),
+
+    unit:assert-equals(
         o:attributes(['x']),
         (),
         "No attributes"
@@ -174,24 +186,6 @@ declare %unit:test function test:attributes()
         "Attribute map"
     )
     
-};
-
-declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") function test:attributes-error()
-{
-    unit:assert-equals(
-        o:attributes([]),
-        (),
-        "Emtpy array is not a valid element"
-    )
-};
-
-declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed") function test:attributes-error2()
-{
-    unit:assert-equals(
-        o:attributes(()),
-        (),
-        "Emtpy sequence is not a valid element"
-    )
 };
 
 declare %unit:test function test:attrs()

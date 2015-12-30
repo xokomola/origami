@@ -1,7 +1,7 @@
 xquery version "3.1";
 
 (:~
- : Origami - a micro-templating library for XQuery 3.1
+ : Origami - micro-templating library for XQuery 3.1
  :)
 
 module namespace o = 'http://xokomola.com/xquery/origami';
@@ -12,13 +12,13 @@ declare variable $o:ns :=
     map {
         'origami': 'http://xokomola.com/xquery/origami',
         'html': 'http://www.w3.org/1999/xhtml',
-        'svg': 'http://www.w3.org/2000/svg',
         'xsl': 'http://www.w3.org/1999/XSL/Transform',
         'xs': 'http://www.w3.org/2001/XMLSchema'
     };
 declare %private variable $o:origami-ns := $o:ns?origami;
 declare %private variable $o:handler-att := '@';
 declare %private variable $o:doc-handler-key := '!doc';
+(: TODO: review the code that uses this :)
 declare %private variable $o:is-element := true();
 declare %private variable $o:is-handler := false();
 declare %private variable $o:internal-att := ($o:handler-att);
@@ -75,6 +75,7 @@ as element()
     o:parse-html(o:read-text($uri, map:merge(($options, map { 'lines': false() }))), $options)
 };
 
+(: TODO: review this function :)
 declare function o:get-html($uri as xs:string)
 {
     o:get-html($uri, map {})
@@ -409,6 +410,7 @@ as function(*)
     o:transformer($rules, map {})
 };
 
+(: TODO: currently $options only takes namespace map :)
 declare function o:transformer($rules as array(*)+, $options as map(*))
 as function(*)
 {
@@ -613,7 +615,7 @@ as xs:boolean
 };
 
 (:~
- : Converts μ-nodes to XML nodes with the default name resolver.
+ : Converts mu-nodes to XML nodes with the default name resolver.
  :)
 declare function o:xml($nodes as item()*)
 as node()*
@@ -622,7 +624,7 @@ as node()*
 };
 
 (:~
- : Converts μ-nodes to XML nodes using a map of options. Currently it will
+ : Converts mu-nodes to XML nodes using a map of options. Currently it will
  : only use the option 'ns' whose value must be a namespace map and 'qname'
  : function that translates strings into QNames.
  :)
@@ -832,8 +834,15 @@ as item()*
 };
 
 declare %private function o:rule-id($paths as xs:string*)
+as xs:string
 {
     concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
+};
+
+declare %private function o:context-rules($rules as map(*))
+as map(*)*
+{
+    for-each(map:keys($rules), $rules)
 };
 
 declare function o:compile-stylesheet($rules as map(*))
@@ -848,13 +857,8 @@ as element(*)
     o:xml(
         ['stylesheet',
             o:xslt-preamble(),
-            map:for-each($rules, 
-                function($id, $rule) { 
-                    o:xslt-rule-templates($rule) }),
-            (: TODO: for each context? :)
-            map:for-each($rules,
-                function($id, $rule) { 
-                    o:xslt-identity-transform($rule) })
+            map:for-each($rules, o:xslt-rule-templates#2),
+            for-each(o:context-rules($rules), o:xslt-identity-transform#1)
         ],
         o:ns((
             $namespaces,
@@ -887,7 +891,7 @@ as item()*
     ]
 };
 
-declare %private function o:xslt-rule-templates($rule as map(*))
+declare %private function o:xslt-rule-templates($rule-id as xs:string, $rule as map(*))
 as array(*)
 {
     ['template', 
@@ -961,18 +965,6 @@ as array(*)
     ]
 };
 
-declare %private function o:xslt-identity-dbg($rule as map(*))
-as array(*)
-{
-    ['template',
-        map {
-            'match': $rule?match,
-            'context': $rule?context,
-            'mode': $rule?mode
-        }
-    ]
-};
-
 declare %private function o:xslt-identity-transform($rule as map(*))
 as array(*)+
 {
@@ -1011,7 +1003,7 @@ as xs:string?
 };
 
 (:~
- : Converts μ-nodes to JSON with the default name resolver.
+ : Converts mu-nodes to JSON with the default name resolver.
  :)
 declare function o:json($nodes as item()*)
 as xs:string
@@ -1020,7 +1012,7 @@ as xs:string
 };
 
 (:~
- : Converts μ-nodes to JSON using a name-resolver.
+ : Converts mu-nodes to JSON using a name-resolver.
  :)
 declare function o:json($nodes as item()*, $name-resolver as function(*))
 as xs:string
@@ -1063,7 +1055,7 @@ as item()*
             )
         case function(*) return
             ()
-        (: FIXME: I think this should be using to-json as well :)
+        (: TODO: I think this should be using to-json as well :)
         case node() return
             o:doc(.)
         default return
@@ -1074,7 +1066,13 @@ as item()*
 (: Node information :)
 
 declare function o:head($node as array(*)?)
-as item()*
+as item()?
+{
+    $node?*[1]
+};
+
+declare function o:tag($node as array(*)?)
+as item()?
 {
     $node?*[1]
 };
@@ -1085,55 +1083,25 @@ as item()*
     $node?*[position() > 1]
 };
 
-declare function o:tag($node as array(*)?)
-as item()?
-{
-    $node?*[1]
-};
-
-(:~
- : Return child nodes of a mu-element as a sequence.
- :)
 declare function o:children($node as array(*)?)
 as item()*
 {
-    let $items := $node?*
-    where exists($items)
-    return
-        if ($items[2] instance of map(*)) then
-            $items[position() > 2]
-        else
-            $items[position() > 1]
+    $node?*[position() > 1 and not(. instance of map(*))]
 };
 
 declare function o:attributes($node as array(*)?)
 as map(*)?
 {
-    let $items := $node?*
-    return
-        if (count($items) = 0) then
-            error($o:err-unwellformed, 'Not a valid element', $node)
-        else
-            $items[2][. instance of map(*)]
+    $node?*[2][. instance of map(*)]
 };
 
 (:~
  : Always returns a map even if element has no attributes.
- :
- : Note that for access to attributes in handlers using the lookup operator (?)
- : you can use both o:attrs($e)?foo as well as o:attributes($e)?foo because
- : ()?foo will work just like map{}?foo.
  :)
 declare function o:attrs($node as array(*)?)
 as map(*)
 {
     (o:attributes($node),map {})[1]
-};
-
-(: TODO: really needed? only returns element handler :)
-declare function o:handler($element as array(*))
-{
-    o:attrs($element)($o:handler-att)
 };
 
 (:~
@@ -1197,7 +1165,7 @@ as xs:boolean
 
 (:~
  : Returns true if this is an element, false if this is a handler or 
- : nil it is neither 
+ : nil if it is neither 
  :)
 declare %private function o:is-element-or-handler($node as item()?)
 as xs:boolean?
@@ -1238,7 +1206,7 @@ as xs:boolean
 declare function o:has-attrs($node as item()?)
 as xs:boolean
 {
-    map:size((o:attrs($node), map {})[1]) > 0
+    map:size(o:attrs($node)) > 0
 };
 
 declare function o:has-handler($element as array(*))
@@ -1250,6 +1218,7 @@ as xs:boolean
 (: Node apply :)
 
 declare function o:apply($nodes as item()*)
+as item()*
 {
     o:apply($nodes, [], ())
 };
@@ -1273,14 +1242,16 @@ as item()*
 };
 
 declare %private function o:apply-rules($data as item()*)
+as item()*
 {
     o:apply(?, $data)
 };
 
 declare %private function o:apply-element($element as array(*), $data as item()*)
+as item()*
 {
     let $tag := o:tag($element)
-    let $handler := o:handler($element)
+    let $handler := o:attrs($element)($o:handler-att)
     let $atts := o:apply-attributes($element, $data)
     let $content := o:children($element)
     let $element := array { $tag, $atts, $content }
@@ -1292,6 +1263,7 @@ declare %private function o:apply-element($element as array(*), $data as item()*
 };
 
 declare %private function o:apply-attributes($element as array(*), $data as item()*)
+as item()*
 {
     let $atts :=
         map:merge((
@@ -1332,7 +1304,9 @@ as item()*
  : TODO: what about other arities?
  : TODO: in Clojure do evaluates in sequence, maybe use compose.
  :)
-declare function o:comp($fns) {
+declare function o:comp($fns)
+as function(item()*) as item()*
+{
     function($input) {
         fold-left($fns, $input,
               function($args, $fn) {
@@ -1345,7 +1319,8 @@ declare function o:comp($fns) {
 (:~
  : Returns the argument unmodified.
  :)
-declare function o:identity($x)
+declare function o:identity($x as item()*)
+as item()*
 { 
     $x 
 };
@@ -1383,6 +1358,7 @@ as item()*
  : A map item will be transformed into a sequence of two item arrays.
  :)
 declare function o:seq()
+as function(item()) as item()*
 {
     function($node as item()) {
         if ($node instance of array(*)) then
@@ -1398,26 +1374,31 @@ declare function o:seq()
  : Transforms an array or map item into a sequence.
  :)
 declare function o:seq($nodes as item())
+as item()*
 {
     o:seq()($nodes)
 };
 
 declare function o:map($nodes as item()*, $fn as function(item()) as item()*)
+as item()*
 {
     for-each($nodes, $fn)
 };
 
 declare function o:map($fn as function(item()) as item()*)
+as item()*
 {
     for-each(?, $fn)
 };
 
 declare function o:filter($nodes as item()*, $fn as function(item()) as xs:boolean)
+as item()*
 {
     filter($nodes, $fn)
 };
 
 declare function o:filter($fn as function(item()) as xs:boolean)
+as item()*
 {
     filter(?, $fn)
 };
@@ -1525,7 +1506,7 @@ as item()*
 };
 
 declare function o:select($steps as array(*))
-as function(*)
+as function(item()*) as item()*
 {
     function($nodes as item()*) {
         o:select-nodes($nodes, $steps, $steps)
@@ -1533,7 +1514,7 @@ as function(*)
 };
 
 declare function o:select($nodes as array(*)*, $steps as array(*))
-as function(*)
+as function(item()) as item()*
 {
     o:select($steps)($nodes)
 };
@@ -2382,13 +2363,13 @@ as map(*)
 declare function o:ns-builder($namespaces as item()*)
 as map(*)
 {
-    o:ns-builder(map {}, $namespaces)
+    o:ns-builder(o:builder(), $namespaces)
 };
 
 declare function o:ns-builder($builder as map(*), $namespaces as item()*)
 as map(*)
 {
-   map:merge((
+    map:merge((
         $builder,
         map:entry('ns', o:ns($namespaces))
     ))
