@@ -770,14 +770,19 @@ as function(*)
                 'Handlers with more than two arguments are not supported ', $handler)
 };
 
+(:
+ : TODO:
+ : - in order to fire multiple rules in same context we need to call apply templates in same mode
+ : - we can add current mode on apply templates if there are no subrules.
+ :)
 declare function o:compile-rules($rules as array(*)+)
 as map(*)*
 {
-    map:merge(($rules ! o:compile-rules(., ())))
+    map:merge($rules ! o:compile-rule(., (), ()))
 };
 
 (: TODO: look at o:tag, o:attributes etc for ideas for cleaning this up :)
-declare %private function o:compile-rules($rule as array(*), $context as xs:string*)
+declare %private function o:compile-rule($rule as array(*), $context as xs:string*, $parent as map(*)?)
 as item()*
 {
     let $selectors := array:head($rule)
@@ -791,54 +796,63 @@ as item()*
     let $rule-mode := o:rule-id($context)
     let $tail := array:tail($rule)
     let $handler :=
-        if (array:size($tail) > 0 and o:is-handler(array:head($tail))) then
-            array:head($tail)
+        if (array:size($tail) > 0 and o:is-handler($tail?*[1])) then
+            $tail?*[1]
         else
             ()
     let $op :=
         if (array:size($tail) = 0
             or (array:size($tail) > 0
-                and not(array:head($tail) instance of empty-sequence()))) then
+                and not($tail?1 instance of empty-sequence()))) then
             'copy'
         else
             'remove'
-    let $rules :=
+    let $subrules :=
         if (array:size($tail) > 0
-            and (array:head($tail) instance of empty-sequence()
+            and ($tail?1 instance of empty-sequence()
                  or exists($handler))) then
-            array:tail($tail)
+            $tail?*[position() > 1]
         else
-            $tail
+            $tail?*
+    let $compiled-rule :=
+        map {
+            'id': $rule-id,
+            'match': $rule-selector,
+            'context': $context, (: for dbg :)
+            'mode': $rule-mode,
+            'subrules': count($subrules),
+            'nextmode': if (count($subrules) > 0) then $rule-id else $rule-mode,
+            'nextop': if (count($subrules) > 0) then $op else ($parent?op,'remove')[1],
+            'op': $op,
+            'handler': $handler
+        }
     return (
-        map:entry($rule-id,
-            map {
-                'id': $rule-id,
-                'match': $rule-selector,
-                'context': $context, (: for dbg :)
-                'mode': $rule-mode,
-                'op': $op,
-                'handler': $handler
-            }
-        ),
-        for $rule in $rules?*
+        map:entry($rule-id, $compiled-rule),
+        for $subrule in $subrules
         (: TODO: shouldn't we raise an error when this is the case? :)
-        where $rule instance of array(*)
+        where $subrule instance of array(*)
         return
-            o:compile-rules($rule, ($context, $rule-selector))
+            o:compile-rule($subrule, ($context, $rule-selector), $compiled-rule)
     )
 };
 
 declare %private function o:rule-id($paths as xs:string*)
-as xs:string
+as xs:string?
 {
-    (: mode names must be compatible with qnames :)
-    concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
+    if (exists($paths)) then
+        (: mode names must be compatible with qnames :)
+        concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
+    else
+        ()
 };
 
 declare %private function o:context-rules($rules as map(*))
 as map(*)*
 {
-    for-each(map:keys($rules), $rules)
+    for $key in map:keys($rules)
+    where $rules($key)?subrules > 0
+    return
+        $rules($key)
 };
 
 declare function o:compile-stylesheet($rules as map(*))
@@ -853,7 +867,9 @@ as element(*)
     o:xml(
         ['stylesheet',
             o:xslt-preamble(),
-            map:for-each($rules, o:xslt-rule-templates#2),
+            map:for-each($rules, o:xslt-rule-templates(?,?,'remove')),
+            map:for-each($rules, o:xslt-rule-templates(?,?,'copy')),
+            (: for each rule that has child rules :)
             for-each(o:context-rules($rules), o:xslt-identity-transform#1)
         ],
         o:ns((
@@ -884,11 +900,22 @@ as item()*
         ]
     ],
     ['template',
-        map { 'match': 'text()' }
+        map { 'match': '@*|text()' }
+    ],
+    ['template',
+        map { 'mode': 'copy', 'match': '@*|text()' },
+        ['copy']
+    ],
+    ['template',
+        map { 'mode': 'copy', 'match': '*' },
+        ['copy',
+            ['apply-templates', 
+                map { 'mode': 'copy', 'select': '*|@*|text()' }]
+        ]
     ]
 };
 
-declare %private function o:xslt-rule-templates($rule-id as xs:string, $rule as map(*))
+declare %private function o:xslt-rule-templates($rule-id as xs:string, $rule as map(*), $mode as xs:string?)
 as array(*)
 {
     ['template', 
@@ -897,100 +924,152 @@ as array(*)
             if (exists($rule?context)) then
                 map:entry('mode', $rule?mode)
             else
-                ()
+                if ($mode = 'copy') then
+                    map:entry('mode', $mode)
+                else
+                    ()
         )),
-        if ($rule?op = 'copy') then
+        if ($rule?op = 'copy') then (
+            ['variable', 
+                map { 'name': 'o:id' }, 
+                $rule?id
+            ],
+            ['variable', 
+                map { 'name': 'o:path' }, 
+                string-join(($rule?context, $rule?match),' ')
+            ],
             ['choose',
                 ['when',
                     map { 'test': 'self::text()' },
-                    ['o:text',
-                        ['attribute',
-                            map { 'name': 'o:id' },
-                            $rule?id
-                        ],
-                        ['attribute',
-                            map { 'name': 'o:path' },
-                            string-join(($rule?context,$rule?match),' ')
-                        ],
-                        ['value-of',
-                            map { 'select': '.' }
-                        ]
-                    ]
+                    o:xslt-copy-text-node($rule)
                 ],
                 ['when',
                     map { 'test': 'count(.|../@*)=count(../@*)' },
-                    ['o:attribute',
-                        map { 'name': '{name(.)}' },
-                        ['attribute',
-                            map { 'name': 'o:id' },
-                            $rule?id
-                        ],
-                        ['attribute',
-                            map { 'name': 'o:path' },
-                            string-join(($rule?context,$rule?match),' ')
-                        ],
-                        ['value-of', map { 'select': '.' }]
-                    ]
+                    o:xslt-copy-attr-node($rule)
                 ],
                 ['when',
                     map { 'test': 'self::*' },
-                    ['copy',
-                        ['attribute',
-                            map { 'name': 'o:id' },
-                            $rule?id
-                        ],
-                        ['attribute',
-                            map { 'name': 'o:path' },
-                            string-join(($rule?context,$rule?match),' ')
-                        ],
-                        ['apply-templates',
-                            map { 
-                                'select': 'node()|@*', 
-                                'mode': $rule?id
-                            }
-                        ]
-                    ]
+                    o:xslt-copy-element-node($rule)
                 ]
-            ]
-        else
-            ['apply-templates',
-                map {
-                    'select': 'node()|@*',
-                    'mode': $rule?id
-                }
-            ]
+            ])
+        else (
+            o:xslt-remove-nodes($rule)
+        )
     ]
 };
 
-declare %private function o:xslt-identity-transform($rule as map(*))
-as array(*)+
+declare %private function o:xslt-remove-nodes($rule)
 {
-    ['template',
-        map {
-            'priority': -10,
-            'match': 'processing-instruction()|comment()',
-            'mode': $rule?id
-        }
-    ],
-    ['template',
-        map {
-            'priority': -10,
-            'match': '*|@*|text()',
-            'mode': $rule?id
-        },
-        let $apply :=
-            ['apply-templates',
-                map {
-                    'select': '*|@*|text()',
-                    'mode': $rule?id
-                }
-            ]
-        return
-            if ($rule?op = 'copy') then
-                o:wrap($apply, ['copy'])
+    ['apply-templates',
+        map:merge((
+            map:entry('select', 'node()|@*'),
+            if ($rule?nextmode) then 
+                map:entry('mode', $rule?nextmode)
             else
-                $apply
+                ()
+        ))
     ]
+};
+
+declare %private function o:xslt-copy-nodes($rule)
+{
+    ['apply-templates',
+        map:merge((
+            map:entry('select', 'node()|@*'),
+            if ($rule?nextmode) then 
+                map:entry('mode', $rule?nextmode)
+            else
+                map:entry('mode', 'copy')
+        ))
+    ]
+};
+
+declare %private function o:xslt-copy-text-node($rule as map(*))
+as array(*)
+{
+    ['o:text',
+        o:xslt-origami-attrs(),
+        ['value-of',
+            map { 'select': '.' }
+        ]
+    ]
+};
+
+declare %private function o:xslt-copy-attr-node($rule as map(*))
+as array(*)
+{
+    ['o:attribute', 
+        map:merge((map { 'name': '{name(.)}' }, o:xslt-origami-attrs())),
+        ['value-of', map { 'select': '.' }]
+    ]
+};
+
+declare %private function o:xslt-copy-element-node($rule as map(*))
+as array(*)
+{
+    ['copy', 
+        ['attribute', map { 'name': 'o:id' }, ['value-of', map { 'select': '$o:id' }]],
+        ['attribute', map { 'name': 'o:path' }, ['value-of', map { 'select': '$o:path' }]],
+        o:xslt-copy-nodes($rule)
+    ]
+};
+
+declare %private function o:xslt-origami-attrs()
+{
+    
+    map { 'o:id': '{$o:id}', 'o:path': '{$o:path}' }
+};
+
+declare %private function o:xslt-identity-transform($rule as map(*))
+as array(*)*
+{
+    if ($rule?nextmode) then (
+        ['template',
+            o:xslt-identity-template-attrs('processing-instruction()|comment()', $rule)
+        ],
+        ['template',
+            o:xslt-identity-template-attrs('text()', $rule),
+            if ($rule?op = 'copy') then
+                ['value-of',
+                    map { 'select': '.' }
+                ]
+            else
+                ()
+        ],
+        ['template',
+            o:xslt-identity-template-attrs('*|@*', $rule),
+            let $apply :=
+                ['apply-templates',
+                    map:merge((
+                        map:entry('select', '*|@*'),
+                        o:xslt-mode-attr($rule)
+                    ))
+                ]
+            return
+                if ($rule?op = 'copy') then
+                    o:wrap($apply, ['copy'])
+                else
+                    $apply
+        ])
+    else
+        ()
+};
+
+declare %private function o:xslt-mode-attr($rule as map(*))
+{
+    if ($rule?nextmode) then
+        map:entry('mode', $rule?nextmode)
+    else
+        ()
+};
+
+declare %private function o:xslt-identity-template-attrs($match as xs:string, $rule as map(*))
+{
+    map:merge((
+        map:entry('priority', -10),
+        map:entry('match', $match),
+        o:xslt-mode-attr($rule)
+    ))
 };
 
 declare %private function o:xpath($exprs as xs:string+)
@@ -1146,6 +1225,12 @@ declare function o:size($node as array(*)?)
 as xs:integer
 {
     count(o:children($node))
+};
+
+declare function o:is-text-node($node as item()?)
+as xs:boolean
+{
+    not($node instance of function(*))
 };
 
 declare function o:is-element($node as item()?)
