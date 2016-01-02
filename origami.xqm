@@ -1009,6 +1009,7 @@ as array(*)
 {
     ['copy', 
         ['attribute', map { 'name': 'o:id' }, ['value-of', map { 'select': '$o:id' }]],
+        (: o:path attribute is not really needed but makes debugging easier :)
         ['attribute', map { 'name': 'o:path' }, ['value-of', map { 'select': '$o:path' }]],
         o:xslt-copy-nodes($rule)
     ]
@@ -1177,45 +1178,26 @@ as map(*)?
 declare function o:attrs($node as array(*)?)
 as map(*)
 {
-    (o:attributes($node),map {})[1]
-};
-
-(:~
- : Outputs the text value of `$nodes`.
- :)
-declare function o:text()
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as xs:string? {
-        string-join(o:postwalk($nodes, o:children#1), '')
-    }
+    (o:attributes($node), map {})[1]
 };
 
 (:~
  : Outputs the text value of `$nodes`.
  :)
 declare function o:text($nodes as item()*)
-as xs:string
+as xs:string?
 {
-    o:text()($nodes)
+    string-join(o:postwalk($nodes, o:children#1), '')
 };
 
 (:~
  : Create a node transformer that returns a text node with
  : the space normalized string value of a node.
  :)
-declare function o:ntext()
-as function(item()*) as item()*
-{
-    function($nodes as item()*) as xs:string? {
-        normalize-space(o:text($nodes))
-    }
-};
-
 declare function o:ntext($nodes as item()*)
 as xs:string?
 {
-    o:ntext()($nodes)
+    normalize-space(o:text($nodes))
 };
 
 (:~
@@ -1226,6 +1208,7 @@ as xs:integer
 {
     count(o:children($node))
 };
+
 
 declare function o:is-text-node($node as item()?)
 as xs:boolean
@@ -1461,13 +1444,13 @@ as item()*
     o:seq()($nodes)
 };
 
-declare function o:map($nodes as item()*, $fn as function(item()) as item()*)
+declare function o:for-each($nodes as item()*, $fn as function(item()) as item()*)
 as item()*
 {
     for-each($nodes, $fn)
 };
 
-declare function o:map($fn as function(item()) as item()*)
+declare function o:for-each($fn as function(item()) as item()*)
 as item()*
 {
     for-each(?, $fn)
@@ -1606,7 +1589,7 @@ as item()*
 {
     let $step := array:head($steps)
     let $element-nodes :=
-        for $node in $nodes
+        for $node in o:children($nodes)
         where o:is-element($node)
         return $node
     let $matched-nodes := 
@@ -1664,6 +1647,20 @@ as item()*
     )
 };
 
+(: Return a function for flattening a sequence :)
+declare function o:flatten()
+as function(item()*) as item()*
+{
+    o:postwalk(?, o:children#1)
+};
+
+(: Flatten returns a sequence of child nodes. No elements :)
+declare function o:flatten($nodes as item()*)
+as item()*
+{
+    o:flatten()($nodes)
+};
+
 (:~
  : Generic walker function (depth-first).
  :)
@@ -1674,7 +1671,7 @@ as item()*
         typeswitch (.)
         case array(*) return
             $fn(array {
-                o:map(
+                o:for-each(
                     $form?*,
                     o:postwalk(?, $fn)
                 )
@@ -1696,7 +1693,7 @@ as item()*
             typeswitch ($walked)
             case array(*) return
                 array {
-                    o:map(
+                    o:for-each(
                         $walked?*,
                         function($n) {
                             if ($n instance of array(*)) then
@@ -1709,20 +1706,6 @@ as item()*
             default return
                 $walked
     )
-};
-
-(: Return a function for flattening a sequence :)
-declare function o:flatten()
-as function(item()*) as item()*
-{
-    o:postwalk(?, o:children#1)
-};
-
-(: Flatten returns a sequence of child nodes. No elements :)
-declare function o:flatten($nodes as item()*)
-as item()*
-{
-    o:flatten()($nodes)
 };
 
 declare function o:set-handler($element as array(*), $handler as function(*)?)
@@ -1818,9 +1801,7 @@ as function(*)
 declare function o:insert($content as item()*)
 as function(*)
 {
-    function($node as array(*)) {
-        array { o:tag($node), o:attributes($node), $content }
-    }
+    o:insert(?, $content)
 };
 
 (:~
@@ -1829,46 +1810,41 @@ as function(*)
 declare function o:insert($node as array(*), $content as item()*)
 as item()*
 {
-    o:insert($content)($node)
+    if (o:is-function($content)) then
+        array { o:tag($node), o:attributes($node), $content($node) }
+    else
+        array { o:tag($node), o:attributes($node), $content }
 };
 
 declare function o:replace()
 as function(*) {
-    function($context as item()*) {
-        ()
-    }
+    o:replace(?, ())
 };
 
 declare function o:replace($content as item()*)
 as function(*) {
-    function($node as array(*)) {
-        $content
-    }
+    o:replace(?, $content)
 };
 
 declare function o:replace($node as array(*), $content as item()*)
 as item()*
 {
-    o:replace($content)($node)
+    $content
 };
 
 declare function o:wrap($element as array(*)?)
 as function(*)
 {
-    if (exists($element)) then
-        function($nodes as item()*) {
-            array { o:tag($element), o:attributes($element), $nodes }
-        }
-    else
-        function($nodes as item()*) {
-            $nodes
-        }
+    o:wrap(?, $element)
 };
 
 declare function o:wrap($nodes as item()*, $element as array(*)?)
 as item()*
 {
-    o:wrap($element)($nodes)
+    if (exists($element)) then
+        array { o:tag($element), o:attributes($element), $nodes }
+    else
+        $nodes
 };
 
 (:~
@@ -1879,9 +1855,7 @@ as item()*
 declare function o:unwrap()
 as function(item()*) as item()*
 {
-    function($node as array(*)) {
-        o:children($node)
-    }
+    o:unwrap(?)
 };
 
 (:~
@@ -1890,7 +1864,7 @@ as function(item()*) as item()*
 declare function o:unwrap($node as array(*))
 as item()*
 {
-    o:unwrap()($node)
+    o:children($node)
 };
 
 (:~
@@ -1899,15 +1873,13 @@ as item()*
 declare function o:copy()
 as function(item()*) as item()*
 {
-    function($node as item()) {
-        $node
-    }
+    o:copy(?)
 };
 
 declare function o:copy($node as item())
 as item()*
 {
-    o:copy()($node)
+    $node
 };
 
 (:~
@@ -1917,9 +1889,7 @@ as item()*
 declare function o:before($before as item()*)
 as function(item()) as item()*
 {
-    function($node as item()) as item()* {
-        ($before, $node)
-    }
+    o:before(?, $before)
 };
 
 (:~
@@ -1928,7 +1898,7 @@ as function(item()) as item()*
 declare function o:before($node as item(), $before as item()*)
 as item()*
 {
-    o:before($before)($node)
+    ($before, $node)
 };
 
 (:~
@@ -1938,9 +1908,7 @@ as item()*
 declare function o:after($after as item()*)
 as function(item()) as item()*
 {
-    function($node as item()) as item()* {
-        ($node, $after)
-    }
+    o:after(?, $after)
 };
 
 (:~
@@ -1949,7 +1917,7 @@ as function(item()) as item()*
 declare function o:after($node as item(), $after as item()*)
 as item()*
 {
-    o:after($after)($node)
+    ($node, $after)
 };
 
 (:~
@@ -1959,14 +1927,7 @@ as item()*
 declare function o:insert-after($append as item()*)
 as function(array(*)) as array(*)
 {
-   function($node as array(*)) {
-        array { 
-            o:tag($node), 
-            o:attributes($node), 
-            o:children($node), 
-            $append 
-        }
-    }
+    o:insert-after(?, $append)
 };
 
 (:~
@@ -1976,7 +1937,12 @@ as function(array(*)) as array(*)
 declare function o:insert-after($node as array(*), $append as item()*)
 as array(*)
 {
-    o:insert-after($append)($node)
+    array { 
+        o:tag($node), 
+        o:attributes($node), 
+        o:children($node), 
+        $append 
+    }
 };
 
 (:~
@@ -1986,14 +1952,7 @@ as array(*)
 declare function o:insert-before($prepend as item()*)
 as function(array(*)) as array(*)
 {
-   function($node as array(*)) {
-        array { 
-            o:tag($node), 
-            o:attributes($node), 
-            $prepend, 
-            o:children($node) 
-        }
-    }
+    o:insert-before(?, $prepend)
 };
 
 (:~
@@ -2003,43 +1962,44 @@ as function(array(*)) as array(*)
 declare function o:insert-before($node as array(*), $prepend as item()*)
 as array(*)
 {
-    o:insert-before($prepend)($node)
+    array { 
+        o:tag($node), 
+        o:attributes($node), 
+        $prepend, 
+        o:children($node) 
+    }
 };
 
 declare function o:set-attr($name as xs:string, $value as item()*)
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        array {
-            o:tag($node),
-            map:merge((o:attributes($node), map:entry($name, $value))),
-            o:children($node)
-        }
-    }
+    o:set-attr(?, $name, $value)
 };
 
 declare function o:set-attr($node as array(*), $name as xs:string, $value as item()*)
 as array(*)
 {
-    o:set-attr($name, $value)($node)
+    array {
+        o:tag($node),
+        map:merge((o:attributes($node), map:entry($name, $value))),
+        o:children($node)
+    }
 };
 
 declare function o:advise-attr($name as xs:string, $value as item()*)
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        array {
-            o:tag($node),
-            map:merge((map:entry($name, $value), o:attributes($node))),
-            o:children($node)
-        }
-    }
+    o:advise-attr(?, $name, $value)
 };
 
 declare function o:advise-attr($node as array(*), $name as xs:string, $value as item()*)
 as array(*)
 {
-    o:advise-attr($name, $value)($node)
+    array {
+        o:tag($node),
+        map:merge((map:entry($name, $value), o:attributes($node))),
+        o:children($node)
+    }
 };
 
 (:~
@@ -2049,13 +2009,7 @@ as array(*)
 declare function o:set-attrs($attrs as map(*))
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        array {
-            o:tag($node),
-            map:merge((o:attributes($node), $attrs)),
-            o:children($node)
-        }
-    }
+    o:set-attrs(?, $attrs)
 };
 
 (:~
@@ -2064,7 +2018,11 @@ as function(array(*)) as array(*)
 declare function o:set-attrs($node as array(*), $attrs as map(*))
 as array(*)
 {
-    o:set-attrs($attrs)($node)
+    array {
+        o:tag($node),
+        map:merge((o:attributes($node), $attrs)),
+        o:children($node)
+    }
 };
 
 (:~
@@ -2073,31 +2031,29 @@ as array(*)
 declare function o:advise-attrs($attrs as map(*))
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        array {
-            o:tag($node),
-            map:merge((
-                o:attributes($node),
-                map:for-each(
-                    $attrs,
-                    function($k,$v) {
-                        if (o:has-attr($node,$k)) then
-                            ()
-                        else
-                            map:entry($k,$v)
-                    }
-                )
-            )),
-            map:merge((o:attributes($node), $attrs)),
-            o:children($node)
-        }
-    }
+    o:advise-attrs(?, $attrs)
 };
 
 declare function o:advise-attrs($node as array(*), $attrs as map(*))
 as array(*)
 {
-    o:advise-attrs($attrs)($node)
+    array {
+        o:tag($node),
+        map:merge((
+            o:attributes($node),
+            map:for-each(
+                $attrs,
+                function($k,$v) {
+                    if (o:has-attr($node,$k)) then
+                        ()
+                    else
+                        map:entry($k,$v)
+                }
+            )
+        )),
+        map:merge((o:attributes($node), $attrs)),
+        o:children($node)
+    }
 };
 
 (:~
@@ -2109,28 +2065,7 @@ as array(*)
 declare function o:remove-attr($attr-names as xs:string*)
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        let $attrs :=
-            map:merge((
-                map:for-each(o:attrs($node),
-                    function($k, $v) {
-                        if ($k = $attr-names) then
-                            ()
-                        else
-                            map:entry($k, $v)
-                    }
-                )
-            ))
-        return
-            array {
-                o:tag($node),
-                if (map:size($attrs) = 0) then
-                    ()
-                else
-                    $attrs,
-                o:children($node)
-            }
-    }
+    o:remove-attr(?, $attr-names)
 };
 
 (:~
@@ -2139,7 +2074,26 @@ as function(array(*)) as array(*)
 declare function o:remove-attr($node as array(*), $attr-names as xs:string*)
 as array(*)
 {
-    o:remove-attr($attr-names)($node)
+    let $attrs :=
+        map:merge((
+            map:for-each(o:attrs($node),
+                function($k, $v) {
+                    if ($k = $attr-names) then
+                        ()
+                    else
+                        map:entry($k, $v)
+                }
+            )
+        ))
+    return
+        array {
+            o:tag($node),
+            if (map:size($attrs) = 0) then
+                ()
+            else
+                $attrs,
+            o:children($node)
+        }
 };
 
 (:~
@@ -2149,23 +2103,7 @@ as array(*)
 declare function o:add-class($class-names as xs:string*)
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        let $attrs := o:attrs($node)
-        return
-            array {
-                o:tag($node),
-                map:merge((
-                    $attrs,
-                    map:entry('class',
-                        string-join(
-                            distinct-values(
-                                tokenize(
-                                    string-join(($attrs?class, $class-names), ' '), '\s+')), ' ')
-                    )
-                )),
-                o:children($node)
-            }
-    }
+    o:add-class(?, $class-names)
 };
 
 (:~
@@ -2175,7 +2113,21 @@ as function(array(*)) as array(*)
 declare function o:add-class($node as array(*), $class-names as xs:string*)
 as array(*)
 {
-    o:add-class($class-names)($node)
+    let $attrs := o:attrs($node)
+    return
+        array {
+            o:tag($node),
+            map:merge((
+                $attrs,
+                map:entry('class',
+                    string-join(
+                        distinct-values(
+                            tokenize(
+                                string-join(($attrs?class, $class-names), ' '), '\s+')), ' ')
+                )
+            )),
+            o:children($node)
+        }
 };
 
 (:~
@@ -2187,30 +2139,7 @@ as array(*)
 declare function o:remove-class($class-names as xs:string*)
 as function(array(*)) as array(*)
 {
-   function($node as array(*)) {
-        let $attrs := o:attrs($node)
-        let $classes :=
-            for $class in tokenize($attrs?class, '\s+')
-            where not($class = $class-names)
-            return $class
-        let $attrs :=
-            if (count($classes) = 0) then
-                map:remove($attrs, 'class')
-            else
-                map:merge((
-                    $attrs,
-                    map:entry('class', string-join($classes, ' '))
-                ))
-        return
-            array {
-                o:tag($node),
-                if (map:size($attrs) = 0) then
-                    ()
-                else
-                    $attrs,
-                o:children($node)
-            }
-    }
+    o:remove-class(?, $class-names)
 };
 
 (:~
@@ -2221,7 +2150,28 @@ as function(array(*)) as array(*)
 declare function o:remove-class($node as array(*), $class-names as xs:string*)
 as array(*)
 {
-    o:remove-class($class-names)($node)
+    let $attrs := o:attrs($node)
+    let $classes :=
+        for $class in tokenize($attrs?class, '\s+')
+        where not($class = $class-names)
+        return $class
+    let $attrs :=
+        if (count($classes) = 0) then
+            map:remove($attrs, 'class')
+        else
+            map:merge((
+                $attrs,
+                map:entry('class', string-join($classes, ' '))
+            ))
+    return
+        array {
+            o:tag($node),
+            if (map:size($attrs) = 0) then
+                ()
+            else
+                $attrs,
+            o:children($node)
+        }
 };
 
 (:~
@@ -2237,22 +2187,7 @@ as array(*)
 declare function o:rename($element-name as item())
 as function(array(*)) as array(*)
 {
-    function($node as array(*)) {
-        let $element-name :=
-            if ($element-name instance of map(*)) then
-                $element-name(o:tag($node))
-            else
-                $element-name
-        return
-            if (exists($element-name)) then
-                array {
-                    $element-name,
-                    o:attributes($node),
-                    o:children($node)
-                }
-            else
-                $node
-    }
+    o:rename(?, $element-name)
 };
 
 (:~
@@ -2261,7 +2196,20 @@ as function(array(*)) as array(*)
 declare function o:rename($node as array(*), $element-name as item())
 as array(*)
 {
-    o:rename($element-name)($node)
+    let $element-name :=
+        if ($element-name instance of map(*)) then
+            $element-name(o:tag($node))
+        else
+            $element-name
+    return
+        if (exists($element-name)) then
+            array {
+                $element-name,
+                o:attributes($node),
+                o:children($node)
+            }
+        else
+            $node
 };
 
 (:~
@@ -2271,34 +2219,13 @@ as array(*)
 declare function o:xslt($stylesheet as item()*)
 as function(*)
 {
-    o:xslt($stylesheet, map {})
+    o:xslt(?, $stylesheet, map {})
 };
 
 declare function o:xslt($stylesheet as item()*, $params as map(*))
 as function(*)
 {
-    function($nodes as item()*) as item()* {
-        if (exists($nodes) and exists($stylesheet)) then
-            o:doc(
-                for $node in $nodes
-                return
-                    try {
-                        xslt:transform(
-                            o:xml($nodes),
-                            $stylesheet,
-                            $params
-                        )
-                    } catch bxerr:BXSL0001 {
-                        error($o:err-xslt,
-                            'Error [' || $err:code || ']: '
-                            || $err:description
-                            || '&#xa;'
-                            || serialize($stylesheet))
-                    }
-            )
-        else
-            ()
-    }
+    o:xslt(?, $stylesheet, $params)
 };
 
 (:~
@@ -2307,7 +2234,26 @@ as function(*)
 declare function o:xslt($nodes as item()*, $stylesheet as item()*, $params as map(*))
 as function(*)
 {
-    o:xslt($stylesheet, $params)($nodes)
+    if (exists($nodes) and exists($stylesheet)) then
+        o:doc(
+            for $node in $nodes
+            return
+                try {
+                    xslt:transform(
+                        o:xml($nodes),
+                        $stylesheet,
+                        $params
+                    )
+                } catch bxerr:BXSL0001 {
+                    error($o:err-xslt,
+                        'Error [' || $err:code || ']: '
+                        || $err:description
+                        || '&#xa;'
+                        || serialize($stylesheet))
+                }
+        )
+    else
+        ()
 };
 
 (: Namespace support :)
@@ -2532,4 +2478,10 @@ as map(*)
         where $k = $keys
         return map:entry($k, $map($k))
     ))
+};
+
+declare %private function o:is-function($item as item()*)
+{
+    $item instance of function(*) and 
+        not($item instance of map(*) or $item instance of array(*))
 };

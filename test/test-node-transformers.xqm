@@ -18,15 +18,20 @@ declare %unit:test function test:insert()
 {
     unit:assert-equals(
         ['p'] => o:insert(['x']),
-        ['p', ['x']]
-    ),    
+        ['p', ['x']],
+        "Insert element into empty element"
+    ),
+    
     unit:assert-equals(
         ['p', 'foo'] => o:insert(['x']),
-        ['p', ['x']]
+        ['p', ['x']],
+        "Insert element into non-empty element (overwrite)"
     ),
+    
     unit:assert-equals(
         ['p', map { 'a': 1 }, 'foo'] => o:insert(['x']),
-        ['p', map { 'a': 1 },['x']]
+        ['p', map { 'a': 1 },['x']],
+        "Insert does not modify attributes"
     )        
 };
 
@@ -240,73 +245,5 @@ declare %unit:test function test:xslt()
     unit:assert-equals(
         ['p',  'foobar'] => o:xslt($test:xslt, $test:xslt-params),
         ['result', ['para', map { 'x': '10' }, 'foobar' ]]
-    )
-};
-
-declare %unit:test function test:tree-seq()
-{
-    unit:assert-equals(
-        o:tree-seq(()),
-        ()
-    ),
-
-    unit:assert-equals(
-        o:tree-seq((), o:is-element#1, o:identity#1),
-        ()
-    ),
-
-    unit:assert-equals(
-        o:tree-seq((['a'],['b'],['c'])),
-        (['a'],['b'],['c'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq((['a'],['b'],['c']), o:is-element#1, o:identity#1),
-        (['a'],['b'],['c'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq((['a', 'b', ['c']])),
-        (['a', 'b', ['c']], 'b', ['c'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq(['a', 'b',['c']], o:is-element#1, o:identity#1),
-        (['a', 'b', ['c']], 'b', ['c'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq((['a', map { 'x': 10 },['c']])),
-        (['a', map { 'x': 10 }, ['c']],['c'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq(['a', map { 'x': 10 },['c']], o:is-element#1, o:identity#1),
-        (['a', map { 'x': 10 }, ['c']],['c'])
-    ),
-
-    unit:assert-equals(
-        o:tree-seq(['a', ['b', ['c', ['d']]]]),
-        (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
-    ),
-    
-    unit:assert-equals(
-        o:tree-seq(['a', ['b', ['c', ['d']]]], o:is-element#1, o:identity#1),
-        (['a', ['b', ['c', ['d']]]], ['b', ['c', ['d']]], ['c', ['d']], ['d'])
-    )
-};
-
-declare %unit:test function test:tree-seq-transform()
-{
-    unit:assert-equals(
-        o:tree-seq(['a',['b']], function($n) { 'element' }),
-        ('element','element'),
-        "Replace each element by a string"
-    ),
-
-    unit:assert-equals(
-        o:tree-seq(['a',['b']], function($n) { ($n,$n) }),
-        (['a',['b']],['a',['b']],['b'],['b']),
-        "Double each node"
     )
 };

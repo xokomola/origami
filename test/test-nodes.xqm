@@ -136,16 +136,8 @@ declare %unit:test function test:children()
         o:children(['a',1,['b'],3]),
         (1,['b'],3),
         "Multiple children with element node"
-    )    
-};
-
-declare %unit:test function test:children-map-in-seq()
-{
-    unit:assert-equals(
-        o:children(['x', (map { 'x': 1}, 'a','b')]),
-        ('a','b'),
-        "Attribute map is not part of children."
     )
+    
 };
 
 declare %unit:test function test:attributes() 
