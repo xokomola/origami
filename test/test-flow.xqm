@@ -19,7 +19,7 @@ declare %unit:test function test:comp()
           string-join(?,'-')
         ))('a')
         ,
-        "a-x-y-z"
+        "z-y-x-a"
     )
 };
 

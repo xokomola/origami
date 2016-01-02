@@ -840,12 +840,15 @@ declare %private function o:rule-id($paths as xs:string*)
 as xs:string?
 {
     if (exists($paths)) then
-        (: mode names must be compatible with qnames :)
         concat('_', xs:hexBinary(hash:md5(string-join($paths, '//'))))
     else
         ()
 };
 
+(:~
+ : Helper function to return only those rules that have subrules
+ : and therefore need a set of identity transform templates added.
+ :)
 declare %private function o:context-rules($rules as map(*))
 as map(*)*
 {
@@ -869,7 +872,6 @@ as element(*)
             o:xslt-preamble(),
             map:for-each($rules, o:xslt-rule-templates(?,?,'remove')),
             map:for-each($rules, o:xslt-rule-templates(?,?,'copy')),
-            (: for each rule that has child rules :)
             for-each(o:context-rules($rules), o:xslt-identity-transform#1)
         ],
         o:ns((
@@ -1017,7 +1019,6 @@ as array(*)
 
 declare %private function o:xslt-origami-attrs()
 {
-    
     map { 'o:id': '{$o:id}', 'o:path': '{$o:path}' }
 };
 
@@ -1057,11 +1058,11 @@ as array(*)*
 };
 
 declare %private function o:xslt-mode-attr($rule as map(*))
+as map(*)?
 {
-    if ($rule?nextmode) then
-        map:entry('mode', $rule?nextmode)
-    else
-        ()
+    let $mode-attr := map:entry('mode', $rule?nextmode)
+    where $rule?nextmode
+    return $mode-attr
 };
 
 declare %private function o:xslt-identity-template-attrs($match as xs:string, $rule as map(*))
@@ -1236,8 +1237,7 @@ declare %private function o:is-element-or-handler($node as item()?)
 as xs:boolean?
 {
     typeswitch ($node)
-    case array(*)
-    return
+    case array(*) return
         if (array:size($node) = 0) then
             ()
         else
@@ -1395,27 +1395,20 @@ as item()*
  : The type of sequence is determined by the type of the $seq
  : argument.
  :)
-declare function o:conj($seq as item()*)
+declare function o:conj($items as item()*)
+as item()*
+{
+    o:conj(?, $items)
+};
+
+declare function o:conj($seq as item()*, $items as item()*)
 as item()*
 {
     typeswitch ($seq)
     case array(*) return
-        function($items as item()*) {
-            array { $seq?*, $items }
-        }
+        array { $seq?*, $items }
     default return
-        function($items as item()*) {
-            ($seq, $items)
-        }
-};
-
-(:~
- : Conjoins items to a sequence.
- :)
-declare function o:conj($seq as item()*, $items as item()*)
-as item()*
-{
-    o:conj($seq)($items)
+        ($seq, $items)
 };
 
 (:~
@@ -1423,25 +1416,23 @@ as item()*
  : A map item will be transformed into a sequence of two item arrays.
  :)
 declare function o:seq()
-as function(item()) as item()*
+as function(item()*) as item()*
 {
-    function($node as item()) {
-        if ($node instance of array(*)) then
-            $node?*
-        else if ($node instance of map(*)) then
-            map:for-each($node, function($k, $v) { [$k, $v] })
-        else
-            $node
-    }
+    o:seq(?)
 };
 
 (:~
  : Transforms an array or map item into a sequence.
  :)
-declare function o:seq($nodes as item())
+declare function o:seq($nodes as item()*)
 as item()*
 {
-    o:seq()($nodes)
+    if ($nodes instance of array(*)) then
+        $nodes?*
+    else if ($nodes instance of map(*)) then
+        map:for-each($nodes, function($k, $v) { [$k, $v] })
+    else
+        $nodes
 };
 
 declare function o:for-each($nodes as item()*, $fn as function(item()) as item()*)
@@ -1573,15 +1564,13 @@ as item()*
 declare function o:select($steps as array(*))
 as function(item()*) as item()*
 {
-    function($nodes as item()*) {
-        o:select-nodes($nodes, $steps, $steps)
-    }
+    o:select(?, $steps)
 };
 
 declare function o:select($nodes as array(*)*, $steps as array(*))
 as function(item()) as item()*
 {
-    o:select($steps)($nodes)
+    o:select-nodes($nodes, $steps, $steps)
 };
 
 declare %private function o:select-nodes($nodes as item()*, $steps as array(*), $all-steps as array(*))
@@ -1736,62 +1725,58 @@ as function(*)
 declare function o:set-attr-handlers($element as array(*), $handlers as map(xs:string, function(*)))
 as array(*)
 {
-    o:set-attr-handlers($handlers)($element)
+    array {
+        o:tag($element),
+        map:merge((
+            map:for-each(
+                o:attrs($element),
+                function($name,$value) {
+                    map:entry($name,
+                        if (map:contains($handlers,$name)) then
+                            o:prepare-handler($handlers($name))
+                        else
+                            $value
+                    )
+                }
+            )
+        )),
+        o:children($element)
+    }
 };
 
 declare function o:set-attr-handlers($handlers as map(xs:string, function(*)))
 as function(*)
 {
-    function($element as array(*)) {
-        array {
-            o:tag($element),
-            map:merge((
-                map:for-each(
-                    o:attrs($element),
-                    function($name,$value) {
-                        map:entry($name,
-                            if (map:contains($handlers,$name)) then
-                                o:prepare-handler($handlers($name))
-                            else
-                                $value
-                        )
-                    }
-                )
-            )),
-            o:children($element)
-        }
-    }
+    o:set-attr-handlers(?, $handlers)
 };
 
 declare function o:remove-attr-handlers($element as array(*))
 as array(*)
 {
-    o:remove-attr-handlers()($element)
+    let $attrs :=
+        map:merge((
+            map:for-each(
+                o:attrs($element),
+                function($name,$value) {
+                    if (o:is-handler($value)) then
+                        ()
+                    else
+                        map:entry($name,$value)
+                }
+            )
+        ))
+    return
+        array {
+            o:tag($element),
+            if (map:size($attrs) > 0) then $attrs else (),
+            o:children($element)
+        }
 };
 
 declare function o:remove-attr-handlers()
 as function(*)
 {
-    function($element as array(*)) {
-        let $attrs :=
-            map:merge((
-                map:for-each(
-                    o:attrs($element),
-                    function($name,$value) {
-                        if (o:is-handler($value)) then
-                            ()
-                        else
-                            map:entry($name,$value)
-                    }
-                )
-            ))
-        return
-            array {
-                o:tag($element),
-                if (map:size($attrs) > 0) then $attrs else (),
-                o:children($element)
-            }
-    }
+    o:remove-attr-handlers(?)
 };
 
 (:~
@@ -2424,7 +2409,7 @@ as xs:string
  : This can be used for inspection and in tests. Function items
  : cannot be atomized or compared.
  :)
-declare function o:doc-repr($nodes as item()*)
+declare function o:repr($nodes as item()*)
 as item()*
 {
     o:prewalk(
@@ -2480,6 +2465,9 @@ as map(*)
     ))
 };
 
+(:~
+ : Predicate function, returns true if the item is a real function.
+ :)
 declare %private function o:is-function($item as item()*)
 {
     $item instance of function(*) and 

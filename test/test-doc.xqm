@@ -86,37 +86,37 @@ declare %unit:test function test:doc()
 declare %unit:test function test:doc-repr()
 {
     unit:assert-equals(
-        o:doc-repr(['foo', function($n,$d){1}, 'a', 10]),
+        o:repr(['foo', function($n,$d){1}, 'a', 10]),
         ['foo', 'fn#2','a',10],
         "Inline handler"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', [function($n,$d){1}, 'a',10]]),
+        o:repr(['foo', [function($n,$d){1}, 'a',10]]),
         ['foo', ['fn#2','a',10]],
         "Inline handler with arguments"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { '@': function($n,$d){1}}, "bar"]),
+        o:repr(['foo', map { '@': function($n,$d){1}}, "bar"]),
         ['foo', map { '@': "fn#2" }, "bar"],
         "Element handler"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { '@': [function($n,$d) {1},1,2,3]}, "bar"]),
+        o:repr(['foo', map { '@': [function($n,$d) {1},1,2,3]}, "bar"]),
         ['foo', map { '@': ["fn#2",1,2,3] }, "bar"],
         "Element handler with arguments"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { 'x': function($n,$d){1}}, "bar"]),
+        o:repr(['foo', map { 'x': function($n,$d){1}}, "bar"]),
         ['foo', map { 'x': "fn#2" }, "bar"],
         "Attribute handler"
     ),
 
     unit:assert-equals(
-        o:doc-repr(['foo', map { 'x': [function($n,$d) {1},1,2,3]}, "bar"]),
+        o:repr(['foo', map { 'x': [function($n,$d) {1},1,2,3]}, "bar"]),
         ['foo', map { 'x': ["fn#2",1,2,3] }, "bar"],
         "Attribute handler with arguments"
     )
@@ -165,7 +165,7 @@ function test:unwellformed-map-in-attribute-position()
 declare %unit:test function test:doc-builder-add-handlers()
 {
     unit:assert-equals(
-        o:doc-repr(
+        o:repr(
             o:doc(
                 <test:foo bar="10"/>, 
                 o:builder(
@@ -178,7 +178,7 @@ declare %unit:test function test:doc-builder-add-handlers()
     ),
     
     unit:assert-equals(
-        o:doc-repr(
+        o:repr(
             o:doc(
                 <test:foo bar="10"><p/><x/></test:foo>, 
                 o:builder(
@@ -194,7 +194,7 @@ declare %unit:test function test:doc-builder-add-handlers()
     ),
     
     unit:assert-equals(
-        o:doc-repr(
+        o:repr(
             o:doc(
                 <test:foo bar="10"><foo bar="20"/></test:foo>, 
                 o:builder(
@@ -207,7 +207,7 @@ declare %unit:test function test:doc-builder-add-handlers()
     ),
 
     unit:assert-equals(
-        o:doc-repr(
+        o:repr(
             o:doc(
                 <test:foo bar="10"><foo bar="20"/></test:foo>, 
                 o:builder(
@@ -220,7 +220,7 @@ declare %unit:test function test:doc-builder-add-handlers()
     ),
 
     unit:assert-equals(
-        o:doc-repr(
+        o:repr(
             o:doc(
                 <test:foo bar="10"><foo bar="20"/></test:foo>, 
                 o:builder(
