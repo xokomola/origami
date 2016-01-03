@@ -163,6 +163,26 @@ declare %unit:test function test:remove-attr()
     )
 };
 
+declare %unit:test function test:add-attr-token()
+{
+    unit:assert-equals(
+        ['p', map { 'foo': 'a x' }] => o:add-attr-token('foo', ('a','b')),
+        ['p', map { 'foo': 'a x b' }]
+    ),
+    unit:assert-equals(
+        ['p', map { 'foo': 'a x' }] => o:add-attr-token('foo', ('a','b','a')),
+        ['p', map { 'foo': 'a x b' }]
+    ),
+    unit:assert-equals(
+        ['p', map { 'foo': 'a x' }] => o:add-attr-token('foo', ('a','x')),
+        ['p', map { 'foo': 'a x' }]
+    ),
+    unit:assert-equals(
+        ['p'] => o:add-attr-token('foo', ('a','x')),
+        ['p', map { 'foo': 'a x' }]
+    )
+};
+
 declare %unit:test function test:add-class()
 {
     unit:assert-equals(
@@ -180,6 +200,22 @@ declare %unit:test function test:add-class()
     unit:assert-equals(
         ['p'] => o:add-class(('a','x')),
         ['p', map { 'class': 'a x' }]
+    )
+};
+
+declare %unit:test function test:remove-att-token()
+{
+    unit:assert-equals(
+        ['p', map { 'foo': 'a x' }] => o:remove-att-token('foo', ('a','b','a')),
+        ['p', map { 'foo': 'x' }]
+    ),
+    unit:assert-equals(
+        ['p', map { 'foo': 'a x' }] => o:remove-att-token('foo', ('a','x')),
+        ['p']
+    ),
+    unit:assert-equals(
+        ['p'] => o:remove-att-token('foo', ('a','x')),
+        ['p']
     )
 };
 

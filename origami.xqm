@@ -2063,6 +2063,30 @@ as array(*)
         }
 };
 
+declare function o:add-attr-token($attr as xs:string, $tokens as xs:string*)
+{
+    o:add-attr-token(?, $attr, $tokens)    
+};
+
+declare function o:add-attr-token($node as array(*), $attr as xs:string, $tokens as xs:string*)
+{
+    let $attrs := o:attrs($node)
+    return
+        array {
+            o:tag($node),
+            map:merge((
+                $attrs,
+                map:entry($attr,
+                    string-join(
+                        distinct-values(
+                            tokenize(
+                                string-join(($attrs($attr), $tokens), ' '), '\s+')), ' ')
+                )
+            )),
+            o:children($node)
+        }    
+};
+
 (:~
  : Create a node transformer that adds one or more class names to
  : each element in the nodes passed.
@@ -2070,7 +2094,7 @@ as array(*)
 declare function o:add-class($class-names as xs:string*)
 as function(array(*)) as array(*)
 {
-    o:add-class(?, $class-names)
+    o:add-attr-token(?, 'class', $class-names)
 };
 
 (:~
@@ -2080,21 +2104,38 @@ as function(array(*)) as array(*)
 declare function o:add-class($node as array(*), $class-names as xs:string*)
 as array(*)
 {
+    o:add-attr-token($node, 'class', $class-names)
+};
+
+declare function o:remove-att-token($att as xs:string, $tokens as xs:string*)
+{
+    o:remove-att-token(?, $att, $tokens)
+};
+
+declare function o:remove-att-token($node as array(*), $att as xs:string, $tokens as xs:string*)
+{
     let $attrs := o:attrs($node)
+    let $tokens :=
+        for $token in tokenize($attrs($att), '\s+')
+        where not($token = $tokens)
+        return $token
+    let $attrs :=
+        if (count($tokens) = 0) then
+            map:remove($attrs, $att)
+        else
+            map:merge((
+                $attrs,
+                map:entry($att, string-join($tokens, ' '))
+            ))
     return
         array {
             o:tag($node),
-            map:merge((
+            if (map:size($attrs) = 0) then
+                ()
+            else
                 $attrs,
-                map:entry('class',
-                    string-join(
-                        distinct-values(
-                            tokenize(
-                                string-join(($attrs?class, $class-names), ' '), '\s+')), ' ')
-                )
-            )),
             o:children($node)
-        }
+        }    
 };
 
 (:~
@@ -2106,7 +2147,7 @@ as array(*)
 declare function o:remove-class($class-names as xs:string*)
 as function(array(*)) as array(*)
 {
-    o:remove-class(?, $class-names)
+    o:remove-att-token(?, 'class', $class-names)
 };
 
 (:~
@@ -2117,28 +2158,7 @@ as function(array(*)) as array(*)
 declare function o:remove-class($node as array(*), $class-names as xs:string*)
 as array(*)
 {
-    let $attrs := o:attrs($node)
-    let $classes :=
-        for $class in tokenize($attrs?class, '\s+')
-        where not($class = $class-names)
-        return $class
-    let $attrs :=
-        if (count($classes) = 0) then
-            map:remove($attrs, 'class')
-        else
-            map:merge((
-                $attrs,
-                map:entry('class', string-join($classes, ' '))
-            ))
-    return
-        array {
-            o:tag($node),
-            if (map:size($attrs) = 0) then
-                ()
-            else
-                $attrs,
-            o:children($node)
-        }
+    o:remove-att-token($node, 'class', $class-names)
 };
 
 (:~
@@ -2184,13 +2204,13 @@ as array(*)
  : an XSLT stylesheet.
  :)
 declare function o:xslt($stylesheet as item()*)
-as function(*)
+as function(item()*) as item()*
 {
     o:xslt(?, $stylesheet, map {})
 };
 
 declare function o:xslt($stylesheet as item()*, $params as map(*))
-as function(*)
+as function(item()* ) as item()*
 {
     o:xslt(?, $stylesheet, $params)
 };
@@ -2199,9 +2219,9 @@ as function(*)
  : Transform nodes using XSLT stylesheet.
  :)
 declare function o:xslt($nodes as item()*, $stylesheet as item()*, $params as map(*))
-as function(*)
+as item()*
 {
-    if (exists($nodes) and exists($stylesheet)) then
+    if (exists($stylesheet)) then
         o:doc(
             for $node in $nodes
             return
