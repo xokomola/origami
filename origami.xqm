@@ -811,7 +811,7 @@ as item()*
         if (array:size($tail) > 0
             and ($tail?1 instance of empty-sequence()
                  or exists($handler))) then
-            $tail?*[position() > 1]
+            array:tail($tail)?*
         else
             $tail?*
     let $compiled-rule :=
@@ -829,7 +829,6 @@ as item()*
     return (
         map:entry($rule-id, $compiled-rule),
         for $subrule in $subrules
-        (: TODO: shouldn't we raise an error when this is the case? :)
         where $subrule instance of array(*)
         return
             o:compile-rule($subrule, ($context, $rule-selector), $compiled-rule)
@@ -870,8 +869,8 @@ as element(*)
     o:xml(
         ['stylesheet',
             o:xslt-preamble(),
-            map:for-each($rules, o:xslt-rule-templates(?,?,'remove')),
-            map:for-each($rules, o:xslt-rule-templates(?,?,'copy')),
+            map:for-each($rules, o:xslt-rule-templates(?,?)),
+            o:xslt-identity-transform(map { 'op': 'remove' }),
             for-each(o:context-rules($rules), o:xslt-identity-transform#1)
         ],
         o:ns((
@@ -898,26 +897,17 @@ as item()*
     ['template',
         map { 'match': '/' },
         ['o:seq',
-            ['apply-templates']
-        ]
-    ],
-    ['template',
-        map { 'match': '@*|text()' }
-    ],
-    ['template',
-        map { 'mode': 'copy', 'match': '@*|text()' },
-        ['copy']
-    ],
-    ['template',
-        map { 'mode': 'copy', 'match': '*' },
-        ['copy',
-            ['apply-templates', 
-                map { 'mode': 'copy', 'select': '*|@*|text()' }]
+            ['apply-templates',
+                ['with-param',
+                    map { 'name': 'op' },
+                    'remove'
+                ]
+            ]
         ]
     ]
 };
 
-declare %private function o:xslt-rule-templates($rule-id as xs:string, $rule as map(*), $mode as xs:string?)
+declare %private function o:xslt-rule-templates($rule-id as xs:string, $rule as map(*))
 as array(*)
 {
     ['template', 
@@ -926,10 +916,7 @@ as array(*)
             if (exists($rule?context)) then
                 map:entry('mode', $rule?mode)
             else
-                if ($mode = 'copy') then
-                    map:entry('mode', $mode)
-                else
-                    ()
+                ()
         )),
         if ($rule?op = 'copy') then (
             ['variable', 
@@ -964,12 +951,16 @@ declare %private function o:xslt-remove-nodes($rule)
 {
     ['apply-templates',
         map:merge((
-            map:entry('select', 'node()|@*'),
+            map:entry('select', 'node()|@*|text()'),
             if ($rule?nextmode) then 
                 map:entry('mode', $rule?nextmode)
             else
                 ()
-        ))
+        )),
+        ['with-param',
+            map { 'name': 'op' },
+            'remove'
+        ]
     ]
 };
 
@@ -981,8 +972,12 @@ declare %private function o:xslt-copy-nodes($rule)
             if ($rule?nextmode) then 
                 map:entry('mode', $rule?nextmode)
             else
-                map:entry('mode', 'copy')
-        ))
+                ()
+        )),
+        ['with-param',
+            map { 'name': 'op' },
+            $rule?op
+        ]
     ]
 };
 
@@ -1025,36 +1020,42 @@ declare %private function o:xslt-origami-attrs()
 declare %private function o:xslt-identity-transform($rule as map(*))
 as array(*)*
 {
-    if ($rule?nextmode) then (
-        ['template',
-            o:xslt-identity-template-attrs('processing-instruction()|comment()', $rule)
+    ['template',
+        o:xslt-identity-template-attrs('processing-instruction()|comment()', $rule)
+    ],
+    ['template',
+        o:xslt-identity-template-attrs('*|@*|text()', $rule),
+        ['param',
+            map { 'name': 'op' }
         ],
-        ['template',
-            o:xslt-identity-template-attrs('text()', $rule),
-            if ($rule?op = 'copy') then
-                ['value-of',
-                    map { 'select': '.' }
+        ['choose',
+            ['when',
+                map { 'test': "$op = 'copy'" },
+                ['copy',
+                    ['apply-templates',
+                        map:merge((
+                            map:entry('select', '*|@*|text()'),
+                            o:xslt-mode-attr($rule)
+                        )),
+                        ['with-param',
+                            map { 'name': 'op', 'select': '$op' }
+                        ]
+                    ]
                 ]
-            else
-                ()
-        ],
-        ['template',
-            o:xslt-identity-template-attrs('*|@*', $rule),
-            let $apply :=
+            ],
+            ['otherwise',
                 ['apply-templates',
                     map:merge((
-                        map:entry('select', '*|@*'),
+                        map:entry('select', '*|@*|text()'),
                         o:xslt-mode-attr($rule)
-                    ))
+                    )),
+                    ['with-param',
+                        map { 'name': 'op', 'select': '$op' }
+                    ]
                 ]
-            return
-                if ($rule?op = 'copy') then
-                    o:wrap($apply, ['copy'])
-                else
-                    $apply
-        ])
-    else
-        ()
+            ]
+        ]
+    ]
 };
 
 declare %private function o:xslt-mode-attr($rule as map(*))
@@ -2064,11 +2065,13 @@ as array(*)
 };
 
 declare function o:add-attr-token($attr as xs:string, $tokens as xs:string*)
+as function(array(*)) as array(*)
 {
     o:add-attr-token(?, $attr, $tokens)    
 };
 
 declare function o:add-attr-token($node as array(*), $attr as xs:string, $tokens as xs:string*)
+as array(*)
 {
     let $attrs := o:attrs($node)
     return
@@ -2080,7 +2083,12 @@ declare function o:add-attr-token($node as array(*), $attr as xs:string, $tokens
                     string-join(
                         distinct-values(
                             tokenize(
-                                string-join(($attrs($attr), $tokens), ' '), '\s+')), ' ')
+                                string-join(($attrs($attr), $tokens), ' '), 
+                                '\s+'
+                            )
+                        ), 
+                        ' '
+                    )
                 )
             )),
             o:children($node)
@@ -2108,11 +2116,13 @@ as array(*)
 };
 
 declare function o:remove-att-token($att as xs:string, $tokens as xs:string*)
+as function(array(*)) as array(*)
 {
     o:remove-att-token(?, $att, $tokens)
 };
 
 declare function o:remove-att-token($node as array(*), $att as xs:string, $tokens as xs:string*)
+as array(*)
 {
     let $attrs := o:attrs($node)
     let $tokens :=

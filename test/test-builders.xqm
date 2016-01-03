@@ -198,6 +198,7 @@ declare %unit:test function test:extract-lists()
         ),
         "Take all lists in order"
     ),
+    
     unit:assert-equals(
         test:xf(
             ['div', (), ['ol']]
