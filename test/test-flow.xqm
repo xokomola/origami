@@ -119,6 +119,15 @@ declare %unit:test function test:seq()
 
 };
 
+declare %unit:test function test:for-each-is-like-flatmap()
+{
+    unit:assert-equals(
+        (['x'], ['x']) 
+        => o:for-each(function($n) { (['y'], ['y']) }),
+        (['y'],['y'],['y'],['y'])
+    )
+};
+
 declare %unit:test function test:filter-on-element()
 {
     unit:assert-equals(
@@ -287,15 +296,6 @@ declare %unit:test function test:choose()
         'Choose with function returning a function that returns a node transformer'
     )
 
-};
-
-declare %unit:test %unit:ignore function test:select()
-{
-    unit:assert-equals(
-        (['p', 1],['ul'],['p', 2])
-        => o:select(['p']),
-        (['p',1],['p',2])
-    )
 };
 
 declare %unit:test function test:tree-seq()

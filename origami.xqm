@@ -1567,47 +1567,31 @@ as function(item()*) as item()*
     o:select(?, $steps)
 };
 
-declare function o:select($nodes as array(*)*, $steps as array(*))
-as function(item()) as item()*
-{
-    o:select-nodes($nodes, $steps, $steps)
-};
-
-declare %private function o:select-nodes($nodes as item()*, $steps as array(*), $all-steps as array(*))
+declare function o:select($nodes as item()*, $steps as array(*))
 as item()*
 {
+    for $node in $nodes
+    where o:is-element($node) and array:size($steps) > 0
     let $step := array:head($steps)
-    let $element-nodes :=
-        for $node in o:children($nodes)
-        where o:is-element($node)
-        return $node
-    let $matched-nodes := 
-        typeswitch ($step)
-        case xs:string return
-            for $element in $element-nodes
-            where o:tag($element) = $step
-            return $element
-        case xs:integer+ return
-            for $istep in $step
-            return
-                for $element in $element-nodes[$istep]
-                return $element
-        default return ()
-    return (
-        if (exists($matched-nodes)) then
-            if (array:size(array:tail($steps)) = 0) then
-                $matched-nodes
+    let $next-steps := array:tail($steps)
+    return
+        if (o:is-match($node, $step)) then
+            if (array:size($next-steps) = 0) then
+                $node
             else
-                for $element in $matched-nodes
-                return
-                    o:select-nodes($element, array:tail($steps), $all-steps)
+                o:select(o:children($node), $next-steps)
         else
-            ()
-        ,
-        for $element in $element-nodes
-        return
-            o:select-nodes(o:children($element), $all-steps, $all-steps)
-    )
+            o:select(o:children($node), $steps)         
+};
+
+declare %private function o:is-match($node as item(), $step)
+as xs:boolean
+{
+    typeswitch ($step)
+    case xs:string+ return
+        o:tag($node) = $step
+    default return
+        false()
 };
 
 declare function o:tree-seq($nodes as item()*)
@@ -1625,29 +1609,27 @@ as item()*
 declare function o:tree-seq($nodes as item()*, $is-branch as function(*), $children as function(*))
 as item()*
 {
-    $nodes ! (
-        if ($is-branch(.)) then
-            (
-                $children(.),
-                o:tree-seq(o:children(.), $is-branch, $children)
-            )
+    for $node in $nodes
+    let $branch := $is-branch($node)
+    return
+        if ($branch) then
+            ($children($node), o:tree-seq(o:children($node), $is-branch, $children))
         else
-            .
-    )
+            $node
 };
 
 (: Return a function for flattening a sequence :)
 declare function o:flatten()
 as function(item()*) as item()*
 {
-    o:postwalk(?, o:children#1)
+    o:flatten(?)
 };
 
 (: Flatten returns a sequence of child nodes. No elements :)
 declare function o:flatten($nodes as item()*)
 as item()*
 {
-    o:flatten()($nodes)
+    o:postwalk($nodes, o:children#1)
 };
 
 (:~
