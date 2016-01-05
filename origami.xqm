@@ -704,7 +704,8 @@ as attribute()*
             if ($k = $o:internal-att) then
                 ()
             else
-                attribute { $k } {
+                (: TODO: should be function on builder :)
+                attribute { o:qname($k, $builder) } {
                     data(
                         typeswitch ($v)
                         case array(*) return
@@ -2394,10 +2395,13 @@ as map(*)
 declare function o:ns-builder($builder as map(*), $namespaces as item()*)
 as map(*)
 {
-    map:merge((
-        $builder,
-        map:entry('ns', o:ns($namespaces))
-    ))
+    let $ns := o:ns($namespaces)
+    return
+        map:merge((
+            $builder,
+            map:entry('ns', $ns),
+            map:entry('qname', o:qname-resolver($ns))
+        ))
 };
 
 declare %private function o:handler-repr($h as item())
