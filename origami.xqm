@@ -1169,6 +1169,11 @@ as item()*
     $node?*[position() > 1 and not(. instance of map(*))]
 };
 
+declare function o:handler($node as array(*)?)
+{
+    o:attrs($node)('@')
+};
+
 declare function o:attributes($node as array(*)?)
 as map(*)?
 {
