@@ -4,6 +4,8 @@ xquery version "3.1";
  : Origami - micro-templating library for XQuery 3.1
  :)
 
+(: TODO: maybe use serialize for o:xml? :)
+
 module namespace o = 'http://xokomola.com/xquery/origami';
 
 declare %private variable $o:version := '0.6';
@@ -1360,10 +1362,19 @@ as item()*
     return $atts
 };
 
+(: TODO: if @ handlers attached manually they may not be 2 arity :)
 declare %private function o:apply-handler($handler as item(), $owner as array(*)?, $data as item()*)
 as item()*
 {
-    $handler($owner, $data)
+    switch (function-arity($handler))
+    case 0 return
+        $handler()
+    case 1 return
+        $handler($owner)
+    case 2 return
+        $handler($owner, $data)
+    default return
+        $handler
 };
 
 (:~
