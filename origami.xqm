@@ -2487,7 +2487,7 @@ as item()*
 (:~
  : Extract some entries from a map into a new map.
  :)
-declare %private function o:select-keys($map as map(*), $keys as xs:anyAtomicType*)
+declare function o:select-keys($map as map(*), $keys as xs:anyAtomicType*)
 as map(*)
 {
     map:merge((
