@@ -707,19 +707,28 @@ as attribute()*
                 ()
             else
                 (: TODO: should be function on builder :)
-                attribute { o:qname($k, $builder) } {
-                    data(
-                        typeswitch ($v)
-                        case array(*) return
-                            $v
-                        case map(*) return
-                            $v
-                        case function(*) return
+                let $value := 
+                    typeswitch ($v)
+                    case array(*) return
+                        string-join($v?*,';')
+                    case map(*) return
+                        if (map:size($v) gt 0) then
+                            string-join(
+                                map:for-each($v,
+                                    function($k,$v) { concat($k,'=',$v) }
+                                ),
+                                ';')
+                        else
                             ()
-                        default return
-                            $v
-                    )
-                }
+                    case function(*) return
+                        ()
+                    default return
+                        data($v)
+                where exists($value)
+                return
+                    attribute { o:qname($k, $builder) } {
+                        $value
+                    }
         }
     )
 };
