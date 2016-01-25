@@ -173,8 +173,45 @@ declare %unit:test function test:xml()
         o:xml([('a', map {'x': 10}, 'foo')]),
         <a x="10">foo</a>,
         "The whole element may be wrapped in a sequence."
-    )
+    ),
 
+    (:~
+     : Complex attribute values.
+     :
+     : TODO: review this.
+     :)
+    unit:assert-equals(
+        o:xml(['a', map { 'x': [10,20,30] }]),
+        <a>
+            <x>102030</x>
+        </a>,
+        "An array attribute value results in an extra child element"
+    ),
+    
+    unit:assert-equals(
+        o:xml(['a', map { 'x': map { 'foo': 'bar', 'y': 10 }}]),
+        <a>
+            <x foo="bar" y="10"/>
+        </a>,
+        "A map attribute value results in an extra child element with attributes."
+    ),
+
+    unit:assert-equals(
+        o:xml(['a', map { 'x': map { 'foo': map { 'y': 10 }}}]),
+        <a>
+            <x>
+                <foo y="10"/>
+            </x>
+        </a>,
+        "A map attribute value can be nested."
+    ),
+
+    unit:assert-equals(
+        o:xml(['a', map { 'x': sum#1 }]),
+        <a x="sum#1"/>,
+        "A function value results uses name and arity as attribute value."
+    )
+    
 };
 
 declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed")

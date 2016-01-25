@@ -686,7 +686,8 @@ as item()*
                     return
                         namespace { $prefix } { $uri }
                 else
-                    (),
+                    ()
+                ,
                 o:to-attributes($atts, $builder),
                 fold-left($content, (),
                     function($n, $i) {
@@ -699,29 +700,21 @@ as item()*
 };
 
 declare %private function o:to-attributes($atts as map(*), $builder as map(*))
-as attribute()*
+as item()*
 {
     map:for-each($atts,
         function($k, $v) {
             if ($k = $o:internal-att) then
                 ()
             else
-                (: TODO: should be function on builder :)
                 let $value := 
                     typeswitch ($v)
-                    case array(*) return
-                        string-join($v?*,';')
                     case map(*) return
-                        if (map:size($v) gt 0) then
-                            string-join(
-                                map:for-each($v,
-                                    function($k,$v) { concat($k,'=',$v) }
-                                ),
-                                ';')
-                        else
-                            ()
-                    case function(*) return
                         ()
+                    case array(*) return
+                        ()
+                    case function(*) return
+                        concat(function-name($v),'#',function-arity($v))
                     default return
                         data($v)
                 where exists($value)
@@ -729,6 +722,27 @@ as attribute()*
                     attribute { o:qname($k, $builder) } {
                         $value
                     }
+        }
+    ),
+    (: expand complex attribute values into elements :)
+    map:for-each($atts,
+        function($k, $v) {
+            if ($k = $o:internal-att) then
+                ()
+            else
+                typeswitch ($v)
+                case array(*) return
+                    o:to-element(
+                        [$k, $v?*],
+                        $builder
+                    )
+                case map(*) return
+                    o:to-element(
+                        [$k, $v], 
+                        $builder
+                    )
+                default return
+                    ()
         }
     )
 };
