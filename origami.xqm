@@ -249,7 +249,9 @@ declare %private variable $o:csv-options :=
  :)
 declare %private function o:csv-normal-form($csv)
 {
-    map:keys($csv) ! array { $csv(.) }
+    for $row in 1 to map:size($csv)
+    return
+        array { $csv($row) }
 };
 
 (:~
