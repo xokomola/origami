@@ -42,7 +42,7 @@ declare %unit:test function test:node-annotation()
                     }
                 ]
             ]
-        ))),
+        ), ())),
         <p><x y="10" z="A"/><div><x y="20" z="B"/></div></p>,
         "Add attributes using a handler (using apply)"
     )
