@@ -1319,7 +1319,7 @@ as xs:boolean
 declare function o:apply($nodes as item()*)
 as item()*
 {
-    o:apply($nodes, [], ?)
+    o:apply($nodes, [], ())
 };
 
 declare function o:apply($nodes as item()*, $data as item()*)

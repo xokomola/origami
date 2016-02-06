@@ -248,8 +248,7 @@ declare %unit:test function test:list-handler()
                             ['li[1]'], ['li', ()]
                         ]
                     )
-                ),
-                ()
+                )
             )
         ),
         <list>
@@ -285,8 +284,7 @@ declare function test:extract-table($rules)
             o:doc(
                 $test:html-table,
                 $rules
-            ),
-            ()
+            )
         )
     )
 };

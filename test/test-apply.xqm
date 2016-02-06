@@ -36,7 +36,7 @@ declare %unit:test function test:attribute-handler-custom()
                     sum($data)
                 }, 2,4]
             }]
-        ), ())),
+        ))),
         <x a="6"/>,
         "Attribute handler with arguments"
     )
@@ -80,7 +80,7 @@ declare %unit:test function test:content-handler-custom()
                         return ['li', concat('item ', $i)] 
                     }, 3 ]
                 ]
-            ), ())
+            ))
         ),
         <ul>
             <li>item 1</li>
@@ -103,7 +103,7 @@ declare %unit:test function test:content-handler-custom()
                         return element li { concat('item ', $i) } 
                     }, 3 ]
                 ]
-            ), ())
+            ))
         ),
         <ul>
             <li>item 1</li>
@@ -221,7 +221,7 @@ declare %unit:test function test:component-1-no-data()
     unit:assert-equals(
         o:apply(o:doc(
             ['foo', function($n) { $n => o:insert('hello') }]
-        ), ()),
+        )),
         ['foo', ['foo', 'hello']],
         "One arity component, only passes in the node"
     )
