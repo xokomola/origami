@@ -1244,20 +1244,20 @@ as xs:integer
     count(o:children($node))
 };
 
-
+(: TODO: need to add more tests and relax item()? to item()* :)
 declare function o:is-text-node($node as item()?)
 as xs:boolean
 {
     not($node instance of function(*))
 };
 
-declare function o:is-element($node as item()?)
+declare function o:is-element($node as item()*)
 as xs:boolean
 {
     o:is-element-or-handler($node) = true()
 };
 
-declare function o:is-handler($node as item()?)
+declare function o:is-handler($node as item()*)
 as xs:boolean
 {
     o:is-element-or-handler($node) != true()
@@ -1267,7 +1267,7 @@ as xs:boolean
  : Returns true if this is an element, false if this is a handler or 
  : nil if it is neither 
  :)
-declare %private function o:is-element-or-handler($node as item()?)
+declare %private function o:is-element-or-handler($node as item()*)
 as xs:boolean?
 {
     typeswitch ($node)
@@ -1328,22 +1328,40 @@ as item()*
     o:apply($nodes, [], $data)
 };
 
-declare function o:apply($nodes as item()*, $current as array(*), $data as item()*)
+declare %private function o:apply($nodes as item()*, $current as array(*), $data as item()*)
 as item()*
 {
-    $nodes ! (
-        typeswitch (.)
-        case array(*) return o:apply-element(., $data)
-        case map(*) return .
-        case function(*) return o:apply-handler(., $current, $data)
-        default return .
-    )
+    for $node in $nodes
+    return
+        typeswitch ($node)
+        case array(*) return o:apply-element($node, $data)
+        case map(*) return $node (: TODO: a zombie attribute map - wellformedness error? :)
+        case function(*) return o:apply-handler($node, $current, $data)
+        default return $node
 };
 
+(: TODO: note that this is what I had earlier for o:apply#1 :)
 declare %private function o:apply-rules($data as item()*)
 as item()*
 {
     o:apply(?, $data)
+};
+
+(: TODO: this is really a copy and apply :)
+declare function o:push($nodes as item()*)
+{
+    o:push($nodes, ())
+};
+
+declare function o:push($nodes as item()*, $data as item()*)
+{
+    if (o:is-element($nodes)) then
+        $nodes 
+        => o:remove-handler()
+        => o:insert(o:apply(o:children($nodes), $data))
+    else
+        o:apply($nodes, $data)
+
 };
 
 declare %private function o:apply-element($element as array(*), $data as item()*)
@@ -1356,13 +1374,13 @@ as item()*
     let $element := array { $tag, $atts, $content }
     return
         if (exists($handler)) then
-            o:apply(o:apply-handler($handler, $element, $data), $data)
+            o:apply-handler($handler, $element, $data)
         else
             o:insert($element, o:apply($content, $element, $data))
 };
 
 declare %private function o:apply-attributes($element as array(*), $data as item()*)
-as item()*
+as map(*)?
 {
     let $atts :=
         map:merge((
@@ -1370,7 +1388,7 @@ as item()*
                 o:attrs($element),
                 function($att-name, $att-value) {
                     if ($att-name = $o:internal-att) then
-                        ()
+                        map:entry($att-name, $att-value)
                     else
                         map:entry(
                             $att-name,
