@@ -237,3 +237,31 @@ declare %unit:test function test:component-1-data-is-ignored()
         "One arity component, only passes in the node, data is always ignored"
     )
 };
+
+(:~
+ : When a new handler is set inside a handler then this handler is
+ : immediately evaluated by o:apply. Such a new handler is probably
+ : meant to be evaluated by a following apply and not immediately.
+ : So o:apply would need to recognize such new handlers and exempt them
+ : from immediately executing.
+ :
+ : But this is quite tricky is the first handler may return a replacement
+ : and we cannot assume that this is the intention. Boils down to why in 
+ : XSLT we have an input tree and an output tree. We want the first o:apply
+ : to have access to the original input document and apply can only modify
+ : the output tree.
+ :
+ : This amounts to running apply on an immutable document and produce the
+ : output as a new document.
+ :)
+declare %unit:test function test:handlers-adding-handlers()
+{
+    unit:assert-equals(
+        o:repr(o:apply(
+            ['x', map { '@': function($n,$d) { 
+                $n => o:set-handler(function($n,$d) { ['y'] })
+            }}]
+        )),
+        ['x', map { '@': 'fn#2' }]
+    )
+};
