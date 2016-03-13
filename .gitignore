@@ -1,1 +1,7 @@
 _tmp/
+build/
+.gradle/
+*~
+repo/
+webapp/
+data/

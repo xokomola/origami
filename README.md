@@ -1,34 +1,46 @@
-# Origami 0.6 (pre-release)
+# Origami 0.6
 
-> This a pre-release before [XML Amsterdam](http://www.xmlamsterdam.com/) where I will be presenting Origami. Soon after I will release 0.6.
-
-For now see the [wiki][wiki] for (somewhat) up to date documentation.
 
 ## Requirements
 
-- BaseX 8.3
+- BaseX 8.3 or higher
 
-Other XML databases after 1.0.
+The provided Gradle build script will download BaseX 8.4.1.
 
 ## Getting started
 
 - Some tutorials can be found on my [blog][blog].
 - The [demo code](https://github.com/xokomola/origami-app)
 - For documentation see the [wiki][wiki].
-- The [test][tests] subdirectory contains the unit tests.
 
-Run the unit tests:
-
-    basex -t test
-
-### Import
+Import the module
 
 ```
-xquery version "3.1";
-
 import module namespace o = 'http://xokomola.com/xquery/origami' 
     at '../origami/origami.xqm'; 
 ```
+
+Alternatively you can install Origami in the BaseX repo using
+
+    gradlew install
+
+which let's you import the module without using it's location.
+
+```
+import module namespace o = 'http://xokomola.com/xquery/origami' 
+```
+
+### GUI
+
+If you want to launch the BaseX GUI
+
+    gradlew gui
+
+## Running the tests
+
+The [test][tests] subdirectory contains the unit tests. To run them use:
+
+    gradlew test
 
 [examples]: https://github.com/xokomola/origami/tree/master/examples
 [tests]: https://github.com/xokomola/origami/tree/master/test

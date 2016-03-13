@@ -203,18 +203,18 @@ declare %unit:test function test:add-class()
     )
 };
 
-declare %unit:test function test:remove-att-token()
+declare %unit:test function test:remove-attr-token()
 {
     unit:assert-equals(
-        ['p', map { 'foo': 'a x' }] => o:remove-att-token('foo', ('a','b','a')),
+        ['p', map { 'foo': 'a x' }] => o:remove-attr-token('foo', ('a','b','a')),
         ['p', map { 'foo': 'x' }]
     ),
     unit:assert-equals(
-        ['p', map { 'foo': 'a x' }] => o:remove-att-token('foo', ('a','x')),
+        ['p', map { 'foo': 'a x' }] => o:remove-attr-token('foo', ('a','x')),
         ['p']
     ),
     unit:assert-equals(
-        ['p'] => o:remove-att-token('foo', ('a','x')),
+        ['p'] => o:remove-attr-token('foo', ('a','x')),
         ['p']
     )
 };

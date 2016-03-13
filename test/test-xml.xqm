@@ -1,120 +1,87 @@
-xquery version "3.1";
+xquery version '3.1';
 
 (:~
- : Tests for μ-templates
+ : Tests for generting XML nodes from Mu-nodes.
  :)
 module namespace test = 'http://xokomola.com/xquery/origami/tests';
 
 import module namespace o = 'http://xokomola.com/xquery/origami'
     at '../origami.xqm'; 
 
-declare namespace h = 'http://www.w3.org/1999/xhtml';
-
 declare %unit:test function test:xml() 
 {
-  (:
-    (:~
-     : A string becomes a text node.
-     :)
     unit:assert-equals(
         o:xml('a'),
-        text { 'a' }
+        text { 'a' },
+        "A string item returns a text node"
     ),
-    
+      
     unit:assert-equals(
         o:xml(('a','b','c')),
-        (text { 'a' }, text { 'b'}, text { 'c' })
-    ),
-    
-    (:~
-     : A one item array creates an empty element without attributes.
-     :)
-    unit:assert-equals(
-        o:xml(['a']),
-        <a/>
+        (text { 'a' }, text { 'b'}, text { 'c' }),
+        "A sequence of string items returns a sequence of text nodes"
     ),
 
-    (:~
-     : A two item array creates an element with child nodes.
-     :)
+    unit:assert-equals(
+        o:xml(['a']),
+        <a/>,
+        "An array with one string item returns an empty element"
+    ),
+
     unit:assert-equals(
         o:xml(['a','hello']),
-        <a>hello</a>
+        <a>hello</a>,
+        "An array with two strings returns an element with text content"
     ),
     
     unit:assert-equals(
         o:xml(['a','hello', 'world']),
-        <a>helloworld</a>
+        element a { text { 'hello' }, text { 'world' } },
+        "An array with three strings returns an element with two text nodes."
     ),
 
-    (:~
-     : A two item array with the second item being a map returns
-     : an empty element with attributes.
-     :)
     unit:assert-equals(
         o:xml(['a',map { 'x': 10, 'b': 'y' }]),
-        <a x="10" b="y"/>
+        <a x="10" b="y"/>,
+        "An array with a string and a map returns an empty element with attributes"
     ),
-    
-    (:~
-     : Or, without attributes if the map is empty.
-     :)
+
     unit:assert-equals(
         o:xml(['a',map { }]),
-        <a/>
+        <a/>,
+        "But with an empty map it will not output attributes"
+        
     ),
     
-    (:~
-     : A three item array returns an element with attributes
-     : and child nodes.
-     :)
     unit:assert-equals(
         o:xml(['a',map { 'x': 10, 'b': 'y' }, 'hello']),
-        <a x="10" b="y">hello</a>
+        <a x="10" b="y">hello</a>,
+        "An array consisting of a string, a map and a string returns an element with attributes and text content"
     ),
 
-    (:~
-     : Or without attributes.
-     :)
     unit:assert-equals(
         o:xml(['a',map { }, 'hello']),
-        <a>hello</a>
+        <a>hello</a>,
+        "An array with a string, an empty map and a string returns an element with text content but no attributes"
+        
     ),
-:)
-    (:~
-     : Or without child nodes.
-     :)
+    
     unit:assert-equals(
         o:xml(['a',map { 'x': 10, 'b': 'y' }, ()]),
-        <a x="10" b="y"/>
+        <a x="10" b="y"/>,
+        "An empty sequence does not create an XML node"
     ),
 
-    (:~
-     : Or an empty element.
-     :)
     unit:assert-equals(
         o:xml(['a', map { }, ()]),
-        <a/>
+        <a/>,
+        "An empty map and an empty sequence return an empty element"
     ),
    
-    (:~
-     : If an item is already an XML node than it is passed
-     : unmodified.
-     :)
     unit:assert-equals(
         o:xml(<a/>),
-        <a/>
-    ),
-
-    (:~
-     : Element items may be nested.
-     :)
-    unit:assert-equals(
-        o:xml(['a', (['b'], ['c'])]),
-        <a>
-            <b/>
-            <c/>
-        </a>
+        <a/>,
+        "An XML node will be passed through unmodified"
     ),
 
     unit:assert-equals(
@@ -123,17 +90,17 @@ declare %unit:test function test:xml()
             <b>
                 <c/>
             </b>
-        </a>
+        </a>,
+        "Nested arrays produce nested elements"
     ),
 
     unit:assert-equals(
-        o:xml(['a', ('b','c')]),
-        <a>bc</a>
-    ),
-
-    unit:assert-equals(
-        o:xml(['a', ('b','c')]),
-        <a>{ text { 'b' }, text { 'c' }}</a>
+        o:xml(['a', (['b'], ['c'])]),
+        <a>
+            <b/>
+            <c/>
+        </a>,
+        "Nested arrays produce nested elements (sequences are flattened)"
     ),
 
     unit:assert-equals(
@@ -141,45 +108,46 @@ declare %unit:test function test:xml()
         <a>bc</a>
     ),
 
-    (:~
-     : Atomic values will be converted into text nodes.
-     :)
+    unit:assert-equals(
+        o:xml(['a', ('b','c')]),
+        <a>{ text { 'b' }, text { 'c' }}</a>,
+        "A sequence of strings will create a sequence of text nodes"
+    ),
+
+    unit:assert-equals(
+        o:xml(['a', ('b','c')]),
+        <a>bc</a>,
+        "A sequence of strings appear as if they are concatenated"
+    ),
+
     unit:assert-equals(
         o:xml(['a', (10,'c')]),
-        <a>10c</a>
+        <a>10c</a>,
+        "Any atomic value will be returned as text node"
     ),
    
-    (:~
-     : Mixed content.
-     :)
     unit:assert-equals(
         o:xml(['a', ('foo', ['b', 'bar', ['c'], 'baz'])]),
-        <a>foo<b>bar<c/>baz</b></a>
+        <a>foo<b>bar<c/>baz</b></a>,
+        "Mixed content"
     ),
   
-    (:~
-     : Sequence as content.
-     :)
     unit:assert-equals(
         o:xml(['a', (map {'x': 10}, 'foo')]),
         <a x="10">foo</a>,
-        "The attributes map may be part of the child content"
+        "The second item of the array may be a sequence and if the head is a map it will be used to create attributes"
     ),
     
-    (:~
-     : Sequence as content.
-     :)
     unit:assert-equals(
         o:xml([('a', map {'x': 10}, 'foo')]),
         <a x="10">foo</a>,
-        "The whole element may be wrapped in a sequence."
-    ),
+        "If the array contains one element sequence it's no different than an array of three individual items"
+    )    
+};
 
-    (:~
-     : Complex attribute values.
-     :
-     : TODO: review this.
-     :)
+(: TODO: review these cases :)
+declare %unit:test function test:complex-attribute-values()
+{
     unit:assert-equals(
         o:xml(['a', map { 'x': [10,20,30] }]),
         <a>
@@ -211,7 +179,40 @@ declare %unit:test function test:xml()
         <a x="sum#1"/>,
         "A function value results uses name and arity as attribute value."
     )
+};
+
+declare %unit:test function test:namespaces()
+{
+    unit:assert-equals(
+        o:xml(['a'], map { '': 'foobar' }),
+        <a xmlns="foobar"/>,
+        "A map as second argument will be used as a namespace map"
+    ),
     
+    unit:assert-equals(
+        o:xml(['b:a'], map { 'b': 'foobar' }),
+        <b:a xmlns:b="foobar"/>,
+        "A map as second argument will be used as a namespace map (2)"
+    ),
+    
+    unit:assert-equals(
+        o:xml(['a', map { 'b:x': 10 }], map { 'b': 'foobar' }),
+        <a xmlns:b="foobar" b:x="10"/>,
+        "Attributes with namespace prefix"
+    ),
+
+    unit:assert-equals(
+        o:xml(['a', map { 'c': 20 }], map { '': 'bla' }),
+        <a xmlns="bla" c="20"/>,
+        "Attributes should not take default prefix"
+    ),
+
+    unit:assert-equals(
+        o:xml(['a', map { 'b:x': 10, 'c': 20 }], map { '': 'bla', 'b': 'foobar' }),
+        <a xmlns="bla" xmlns:b="foobar" b:x="10" c="20"/>,
+        "Attributes with namespace prefix and a default namespace"
+    )
+
 };
 
 declare %unit:test("expected", "Q{http://xokomola.com/xquery/origami}unwellformed")
@@ -251,7 +252,7 @@ declare %unit:test function test:xml-nodes-mixed()
         <a><b/></a>
     ),
     
-    (: bare μ-nodes inside xml-nodes will be atomized. :)
+    (: bare mu-nodes inside xml-nodes will be atomized. :)
     unit:assert-equals(
         o:xml(['a', <b>{ ['c', ['d']] }</b>]),
         <a><b>c d</b></a>
@@ -290,7 +291,15 @@ declare %unit:test function test:parse-xml()
 
     unit:assert-equals(
         o:doc(<x><!-- hello -->world</x>),
-        ['x', 'world'])
+        ['x', 'world'],
+        "Comment nodes will be removed"
+    ),
+
+    unit:assert-equals(
+        o:doc(<x><?foo hello ?>world</x>),
+        ['x', 'world'],
+        "Processing instruction nodes will be removed"
+    )
 };
 
 declare %unit:test function test:cdata()

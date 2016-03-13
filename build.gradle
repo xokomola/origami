@@ -1,0 +1,84 @@
+//apply plugin: 'java'
+
+// TODO: create fat jar with this recipe
+// http://www.mkyong.com/gradle/gradle-create-a-jar-file-with-dependencies/
+
+repositories {
+    // maven { url  'http://dl.bintray.com/xokomola/xquery' }
+    maven { url 'http://files.basex.org/maven' }
+    mavenCentral()
+    mavenLocal()
+}
+
+// distributions will be called basex-origami-0.6.zip
+//applicationName = 'basex-origami'
+//version = '0.6'
+
+configurations {
+    xquery
+}
+
+dependencies {
+    xquery 'org.basex:basex-api:8.4.1'
+    xquery 'org.ccil.cowan.tagsoup:tagsoup:1.2.1'
+}
+
+/*
+apply plugin: 'maven'
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: 'file://localhost/tmp/myRepo/')
+        }
+    }
+}
+*/
+
+task foo << {
+    println 
+}
+task install(type: JavaExec) {
+    classpath configurations.xquery
+    main = 'org.basex.BaseX'
+    args '-c', "REPO INSTALL ${project.property('xquery.module')}"
+    systemProperties System.getProperties()
+}
+
+configure(install) {
+    group = 'build setup'
+    description 'Installs Origami.'
+}
+
+task test (type: JavaExec) {
+    classpath configurations.xquery
+    main = 'org.basex.BaseX'
+    args "-t", file('test')
+    systemProperties System.getProperties()
+}
+
+configure(test) {
+    group = 'verification'
+    description = 'Runs the XQuery tests.'
+}
+
+task check(dependsOn: test) { }
+
+configure(check) {
+    group = 'verification'
+    description = 'Runs all checks.'
+}
+
+task gui << {
+    ant.java(
+        fork: true, 
+        spawn: true, 
+        classpath: configurations.xquery.asPath, 
+        classname: 'org.basex.BaseXGUI',
+        clonevm: true)
+}
+
+configure(gui) {
+    description = 'Runs BaseX GUI.'
+}
+

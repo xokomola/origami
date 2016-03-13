@@ -1,15 +1,25 @@
-xquery version "3.1";
+xquery version '3.1';
 
 (:~
  : Origami - micro-templating library for XQuery 3.1
+ :
+ : @author    xokomola <marc.van.grootel@gmail.com>
+ : @see       https://github.com/xokomola/origami
+ : @version   0.6
  :)
 
 (: TODO: maybe use serialize for o:xml? :)
+(: TODO: read-text is for reading files, parse-text should be there for parsing into lines :)
+(: TODO: more precise signatures, eg. for maps :)
+(: TODO: read-html and o:doc should be able to take a ws handling function! so we can choose to trim more agressively or not :)
 
 module namespace o = 'http://xokomola.com/xquery/origami';
 
-declare %private variable $o:version := '0.6';
+declare variable $o:version := '0.6';
 
+(:~
+ : Default namespace map for XSLT transforms.
+ :)
 declare variable $o:ns :=
     map {
         'origami': 'http://xokomola.com/xquery/origami',
@@ -48,7 +58,7 @@ as document-node()?
  : Also there's a difference with fn:doc in that each call fetches a
  : new document and it is discarded after the query ends.
  :
- : For options see: http://docs.basex.org/wiki/Options#Parsing
+ : For options see: http://docs.basex.org/wiki/Options#Parsing[]
  :)
 declare function o:read-xml($uri as xs:string, $options as map(xs:string, item()))
 as document-node()?
@@ -56,6 +66,9 @@ as document-node()?
     fetch:xml($uri, o:select-keys($options, $o:xml-options))
 };
 
+(:~
+ : List of options for `fetch:xml` (used in `o:read-xml#1`).
+ :)
 declare variable $o:xml-options :=
     ('chop', 'stripns', 'intparse', 'dtd', 'xinclude', 'catfile', 'skipcorrupt');
 
@@ -63,7 +76,7 @@ declare variable $o:xml-options :=
  : Read and parse HTML with the Tagsoup parser (although this could be changed).
  : If Tagsoup is not available it will fallback to parsing well-formed XML.
  :
- : For options see: http://docs.basex.org/wiki/Parsers#TagSoup_Options
+ : For options see: http://docs.basex.org/wiki/Parsers#TagSoup_Options[]
  :)
 declare function  o:read-html($uri as xs:string?)
 as element()
@@ -178,7 +191,7 @@ as item()?
  : - unescape: true() or false() [default true()]
  : - duplicates: reject, use-first, use-last [default use-last]
  :
- : See: http://www.w3.org/TR/xpath-functions-31/#func-parse-json
+ : See: http://www.w3.org/TR/xpath-functions-31/#func-parse-json[]
  :)
 declare function o:parse-json($text as xs:string*)
 as item()?
@@ -370,7 +383,10 @@ as item()*
             case function(*) return
                 o:prepare-handler(.)
             case text() return
-                o:normalize-text-node(.)
+                (: TODO: this will munge newlines :)
+                (: TODO: maybe pass in option fn for ws :)
+                (: o:normalize-text-node(.) :)
+                string(.)
             default return .
         )
 };
@@ -565,7 +581,7 @@ as map(*)
     case node() return
         o:ns-builder($rules)
     default return 
-        o:builder($rules, map { })
+        o:builder($rules, map {})
 };
 
 declare function o:builder($rules as item()*, $options as map(*))
@@ -697,8 +713,16 @@ as item()*
                     }
                 )
             }
+        else if (trace($tag instance of function(*),'TAG: ')) then
+            element { function-name(trace($tag,'FN: ')) } {
+                fold-left($content, (),
+                    function($n, $i) {
+                        ($n, o:to-xml($i, $builder))
+                    }
+                )
+            }
         else
-           error($o:err-unwellformed, 'Tag must be a string', $tag)
+            error($o:err-unwellformed, 'Tag must be a string', $tag)
 };
 
 declare %private function o:to-attributes($atts as map(*), $builder as map(*))
@@ -721,12 +745,22 @@ as item()*
                         data($v)
                 where exists($value)
                 return
-                    attribute { o:qname($k, $builder) } {
+                    (: TODO: attributes were not picking up ns from builder :)
+                    (: attribute { o:qname($k, $builder) } { :)
+                    attribute { 
+                        if (starts-with($k,'xml:')) then
+                            $k
+                        else if (contains($k,':')) then
+                            $builder?qname($k) 
+                        else
+                            $k (: default namespace is not used for attributes :)
+                        } {
                         $value
                     }
         }
     ),
     (: expand complex attribute values into elements :)
+    (: TODO: REVIEW :)
     map:for-each($atts,
         function($k, $v) {
             if ($k = $o:internal-att) then
@@ -903,7 +937,7 @@ as element(*)
         ],
         o:ns((
             $namespaces,
-            ['o', $o:ns?origami], 
+            ['o', $o:origami-ns], 
             ['', 'http://www.w3.org/1999/XSL/Transform']
         ))
     )
@@ -1693,6 +1727,21 @@ as item()*
     o:postwalk($nodes, o:children#1)
 };
 
+(: Collect nodes using a function :)
+
+declare function o:collect($item as array(*), $fn as function(*))
+{
+    o:collect($item, $fn, function($n) { $n })
+};
+
+declare function o:collect($item as array(*), $fn as function(*), $ret as function(*))
+{
+    if ($fn($item)) then
+        ($ret($item), o:children($item) ! o:collect(., $fn))
+    else
+        o:children($item) ! o:collect(., $fn)
+};
+
 (:~
  : Generic walker function (depth-first).
  :)
@@ -2155,33 +2204,13 @@ as array(*)
         }    
 };
 
-(:~
- : Create a node transformer that adds one or more class names to
- : each element in the nodes passed.
- :)
-declare function o:add-class($class-names as xs:string*)
+declare function o:remove-attr-token($att as xs:string, $tokens as xs:string*)
 as function(array(*)) as array(*)
 {
-    o:add-attr-token(?, 'class', $class-names)
+    o:remove-attr-token(?, $att, $tokens)
 };
 
-(:~
- : Add one or more `$names` to the class attribute of `$element`.
- : If it doesn't exist it is added.
- :)
-declare function o:add-class($node as array(*), $class-names as xs:string*)
-as array(*)
-{
-    o:add-attr-token($node, 'class', $class-names)
-};
-
-declare function o:remove-att-token($att as xs:string, $tokens as xs:string*)
-as function(array(*)) as array(*)
-{
-    o:remove-att-token(?, $att, $tokens)
-};
-
-declare function o:remove-att-token($node as array(*), $att as xs:string, $tokens as xs:string*)
+declare function o:remove-attr-token($node as array(*), $att as xs:string, $tokens as xs:string*)
 as array(*)
 {
     let $attrs := o:attrs($node)
@@ -2209,6 +2238,26 @@ as array(*)
 };
 
 (:~
+ : Create a node transformer that adds one or more class names to
+ : each element in the nodes passed.
+ :)
+declare function o:add-class($class-names as xs:string*)
+as function(array(*)) as array(*)
+{
+    o:add-attr-token(?, 'class', $class-names)
+};
+
+(:~
+ : Add one or more `$names` to the class attribute of `$element`.
+ : If it doesn't exist it is added.
+ :)
+declare function o:add-class($node as array(*), $class-names as xs:string*)
+as array(*)
+{
+    o:add-attr-token($node, 'class', $class-names)
+};
+
+(:~
  : Create a node transformer that removes one or more `$names` from the
  : class attribute. If the class attribute is empty after removing names it will
  : be removed from the element.
@@ -2217,7 +2266,7 @@ as array(*)
 declare function o:remove-class($class-names as xs:string*)
 as function(array(*)) as array(*)
 {
-    o:remove-att-token(?, 'class', $class-names)
+    o:remove-attr-token(?, 'class', $class-names)
 };
 
 (:~
@@ -2228,7 +2277,7 @@ as function(array(*)) as array(*)
 declare function o:remove-class($node as array(*), $class-names as xs:string*)
 as array(*)
 {
-    o:remove-att-token($node, 'class', $class-names)
+    o:remove-attr-token($node, 'class', $class-names)
 };
 
 (:~
@@ -2397,14 +2446,13 @@ as function(xs:string) as xs:string
 
 
 (:~
- : Get a namespace map from XML nodes. Note that this assumes somewhat sane[1]
+ : Get a namespace map from XML nodes. Note that this assumes somewhat 
+ : http://lists.xml.org/archives/xml-dev/200204/msg00170.html[sane]
  : namespace usage. The resulting map will contain a prefix/URI entry for each
  : used prefix but it will not re-bind a prefix to a different URI at
  : descendant nodes. Unused prefixes are dropped.
  : The result can be used when serializing back to XML but results may be not
  : what you expect if you pass insane XML fragments.
- :
- : [1] http://lists.xml.org/archives/xml-dev/200204/msg00170.html
  :)
 declare function o:ns($namespaces as item()*)
 as map(*)
